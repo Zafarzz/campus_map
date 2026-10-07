@@ -6,6 +6,7 @@ import { sortedFloors } from '../../domain/campus/campusIndex';
 import type { Building as BuildingData } from '../../domain/campus/types';
 import type { BuildingGeometry, RoomGeometry } from '../../domain/geometry/types';
 import type { RoomScheduleState } from '../../domain/schedule/types';
+import { DetailedBuilding } from './DetailedBuilding';
 import { ExtrudedFootprint } from './ExtrudedFootprint';
 import { Floor } from './Floor';
 import { isClick } from './pointer';
@@ -34,6 +35,10 @@ export function Building(props: Props) {
 }
 
 function BuildingMass({ building, geometry, mode, onSelectBuilding }: Props) {
+  if (['bld-h', 'bld-g', 'bld-e', 'bld-f', 'bld-i', 'bld-j'].includes(building.id)) {
+    return <DetailedBuilding building={building} geometry={geometry} dimmed={mode === 'dimmed'} onSelectBuilding={() => onSelectBuilding(building.id)} />;
+  }
+
   const [hovered, setHovered] = useState(false);
   useCursor(hovered);
   const dimmed = mode === 'dimmed';
