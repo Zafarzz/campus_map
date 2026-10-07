@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import type { Building as BuildingData } from '../../domain/campus/types';
-import type { BuildingGeometry } from '../../domain/geometry/types';
+import type { BuildingGeometry, Footprint } from '../../domain/geometry/types';
 import { EXTRUDE_ROTATION, footprintOutline, useExtrudedGeometry } from './geometryUtils';
 import { isClick } from './pointer';
 
@@ -14,6 +14,26 @@ type Props = {
   dimmed: boolean;
   onSelectBuilding: () => void;
 };
+
+// Helper to reliably get world center and size from footprint
+function getFootprintMetrics(fp: Footprint) {
+  if (fp.type === 'rect') {
+    return { worldX: fp.center[0], worldZ: fp.center[1], width: fp.size[0], depth: fp.size[1] };
+  }
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const [x, z] of fp.points) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
+  return { 
+    worldX: (minX + maxX) / 2, 
+    worldZ: (minZ + maxZ) / 2, 
+    width: maxX - minX, 
+    depth: maxZ - minZ 
+  };
+}
 
 export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding }: Props) {
   const [hovered, setHovered] = useState(false);
@@ -59,19 +79,8 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
         const wallGeo = useExtrudedGeometry(outline, wallHeight);
         const parapetGeo = useExtrudedGeometry(outline, 1.0);
         
-        // Calculate center for roof/portico placement
-        // wallGeo in unrotated coordinates: X=worldX, Y=world-Z, Z=extrusionDepth
-        const bb = new THREE.Box3().setFromObject(new THREE.Mesh(wallGeo));
-        const c = new THREE.Vector3();
-        bb.getCenter(c);
-        const size = new THREE.Vector3();
-        bb.getSize(size);
-        
-        // Correct world coordinates
-        const worldX = c.x;
-        const worldZ = -c.y;
-        const width = size.x;
-        const depth = size.y;
+        // Use true math directly from the source footprint
+        const { worldX, worldZ, width, depth } = getFootprintMetrics(footprint);
 
         return (
           <group key={i}>
@@ -103,7 +112,6 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
             {/* C Block Glass Accents */}
             {style.glassCenter && (
               <mesh position={[worldX, wallHeight/2 + 0.5, worldZ]} castShadow>
-                {/* Scale the glass block according to building width so it fits within the separate C structures */}
                 <boxGeometry args={[Math.min(15, width - 2), wallHeight - 1, depth + 0.4]} />
                 <meshStandardMaterial color="#0ea5e9" transparent={transparent} opacity={opacity} depthWrite={!transparent} metalness={0.8} roughness={0.2} />
               </mesh>
