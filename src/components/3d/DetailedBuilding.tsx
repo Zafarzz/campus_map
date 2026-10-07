@@ -119,7 +119,7 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
   const style = useMemo(() => {
     switch (building.id) {
       case 'bld-h': // A Block
-        return { roofType: 'flat', roofColor: '#f1f5f9', wallColor: '#fdfbf7', hasCornice: true, hasPortico: true };
+        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: true };
       case 'bld-g': // B Block
         return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false };
       case 'bld-e': // C Block parts

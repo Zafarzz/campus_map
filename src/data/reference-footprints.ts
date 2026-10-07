@@ -28,10 +28,12 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
     [160, 640, 265, 775],
     [142, 758, 162, 805],
   ],
-  'bld-g': [[467, 705, 655, 758]],
+  'bld-g': [[467, 705, 680, 750]],
   'bld-h': [
-    [302, 790, 535, 880],
-    [487, 758, 570, 790],
+    // Main horizontal wing
+    [220, 785, 520, 875],
+    // Right vertical wing (extends North towards B block, and South)
+    [480, 745, 570, 960],
   ],
   'bld-i': [[535, 800, 612, 965]],
   'bld-j': [[60, 890, 262, 935],
@@ -61,4 +63,5 @@ export const contextFeaturesPx: ContextFeaturePx[] = [
   // Unidentified structures (no floor info provided).
   { id: 'struct-w', kind: 'structure', rect: [90, 450, 165, 590] },
   { id: 'struct-sm', kind: 'structure', rect: [175, 395, 230, 430] },
+  { id: 'struct-nw', kind: 'structure', rect: [230, 680, 290, 730], label: 'Outbuilding' },
 ];
