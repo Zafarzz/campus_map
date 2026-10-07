@@ -13,6 +13,8 @@ type Props = {
   edgeColor?: string;
   /** Disable raycasting so the mesh never steals clicks. */
   interactive?: boolean;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
@@ -29,6 +31,8 @@ export function ExtrudedFootprint({
   opacity = 1,
   edgeColor,
   interactive = true,
+  castShadow,
+  receiveShadow,
   ...events
 }: Props) {
   const outline = useMemo(() => footprintOutline(footprint), [footprint]);
@@ -41,6 +45,8 @@ export function ExtrudedFootprint({
       rotation={EXTRUDE_ROTATION}
       position={[0, bottom, 0]}
       raycast={interactive ? undefined : noRaycast}
+      castShadow={castShadow}
+      receiveShadow={receiveShadow}
       {...events}
     >
       <meshStandardMaterial color={color} transparent={transparent} opacity={opacity} depthWrite={!transparent} />

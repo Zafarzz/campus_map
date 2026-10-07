@@ -76,12 +76,12 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
         return (
           <group key={i}>
             {/* Main Walls */}
-            <mesh geometry={wallGeo} rotation={EXTRUDE_ROTATION} position={[0, 0, 0]}>
-              <meshStandardMaterial color={hoverTint} transparent={transparent} opacity={opacity} depthWrite={!transparent} />
+            <mesh geometry={wallGeo} rotation={EXTRUDE_ROTATION} position={[0, 0, 0]} castShadow receiveShadow>
+              <meshStandardMaterial color={hoverTint} transparent={transparent} opacity={opacity} depthWrite={!transparent} roughness={0.9} />
             </mesh>
 
             {/* Base Plinth */}
-            <mesh position={[worldX, 0.5, worldZ]}>
+            <mesh position={[worldX, 0.5, worldZ]} castShadow receiveShadow>
               <boxGeometry args={[width + 0.2, 1, depth + 0.2]} />
               <meshStandardMaterial color="#334155" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
             </mesh>
@@ -89,11 +89,11 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
             {/* Dormitory Colored Stripes */}
             {style.hasStripe && (
               <>
-                <mesh position={[worldX, wallHeight * 0.4, worldZ]}>
+                <mesh position={[worldX, wallHeight * 0.4, worldZ]} castShadow>
                   <boxGeometry args={[width + 0.1, 0.5, depth + 0.1]} />
                   <meshStandardMaterial color="#ef4444" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
-                <mesh position={[worldX, wallHeight * 0.7, worldZ]}>
+                <mesh position={[worldX, wallHeight * 0.7, worldZ]} castShadow>
                   <boxGeometry args={[width + 0.1, 0.5, depth + 0.1]} />
                   <meshStandardMaterial color="#ef4444" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
@@ -102,7 +102,7 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
 
             {/* C Block Glass Accents */}
             {style.glassCenter && (
-              <mesh position={[worldX, wallHeight/2 + 0.5, worldZ]}>
+              <mesh position={[worldX, wallHeight/2 + 0.5, worldZ]} castShadow>
                 {/* Scale the glass block according to building width so it fits within the separate C structures */}
                 <boxGeometry args={[Math.min(15, width - 2), wallHeight - 1, depth + 0.4]} />
                 <meshStandardMaterial color="#0ea5e9" transparent={transparent} opacity={opacity} depthWrite={!transparent} metalness={0.8} roughness={0.2} />
@@ -111,29 +111,29 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
 
             {/* Cornice */}
             {style.hasCornice && (
-              <mesh geometry={parapetGeo} rotation={EXTRUDE_ROTATION} position={[0, wallHeight, 0]}>
+              <mesh geometry={parapetGeo} rotation={EXTRUDE_ROTATION} position={[0, wallHeight, 0]} castShadow>
                 <meshStandardMaterial color="#ffffff" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
               </mesh>
             )}
 
             {/* Pitched Roof Box */}
-            <mesh position={[worldX, wallHeight + (style.hasCornice ? 0 : 0.5), worldZ]}>
+            <mesh position={[worldX, wallHeight + (style.hasCornice ? 0 : 0.5), worldZ]} castShadow receiveShadow>
               <boxGeometry args={[width - 1, 1, depth - 1]} />
-              <meshStandardMaterial color={style.roofColor} transparent={transparent} opacity={opacity} depthWrite={!transparent} />
+              <meshStandardMaterial color={style.roofColor} transparent={transparent} opacity={opacity} depthWrite={!transparent} roughness={0.8} />
             </mesh>
 
             {/* Portico for A Block */}
             {style.hasPortico && (
               <group position={[worldX, 0, worldZ + depth/2 + 2]}>
-                <mesh position={[0, 0.5, 0]}>
+                <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
                   <boxGeometry args={[12, 1, 6]} />
                   <meshStandardMaterial color="#0f172a" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
-                <mesh position={[0, 4, 1]}>
+                <mesh position={[0, 4, 1]} castShadow receiveShadow>
                   <boxGeometry args={[14, 1, 6]} />
                   <meshStandardMaterial color="#ffffff" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
-                <mesh position={[0, 2, 0]}>
+                <mesh position={[0, 2, 0]} castShadow receiveShadow>
                   <boxGeometry args={[8, 3, 2]} />
                   <meshStandardMaterial color="#fdfbf7" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
