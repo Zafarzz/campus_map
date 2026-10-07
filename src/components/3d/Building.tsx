@@ -35,38 +35,7 @@ export function Building(props: Props) {
 }
 
 function BuildingMass({ building, geometry, mode, onSelectBuilding }: Props) {
-  if (['bld-h', 'bld-g', 'bld-e', 'bld-f', 'bld-i', 'bld-j'].includes(building.id)) {
-    return <DetailedBuilding building={building} geometry={geometry} dimmed={mode === 'dimmed'} onSelectBuilding={() => onSelectBuilding(building.id)} />;
-  }
-
-  const [hovered, setHovered] = useState(false);
-  useCursor(hovered);
-  const dimmed = mode === 'dimmed';
-
-  const onClick = (e: ThreeEvent<MouseEvent>) => {
-    if (!isClick(e)) return;
-    e.stopPropagation();
-    onSelectBuilding(building.id);
-  };
-
-  return (
-    <group>
-      {geometry.parts.map((part, i) => (
-        <ExtrudedFootprint
-          key={i}
-          footprint={part}
-          bottom={0}
-          height={geometry.height}
-          color={hovered ? mapConfig.colors.buildingSelected : mapConfig.colors.building}
-          opacity={dimmed ? mapConfig.opacity.dimmedBuilding : 1}
-          edgeColor={mapConfig.colors.buildingEdges}
-          onClick={onClick}
-          onPointerOver={(e) => (e.stopPropagation(), setHovered(true))}
-          onPointerOut={() => setHovered(false)}
-        />
-      ))}
-    </group>
-  );
+  return <DetailedBuilding building={building} geometry={geometry} dimmed={mode === 'dimmed'} onSelectBuilding={() => onSelectBuilding(building.id)} />;
 }
 
 function BuildingInterior({

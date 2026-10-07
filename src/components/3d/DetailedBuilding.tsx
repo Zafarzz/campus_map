@@ -118,18 +118,23 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
 
   const style = useMemo(() => {
     switch (building.id) {
-      case 'bld-h': // A Block
-        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: true };
-      case 'bld-g': // B Block
-        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false };
-      case 'bld-e': // C Block parts
-      case 'bld-f':
-      case 'bld-i':
-        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, glassCenter: true };
-      case 'bld-j': // Dormitory
-        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, hasStripe: true };
+      case 'bld-a': // Учебный корпус №1
+        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, hasStripe: false };
+      case 'bld-b': // Хозяйственные постройки
+      case 'bld-d': // Складские помещения
+        return { roofType: 'flat', roofColor: '#94a3b8', wallColor: '#e2e8f0', hasCornice: true, hasPortico: false, hasStripe: false };
+      case 'bld-c': // Учебный корпус №2
+      case 'bld-g': // Top red
+      case 'bld-h': // Middle red
+      case 'bld-i': // Bottom red
+      case 'bld-f': // Small red cluster
+        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, hasStripe: false };
+      case 'bld-e': // Спортивный комплекс
+        return { roofType: 'flat', roofColor: '#334155', wallColor: '#f1f5f9', hasCornice: true, hasPortico: false, glassCenter: true, hasStripe: false };
+      case 'bld-j': // Учебный корпус №3 (Grey U-shape)
+        return { roofType: 'hip', roofColor: '#64748b', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, hasStripe: false };
       default:
-        return { roofType: 'flat', roofColor: '#94a3b8', wallColor: '#e2e8f0', hasCornice: false, hasPortico: false };
+        return { roofType: 'flat', roofColor: '#94a3b8', wallColor: '#e2e8f0', hasCornice: false, hasPortico: false, hasStripe: false };
     }
   }, [building.id]);
 
