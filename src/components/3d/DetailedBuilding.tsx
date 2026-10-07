@@ -26,23 +26,90 @@ function getFootprintMetrics(fp: Footprint) {
     if (z < minZ) minZ = z;
     if (z > maxZ) maxZ = z;
   }
-  return { 
-    worldX: (minX + maxX) / 2, 
-    worldZ: (minZ + maxZ) / 2, 
-    width: maxX - minX, 
-    depth: maxZ - minZ 
-  };
+  return { worldX: (minX + maxX) / 2, worldZ: (minZ + maxZ) / 2, width: maxX - minX, depth: maxZ - minZ };
 }
 
+// Pre-calculate geometry so the base is exactly 1x1.
+const roofGeo = new THREE.ConeGeometry(Math.sqrt(0.5), 1, 4);
+roofGeo.rotateY(Math.PI / 4);
+
 function HipRoof({ width, depth, height, color, opacity, transparent }: any) {
-  const scaleX = width / Math.sqrt(2);
-  const scaleZ = depth / Math.sqrt(2);
   return (
-    <mesh position={[0, height / 2, 0]} rotation={[0, Math.PI / 4, 0]} scale={[scaleX, height, scaleZ]} castShadow receiveShadow>
-      <coneGeometry args={[1, 1, 4]} />
+    <mesh position={[0, height / 2, 0]} scale={[width, height, depth]} castShadow receiveShadow geometry={roofGeo}>
       <meshStandardMaterial color={color} transparent={transparent} opacity={opacity} depthWrite={!transparent} roughness={0.9} />
     </mesh>
   );
+}
+
+// Windows for the four faces of a rectangular building
+function Windows({ width, depth, height, opacity, transparent }: any) {
+  // A simple grid of windows on the sides.
+  // Front and Back faces (width long)
+  const windowW = 1.2;
+  const windowH = 2.0;
+  const marginX = 2;
+  const marginY = 3;
+  
+  const numWindowsX = Math.max(0, Math.floor((width - marginX) / (windowW + 2)));
+  const numWindowsZ = Math.max(0, Math.floor((depth - marginX) / (windowW + 2)));
+  const numFloors = Math.max(1, Math.floor((height - marginY) / (windowH + 1.5)));
+
+  const material = new THREE.MeshStandardMaterial({ 
+    color: '#1e293b', metalness: 0.8, roughness: 0.2, 
+    transparent, opacity, depthWrite: !transparent 
+  });
+  
+  const geo = new THREE.BoxGeometry(windowW, windowH, 0.2);
+  
+  const count = (numWindowsX * 2 + numWindowsZ * 2) * numFloors;
+  if (count <= 0) return null;
+
+  const mesh = new THREE.InstancedMesh(geo, material, count);
+  const dummy = new THREE.Object3D();
+  let idx = 0;
+
+  const startY = 2;
+  const spacingY = windowH + 1.5;
+
+  for (let f = 0; f < numFloors; f++) {
+    const y = startY + f * spacingY;
+    
+    // Front/Back
+    const startX = -(numWindowsX * (windowW + 2)) / 2 + (windowW + 2) / 2;
+    for (let x = 0; x < numWindowsX; x++) {
+      const px = startX + x * (windowW + 2);
+      // Front
+      dummy.position.set(px, y, depth / 2 + 0.05);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx++, dummy.matrix);
+      // Back
+      dummy.position.set(px, y, -depth / 2 - 0.05);
+      dummy.rotation.set(0, Math.PI, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx++, dummy.matrix);
+    }
+    
+    // Left/Right
+    const startZ = -(numWindowsZ * (windowW + 2)) / 2 + (windowW + 2) / 2;
+    for (let z = 0; z < numWindowsZ; z++) {
+      const pz = startZ + z * (windowW + 2);
+      // Left
+      dummy.position.set(-width / 2 - 0.05, y, pz);
+      dummy.rotation.set(0, -Math.PI / 2, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx++, dummy.matrix);
+      // Right
+      dummy.position.set(width / 2 + 0.05, y, pz);
+      dummy.rotation.set(0, Math.PI / 2, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx++, dummy.matrix);
+    }
+  }
+  
+  mesh.instanceMatrix.needsUpdate = true;
+  
+  return <primitive object={mesh} />;
 }
 
 export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding }: Props) {
@@ -51,16 +118,16 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
 
   const style = useMemo(() => {
     switch (building.id) {
-      case 'bld-h': // A Block (Pin 4) - Flat roof with cornice, portico
-        return { roofType: 'flat', roofColor: '#f1f5f9', wallColor: '#fef6e4', hasCornice: true, hasPortico: true };
-      case 'bld-g': // B Block (Pin 2) - Triangular roof
-        return { roofType: 'hip', roofColor: '#a51c1c', wallColor: '#fef6e4', hasCornice: false, hasPortico: false };
-      case 'bld-e': // C Block parts (Pin 3) - Triangular roof, blue glass
+      case 'bld-h': // A Block
+        return { roofType: 'flat', roofColor: '#f1f5f9', wallColor: '#fdfbf7', hasCornice: true, hasPortico: true };
+      case 'bld-g': // B Block
+        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false };
+      case 'bld-e': // C Block parts
       case 'bld-f':
       case 'bld-i':
-        return { roofType: 'hip', roofColor: '#a51c1c', wallColor: '#fef6e4', hasCornice: false, hasPortico: false, glassCenter: true };
-      case 'bld-j': // Dormitory (Pin 5) - Triangular roof, red stripes
-        return { roofType: 'hip', roofColor: '#a51c1c', wallColor: '#fef6e4', hasCornice: false, hasPortico: false, hasStripe: true };
+        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, glassCenter: true };
+      case 'bld-j': // Dormitory
+        return { roofType: 'hip', roofColor: '#b91c1c', wallColor: '#fdfbf7', hasCornice: false, hasPortico: false, hasStripe: true };
       default:
         return { roofType: 'flat', roofColor: '#94a3b8', wallColor: '#e2e8f0', hasCornice: false, hasPortico: false };
     }
@@ -103,18 +170,23 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
               <meshStandardMaterial color="#334155" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
             </mesh>
 
+            {/* Windows */}
+            <group position={[worldX, 0, worldZ]}>
+              <Windows width={width} depth={depth} height={wallHeight} opacity={opacity} transparent={transparent} />
+            </group>
+
             {/* Dormitory Colored Stripes */}
             {style.hasStripe && (
-              <>
-                <mesh position={[worldX, wallHeight * 0.4, worldZ]} castShadow>
-                  <boxGeometry args={[width + 0.1, 0.5, depth + 0.1]} />
+              <group position={[worldX, 0, worldZ]}>
+                <mesh position={[0, wallHeight * 0.4, 0]} castShadow>
+                  <boxGeometry args={[width + 0.3, 0.5, depth + 0.3]} />
                   <meshStandardMaterial color="#a51c1c" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
-                <mesh position={[worldX, wallHeight * 0.7, worldZ]} castShadow>
-                  <boxGeometry args={[width + 0.1, 0.5, depth + 0.1]} />
+                <mesh position={[0, wallHeight * 0.7, 0]} castShadow>
+                  <boxGeometry args={[width + 0.3, 0.5, depth + 0.3]} />
                   <meshStandardMaterial color="#a51c1c" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
-              </>
+              </group>
             )}
 
             {/* C Block Glass Accents */}
@@ -136,7 +208,6 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
             {style.roofType === 'hip' ? (
               <group position={[worldX, wallHeight, worldZ]}>
                 <HipRoof width={width + 1.5} depth={depth + 1.5} height={4} color={style.roofColor} opacity={opacity} transparent={transparent} />
-                {/* Roof Base/Overhang */}
                 <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
                   <boxGeometry args={[width + 1.5, 0.4, depth + 1.5]} />
                   <meshStandardMaterial color="#ffffff" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
@@ -164,7 +235,6 @@ export function DetailedBuilding({ building, geometry, dimmed, onSelectBuilding 
                   <boxGeometry args={[10, 3, 2]} />
                   <meshStandardMaterial color="#fdfbf7" transparent={transparent} opacity={opacity} depthWrite={!transparent} />
                 </mesh>
-                {/* Columns */}
                 <mesh position={[-6, 2, 3]} castShadow>
                   <boxGeometry args={[1, 4, 1]} />
                   <meshStandardMaterial color="#f8fafc" />
