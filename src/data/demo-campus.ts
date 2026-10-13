@@ -19,16 +19,50 @@ const specialRooms: Record<string, { id: string; number: string; name: string; k
   'bld-i': [{ id: 'room-canteen', number: 'Canteen', name: 'Canteen', kind: 'other' }],
 };
 
+import { confirmedFloorPlans } from './floor-plans';
+
 function buildRoomsForFloor(structure: BuildingStructure, level: number): Room[] {
-  // If we have explicitly known special rooms for this building, place them on the first floor.
-  if (level === 1 && specialRooms[structure.id]) {
-    return specialRooms[structure.id].map(r => ({ ...r, provenance: 'confirmed' }));
+  // 1. Check if we have an official floor plan from the CAD drawings
+  const confirmedPlan = confirmedFloorPlans.find(
+    (p) => p.buildingId === structure.id && p.level === level
+  );
+  if (confirmedPlan) {
+    return confirmedPlan.rooms.map((r) => ({
+      id: r.id,
+      number: r.number,
+      name: r.name,
+      kind: r.kind,
+      capacity: r.capacity ?? 30,
+      provenance: 'confirmed',
+    }));
   }
 
-  // Find known rooms from the schedule for this block and floor level.
-  // E.g., for Block A, level 1 -> A-102, A-104
+  // 2. If we have explicitly known special rooms for this building, place them on the first floor.
+  if (level === 1 && specialRooms[structure.id]) {
+    return specialRooms[structure.id].map((r) => ({ ...r, provenance: 'confirmed' }));
+  }
+
+  // 3. For upper levels of buildings with confirmed 2F plans (levels 3 and 4), replicate the 2F room layout
+  const level2Plan = confirmedFloorPlans.find(
+    (p) => p.buildingId === structure.id && p.level === 2
+  );
+  if (level2Plan && level > 2) {
+    return level2Plan.rooms.map((r, i) => {
+      const roomNum = r.number.replace(/^[A-Z]-2/, `${structure.shortName}-${level}`);
+      return {
+        id: `${structure.id}-f${level}-r${i + 1}`,
+        number: roomNum,
+        name: r.name,
+        kind: r.kind,
+        capacity: r.capacity ?? 30,
+        provenance: 'confirmed',
+      };
+    });
+  }
+
+  // 4. Find known rooms from the schedule for this block and floor level.
   const blockRooms = knownRooms[structure.shortName] || [];
-  const floorRooms = blockRooms.filter(r => r.includes(`-${level}0`) || r.includes(`-${level}1`));
+  const floorRooms = blockRooms.filter((r) => r.includes(`-${level}0`) || r.includes(`-${level}1`));
 
   if (floorRooms.length > 0) {
     return floorRooms.map((roomName, i) => ({
@@ -40,8 +74,7 @@ function buildRoomsForFloor(structure: BuildingStructure, level: number): Room[]
     }));
   }
 
-  // If no known rooms, generate a few placeholders so the map isn't entirely empty.
-  // We keep it sparse (e.g. 2 rooms) to respect "Do not invent exact floor plans".
+  // 5. If no known rooms, generate sparse placeholders (e.g. unconfirmed buildings bld-a, bld-j).
   return Array.from({ length: 2 }, (_, i) => ({
     id: `${structure.id}-f${level}-r${i + 1}`,
     number: `${structure.shortName}${level}${String(i + 1).padStart(2, '0')}`,

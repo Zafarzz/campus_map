@@ -1,11 +1,12 @@
 import { mapConfig } from '../../config/mapConfig';
+import { accurateRoomOverrides } from '../../data/floor-plans';
 import { buildingFootprintsPx, contextFeaturesPx } from '../../data/reference-footprints';
 import type { CampusGeometryProvider } from '../../domain/geometry/types';
 import { createScreenshotGeometryProvider } from './screenshotGeometryProvider';
 
 /**
  * The ONE place that decides where geometry comes from.
- * Swap this for a floor-plan / GLTF provider when accurate data is available.
+ * Uses exact CAD-derived room geometry overrides for confirmed buildings and procedural fallback.
  */
 export const geometryProvider: CampusGeometryProvider = createScreenshotGeometryProvider({
   buildingFootprintsPx,
@@ -15,4 +16,5 @@ export const geometryProvider: CampusGeometryProvider = createScreenshotGeometry
   floorHeight: mapConfig.building.floorHeight,
   unknownStructureHeight: mapConfig.building.unknownStructureHeight,
   roomLayout: { ...mapConfig.roomLayout, slabThickness: mapConfig.building.slabThickness },
+  roomOverrides: accurateRoomOverrides,
 });
