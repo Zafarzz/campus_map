@@ -1,42 +1,55 @@
-/**
- * APPROXIMATE footprints traced by eye from the Google Earth screenshot
- * (`public/reference/campus.jpg`, 703×1024 px).
- *
- * Coordinates are image pixels: [left, top, right, bottom]. Image top = north.
- * Converted to meters by the screenshot geometry provider.
- *
- * TODO: Replace with surveyed footprints / floor plans when available.
- */
-
 export type PxRect = [left: number, top: number, right: number, bottom: number];
 
-/** One or more rectangles per building (L-shapes = several rects). */
 export const buildingFootprintsPx: Record<string, PxRect[]> = {
-  'bld-a': [[207, 28, 410, 125]],
-  'bld-b': [[468, 88, 655, 150]],
+  // Top-Middle U-shape (Учебный корпус №1)
+  'bld-a': [
+    [250, 50, 480, 110],  // Bottom horizontal
+    [250, 110, 300, 180], // Left vertical
+    [430, 110, 480, 180], // Right vertical
+  ],
+  // Top-Right Utility (Хозяйственные постройки)
+  'bld-b': [
+    [520, 120, 720, 180]
+  ],
+  // Middle horizontal + vertical (Учебный корпус №2)
   'bld-c': [
-    [307, 142, 540, 190],
-    [307, 190, 500, 270],
-    [500, 190, 540, 252],
+    [300, 230, 560, 290]  // Horizontal
   ],
-  'bld-d': [[540, 183, 610, 352]],
+  'bld-d': [
+    [560, 200, 620, 290], // Vertical connector
+    [620, 250, 680, 420]  // Vertical warehouse
+  ],
+  // Center-Left Sports Complex (Спортивный комплекс)
   'bld-e': [
-    [182, 482, 368, 610],
-    [230, 610, 368, 655],
+    [210, 480, 440, 650], // Main hall
+    [330, 650, 440, 690]  // Admin block attached
   ],
+  // Below Sports Complex (Red buildings)
   'bld-f': [
-    [160, 640, 265, 775],
-    [142, 758, 162, 805],
+    [220, 680, 280, 790], // Vertical
+    [280, 700, 320, 730], // Horizontal connection
+    [320, 690, 360, 750]  // Right vertical
   ],
-  'bld-g': [[467, 705, 655, 758]],
+  // Bottom-Right cluster (Учебные и жилые корпуса)
+  // Top horizontal block
+  'bld-g': [
+    [500, 720, 700, 770]
+  ],
+  // Middle horizontal block (main)
   'bld-h': [
-    [302, 790, 535, 880],
-    [487, 758, 570, 790],
+    [330, 810, 550, 870], // Left wing
+    [550, 790, 630, 890]  // Intersection
   ],
-  'bld-i': [[535, 800, 612, 965]],
-  'bld-j': [[60, 890, 262, 935],
-    [60, 828, 105, 890],
-    [217, 828, 262, 890]],
+  // Bottom vertical block
+  'bld-i': [
+    [550, 890, 630, 1000] 
+  ],
+  // Bottom-Left U-shape (Учебный корпус №3)
+  'bld-j': [
+    [80, 900, 300, 960],  // Bottom horizontal
+    [80, 850, 130, 900],  // Left vertical
+    [250, 850, 300, 900]  // Right vertical
+  ]
 };
 
 export type ContextFeaturePx = {
@@ -47,18 +60,21 @@ export type ContextFeaturePx = {
   label?: string;
 };
 
-/** Surroundings. Structures here were NOT marked as university buildings by the user. */
 export const contextFeaturesPx: ContextFeaturePx[] = [
-  { id: 'track', kind: 'track', rect: [15, 62, 172, 402], rounded: true, label: 'Running track' },
-  { id: 'pitch', kind: 'pitch', rect: [386, 490, 460, 625], label: 'Football pitch' },
-  { id: 'court', kind: 'court', rect: [472, 490, 592, 625], label: 'Courts' },
-  { id: 'lawn-n', kind: 'lawn', rect: [285, 282, 482, 380] },
-  { id: 'lawn-m', kind: 'lawn', rect: [278, 402, 610, 452] },
-  { id: 'lawn-s', kind: 'lawn', rect: [278, 885, 480, 975] },
-  { id: 'road-east', kind: 'road', rect: [615, 0, 672, 1024] },
-  { id: 'walk-ns', kind: 'road', rect: [268, 130, 290, 1000] },
-  { id: 'walk-ew', kind: 'road', rect: [268, 455, 615, 475] },
-  // Unidentified structures (no floor info provided).
-  { id: 'struct-w', kind: 'structure', rect: [90, 450, 165, 590] },
-  { id: 'struct-sm', kind: 'structure', rect: [175, 395, 230, 430] },
+  { id: 'track', kind: 'track', rect: [30, 60, 200, 430], rounded: true, label: 'Беговая дорожка' },
+  { id: 'pitch', kind: 'pitch', rect: [460, 480, 560, 650], label: 'Футбольное поле' },
+  { id: 'court', kind: 'court', rect: [580, 480, 710, 650], label: 'Спортивная площадка' },
+  // Lawns / Gardens
+  { id: 'lawn-sq', kind: 'lawn', rect: [300, 300, 550, 410] }, // Сквер
+  { id: 'lawn-g1', kind: 'lawn', rect: [370, 420, 710, 460] }, // Газоны
+  { id: 'lawn-orchard1', kind: 'lawn', rect: [370, 700, 480, 800] }, // Trees between red buildings
+  { id: 'lawn-orchard2', kind: 'lawn', rect: [310, 890, 530, 1000] }, // Сад (bottom)
+  { id: 'lawn-n', kind: 'lawn', rect: [50, 40, 240, 200] },
+  // Roads
+  { id: 'road-east', kind: 'road', rect: [720, 0, 750, 1050] },
+  // Entrance structures (КПП)
+  { id: 'kpp-n', kind: 'structure', rect: [400, 20, 450, 40] },
+  { id: 'kpp-w', kind: 'structure', rect: [210, 410, 270, 460] },
+  { id: 'kpp-sw', kind: 'structure', rect: [180, 790, 220, 830] },
+  { id: 'kpp-e', kind: 'structure', rect: [700, 680, 740, 710] }
 ];

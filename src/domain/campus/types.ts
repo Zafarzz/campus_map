@@ -37,6 +37,8 @@ export type Building = {
   description?: string;
   floors: Floor[];
   provenance: DataProvenance;
+  appearancePreset?: string;
+  appearance?: any; // Partial<BuildingAppearance>
 };
 
 export type Campus = {

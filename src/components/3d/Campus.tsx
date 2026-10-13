@@ -1,10 +1,11 @@
+import type { TuningMaterialOverrides } from '../../domain/appearance';
 import { useMemo } from 'react';
 import { useMap } from '../../state/MapProvider';
 import { Building, type BuildingMode } from './Building';
 import { BuildingLabel } from './BuildingLabel';
 
 /** All buildings + their labels. Pulls state from the map context and passes plain props down. */
-export function Campus() {
+export function Campus({ tuning }: { tuning?: TuningMaterialOverrides }) {
   const { campus, geometry, roomStates, selection, selectBuilding, selectRoom } = useMap();
 
   const liveCountByBuilding = useMemo(() => {
@@ -34,6 +35,7 @@ export function Campus() {
               selectedRoomId={isSelected ? selection.roomId : undefined}
               roomGeometries={geometry.rooms}
               roomStates={roomStates}
+              tuning={tuning}
               onSelectBuilding={selectBuilding}
               onSelectRoom={selectRoom}
             />
