@@ -6,6 +6,7 @@ import { sortedFloors } from '../../domain/campus/campusIndex';
 import type { Building as BuildingData } from '../../domain/campus/types';
 import type { BuildingGeometry, RoomGeometry } from '../../domain/geometry/types';
 import type { RoomScheduleState } from '../../domain/schedule/types';
+import type { TuningMaterialOverrides } from '../../domain/appearance';
 import { DetailedBuilding } from './DetailedBuilding';
 import { ExtrudedFootprint } from './ExtrudedFootprint';
 import { Floor } from './Floor';
@@ -21,6 +22,7 @@ type Props = {
   selectedRoomId?: string;
   roomGeometries: Record<string, RoomGeometry>;
   roomStates: Map<string, RoomScheduleState>;
+  tuning?: TuningMaterialOverrides;
   onSelectBuilding: (buildingId: string) => void;
   onSelectRoom: (roomId: string) => void;
 };
@@ -34,8 +36,16 @@ export function Building(props: Props) {
   return props.mode === 'interior' ? <BuildingInterior {...props} /> : <BuildingMass {...props} />;
 }
 
-function BuildingMass({ building, geometry, mode, onSelectBuilding }: Props) {
-  return <DetailedBuilding building={building} geometry={geometry} dimmed={mode === 'dimmed'} onSelectBuilding={() => onSelectBuilding(building.id)} />;
+function BuildingMass({ building, geometry, mode, tuning, onSelectBuilding }: Props) {
+  return (
+    <DetailedBuilding
+      building={building}
+      geometry={geometry}
+      dimmed={mode === 'dimmed'}
+      tuning={tuning}
+      onSelectBuilding={() => onSelectBuilding(building.id)}
+    />
+  );
 }
 
 function BuildingInterior({
