@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import type { CampusGeometry, ContextFeatureKind } from '../../domain/geometry/types';
 import { ExtrudedFootprint } from './ExtrudedFootprint';
+import { getFenceTexture } from './facades/facadeTextures';
+import { MainEntranceGate, MAIN_ENTRANCE_WIDTH } from './MainEntranceGate';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.03,
@@ -22,11 +24,82 @@ const contextColors: Record<ContextFeatureKind, string> = {
   structure: '#94a3b8',
 };
 
+function FenceSegment({
+  length,
+  axis,
+  position,
+  plinthHeight,
+  metalHeight,
+  plinthMaterial,
+  fenceTexture,
+}: {
+  length: number;
+  axis: 'x' | 'z';
+  position: [number, number, number];
+  plinthHeight: number;
+  metalHeight: number;
+  plinthMaterial: THREE.Material;
+  fenceTexture: THREE.CanvasTexture | null;
+}) {
+  const repeatCount = Math.max(1, length / 3.0);
+
+  const metalMat = useMemo(() => {
+    if (!fenceTexture) {
+      return new THREE.MeshStandardMaterial({
+        color: '#475569',
+        roughness: 0.6,
+      });
+    }
+    const cloned = fenceTexture.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.ClampToEdgeWrapping;
+    cloned.repeat.set(repeatCount, 1);
+    cloned.needsUpdate = true;
+    return new THREE.MeshStandardMaterial({
+      map: cloned,
+      transparent: true,
+      alphaTest: 0.35,
+      roughness: 0.5,
+      metalness: 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+    });
+  }, [fenceTexture, repeatCount]);
+
+  const plinthW = axis === 'x' ? length : 0.35;
+  const plinthD = axis === 'z' ? length : 0.35;
+  const metalW = axis === 'x' ? length : 0.05;
+  const metalD = axis === 'z' ? length : 0.05;
+
+  return (
+    <group position={position}>
+      {/* Concrete plinth base (0.35m height) */}
+      <mesh position={[0, plinthHeight / 2, 0]} material={plinthMaterial} receiveShadow castShadow>
+        <boxGeometry args={[plinthW, plinthHeight, plinthD]} />
+      </mesh>
+      {/* See-through Metal Grille with Pickets, Diamonds & Spear tips */}
+      <mesh position={[0, plinthHeight + metalHeight / 2, 0]} material={metalMat} castShadow>
+        <boxGeometry args={[metalW, metalHeight, metalD]} />
+      </mesh>
+    </group>
+  );
+}
+
 function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
   const { min, max } = geometry.bounds;
 
-  // Gate positioning on the East side, safely centered between available buildings or mid-bound
+  // Gate positioning on the East side (aligning with kpp-e checkpoint)
   const gateZ = useMemo(() => {
+    const kppFeature = geometry.context.find((f) => f.id === 'kpp-e');
+    if (kppFeature) {
+      if (kppFeature.footprint.type === 'rect') {
+        return kppFeature.footprint.center[1];
+      }
+      if (kppFeature.footprint.type === 'polygon' && kppFeature.footprint.points.length > 0) {
+        const sumZ = kppFeature.footprint.points.reduce((acc, p) => acc + p[1], 0);
+        return sumZ / kppFeature.footprint.points.length;
+      }
+    }
     const bldB = geometry.buildings['bld-g'];
     const bldF = geometry.buildings['bld-d'];
     if (bldB && bldF) {
@@ -35,10 +108,19 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
     return (min[1] + max[1]) / 2;
   }, [geometry, min, max]);
 
-  const gateWidth = 16;
-  const fenceHeight = 1.6;
-  const fenceThickness = 0.4;
-  const fenceColor = '#475569';
+  const gateWidth = MAIN_ENTRANCE_WIDTH;
+  const plinthHeight = 0.35; // З-2: Бетонный цоколь ограждения 350 мм
+  const metalHeight = 1.85; // З-1: Металлическая решётка + фриз 1850 мм
+
+  const fenceTexture = useMemo(() => getFenceTexture(), []);
+  const plinthMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#8C8982',
+        roughness: 0.9,
+      }),
+    [],
+  );
 
   // Perimeter bounds
   const left = min[0] - 22;
@@ -48,64 +130,66 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
 
   return (
     <group>
-      {/* North fence */}
-      <mesh position={[(left + right) / 2, fenceHeight / 2, top]} castShadow receiveShadow>
-        <boxGeometry args={[right - left, fenceHeight, fenceThickness]} />
-        <meshStandardMaterial color={fenceColor} roughness={0.8} />
-      </mesh>
+      {/* North fence: length = right - left */}
+      <FenceSegment
+        axis="x"
+        length={right - left}
+        position={[(left + right) / 2, 0, top]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
 
-      {/* South fence */}
-      <mesh position={[(left + right) / 2, fenceHeight / 2, bottom]} castShadow receiveShadow>
-        <boxGeometry args={[right - left, fenceHeight, fenceThickness]} />
-        <meshStandardMaterial color={fenceColor} roughness={0.8} />
-      </mesh>
+      {/* South fence: length = right - left */}
+      <FenceSegment
+        axis="x"
+        length={right - left}
+        position={[(left + right) / 2, 0, bottom]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
 
-      {/* West fence */}
-      <mesh position={[left, fenceHeight / 2, (top + bottom) / 2]} castShadow receiveShadow>
-        <boxGeometry args={[fenceThickness, fenceHeight, bottom - top]} />
-        <meshStandardMaterial color={fenceColor} roughness={0.8} />
-      </mesh>
+      {/* West fence: length = bottom - top */}
+      <FenceSegment
+        axis="z"
+        length={bottom - top}
+        position={[left, 0, (top + bottom) / 2]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
 
       {/* East fence (top segment before gate) */}
-      <mesh position={[right, fenceHeight / 2, (top + gateZ - gateWidth / 2) / 2]} castShadow receiveShadow>
-        <boxGeometry args={[fenceThickness, fenceHeight, Math.max(1, gateZ - gateWidth / 2 - top)]} />
-        <meshStandardMaterial color={fenceColor} roughness={0.8} />
-      </mesh>
+      <FenceSegment
+        axis="z"
+        length={Math.max(1, gateZ - gateWidth / 2 - top)}
+        position={[right, 0, (top + gateZ - gateWidth / 2) / 2]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
 
       {/* East fence (bottom segment after gate) */}
-      <mesh position={[right, fenceHeight / 2, (bottom + gateZ + gateWidth / 2) / 2]} castShadow receiveShadow>
-        <boxGeometry args={[fenceThickness, fenceHeight, Math.max(1, bottom - (gateZ + gateWidth / 2))]} />
-        <meshStandardMaterial color={fenceColor} roughness={0.8} />
-      </mesh>
+      <FenceSegment
+        axis="z"
+        length={Math.max(1, bottom - (gateZ + gateWidth / 2))}
+        position={[right, 0, (bottom + gateZ + gateWidth / 2) / 2]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
 
-      {/* Main Campus Entrance Gate */}
-      <group position={[right, 0, gateZ]}>
-        {/* Gate Pillars (stone/concrete) */}
-        <mesh position={[0, 2.2, -gateWidth / 2]} castShadow receiveShadow>
-          <boxGeometry args={[2.2, 4.4, 2.2]} />
-          <meshStandardMaterial color="#cbd5e1" roughness={0.7} />
-        </mesh>
-        <mesh position={[0, 2.2, gateWidth / 2]} castShadow receiveShadow>
-          <boxGeometry args={[2.2, 4.4, 2.2]} />
-          <meshStandardMaterial color="#cbd5e1" roughness={0.7} />
-        </mesh>
-
-        {/* Gate Beam Overhead */}
-        <mesh position={[0, 4.4, 0]} castShadow receiveShadow>
-          <boxGeometry args={[3.2, 0.6, gateWidth + 2.5]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.6} />
-        </mesh>
-
-        {/* Sloped Canopy */}
-        <mesh position={[0, 4.9, 0]} castShadow receiveShadow rotation={[0, 0, Math.PI / 10]}>
-          <boxGeometry args={[3.4, 0.25, gateWidth + 2.8]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.6} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 4.9, 0]} castShadow receiveShadow rotation={[0, 0, -Math.PI / 10]}>
-          <boxGeometry args={[3.4, 0.25, gateWidth + 2.8]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.6} roughness={0.3} />
-        </mesh>
-      </group>
+      {/* Main Campus Entrance & Checkpoint Ensemble (КПП AUT, Стела, Павильон, Баннер) */}
+      <MainEntranceGate
+        position={[right, 0, gateZ]}
+        rotation={[0, Math.PI / 2, 0]}
+      />
     </group>
   );
 }
@@ -162,8 +246,9 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       <PerimeterFenceAndGate geometry={geometry} />
 
       {/* Context landscape layers (roads, lawns, sports tracks, pitches) */}
-      {geometry.context.map((f) =>
-        f.kind === 'structure' ? (
+      {geometry.context.map((f) => {
+        if (f.id === 'kpp-e') return null;
+        return f.kind === 'structure' ? (
           <ExtrudedFootprint
             key={f.id}
             footprint={f.footprint}
@@ -185,8 +270,8 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
             interactive={false}
             receiveShadow
           />
-        ),
-      )}
+        );
+      })}
     </group>
   );
 }

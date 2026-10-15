@@ -95,5 +95,5 @@ export const contextFeaturesPx: ContextFeaturePx[] = [
   { id: 'kpp-n', kind: 'structure', rect: [400, 20, 450, 40] },
   { id: 'kpp-w', kind: 'structure', rect: [210, 410, 270, 460] },
   { id: 'kpp-sw', kind: 'structure', rect: [180, 790, 220, 830] },
-  { id: 'kpp-e', kind: 'structure', rect: [700, 680, 740, 710] }
+  { id: 'kpp-e', kind: 'structure', rect: [700, 534, 740, 596] }
 ];
