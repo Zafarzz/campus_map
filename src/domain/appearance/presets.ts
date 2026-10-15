@@ -145,6 +145,27 @@ export const BLOCK_C_FRONT: BuildingAppearance = {
   customFacade: 'block-c',
 };
 
+export const BLOCK_B_FRONT: BuildingAppearance = {
+  ...DEFAULT_APPEARANCE,
+  preset: 'block-b-front',
+  wallColor: '#ebdcc5', // Warm travertine / cream beige
+  wallRoughness: 0.8,
+  wallMetalness: 0.05,
+  roofType: 'hip',
+  roofColor: '#991b1b', // Classic red metal tile roof
+  roofRoughness: 0.7,
+  roofHeight: 3.6,
+  roofOverhang: 1.0,
+  hasCornice: true,
+  corniceColor: '#f1e6cf',
+  hasPlinth: true,
+  plinthColor: '#5c2d22', // Dark granite / terracotta plinth
+  plinthHeight: 1.0,
+  hasWindows: true,
+  windowColor: '#4a5561',
+  customFacade: 'block-b',
+};
+
 export const APPEARANCE_PRESETS: Record<string, BuildingAppearance> = {
   'academic-classic': ACADEMIC_CLASSIC,
   'academic-modern': ACADEMIC_MODERN,
@@ -153,6 +174,7 @@ export const APPEARANCE_PRESETS: Record<string, BuildingAppearance> = {
   'sports-complex': SPORTS_COMPLEX,
   'utility': UTILITY,
   'block-c-front': BLOCK_C_FRONT,
+  'block-b-front': BLOCK_B_FRONT,
   'default': DEFAULT_APPEARANCE,
 };
 
@@ -160,7 +182,7 @@ export const BUILDING_APPEARANCE_REGISTRY: Record<string, BuildingAppearance> = 
   'bld-a': ACADEMIC_CLASSIC,
   'bld-h': ACADEMIC_CLASSIC, // Building A (Main block)
   'bld-c': ACADEMIC_CLASSIC, // Building D (2-storey block with red roof)
-  'bld-g': DORMITORY,        // Building B
+  'bld-g': BLOCK_B_FRONT,    // Building B (4-storey block facing Block C, calibrated to CAD)
   'bld-e': SPORTS_COMPLEX,   // Sports / C-complex
   'bld-b': UTILITY,          // Utility
   'bld-d': UTILITY,          // Building F
@@ -225,10 +247,11 @@ export function getBuildingAppearance(
         ...base,
         wallColor: tuning.utilityWallColor ?? base.wallColor,
       };
-    } else if (base.preset === 'block-c-front') {
+    } else if (base.preset === 'block-c-front' || base.preset === 'block-b-front') {
       base = {
         ...base,
         wallColor: tuning.classicWallColor ?? base.wallColor,
+        roofColor: tuning.classicRoofColor ?? base.roofColor,
       };
     }
     if (tuning.windowGlassColor) {
