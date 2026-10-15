@@ -13,6 +13,7 @@ import type { BuildingGeometry, Footprint } from '../../domain/geometry/types';
 import { EXTRUDE_ROTATION, footprintOutline, useExtrudedGeometry } from './geometryUtils';
 import { isClick } from './pointer';
 import { BlockCFacade } from './facades/BlockCFacade';
+import { BlockBFacade } from './facades/BlockBFacade';
 
 type Props = {
   building: BuildingData;
@@ -367,11 +368,17 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
     >
       {geometry.parts.map((footprint, i) => {
         const outline = footprintOutline(footprint);
-        const isCustomFacade = appearance.customFacade === 'block-c' && i === 0;
-        const wallHeight = isCustomFacade
-          ? 10.8
-          : (appearance.hasCornice ? geometry.height - 0.5 : geometry.height);
-        const parapetHeight = isCustomFacade ? 2.7 : 0.8;
+        const isCustomFacade =
+          (appearance.customFacade === 'block-c' || appearance.customFacade === 'block-b') && i === 0;
+        const wallHeight =
+          appearance.customFacade === 'block-c' && i === 0
+            ? 10.8
+            : appearance.customFacade === 'block-b' && i === 0
+            ? 14.4
+            : appearance.hasCornice
+            ? geometry.height - 0.5
+            : geometry.height;
+        const parapetHeight = appearance.customFacade === 'block-c' ? 2.7 : 0.8;
         const wallGeo = useExtrudedGeometry(outline, wallHeight);
         const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
 
@@ -392,7 +399,7 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
             </mesh>
 
             {/* 2. Base Plinth */}
-            {appearance.hasPlinth && (
+            {appearance.hasPlinth && !isCustomFacade && (
               <mesh position={[worldX, (appearance.plinthHeight ?? 0.6) / 2, worldZ]} castShadow receiveShadow>
                 <boxGeometry args={[width + 0.25, appearance.plinthHeight ?? 0.6, depth + 0.25]} />
                 <meshStandardMaterial
@@ -406,7 +413,7 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
             )}
 
             {/* 3. Exterior Windows */}
-            {appearance.hasWindows && !(appearance.customFacade === 'block-c' && i === 0) && (
+            {appearance.hasWindows && !isCustomFacade && (
               <group position={[worldX, 0, worldZ]}>
                 <InstancedWindows
                   width={width}
@@ -420,7 +427,7 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
             )}
 
             {/* 4. Ground Entrance Portal */}
-            {!(appearance.customFacade === 'block-c' && i === 0) && (
+            {!isCustomFacade && (
               <group position={[worldX, 0, worldZ]}>
                 <EntrancePortal width={width} depth={depth} opacity={opacity} transparent={transparent} />
               </group>
@@ -441,6 +448,26 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
                   trimColor={appearance.corniceColor}
                   plinthColor={appearance.plinthColor}
                   frameColor={appearance.windowColor}
+                />
+              </group>
+            )}
+
+            {/* Dedicated Architectural Front Facade (Block B, facing South towards Block C) */}
+            {appearance.customFacade === 'block-b' && i === 0 && (
+              <group position={[worldX, 0, worldZ]}>
+                <BlockBFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="south"
+                  wallHeight={14.4}
+                  roofHeight={appearance.roofHeight ?? 3.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
                 />
               </group>
             )}

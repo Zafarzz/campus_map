@@ -31,9 +31,9 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
     [320, 690, 360, 750]  // Right vertical
   ],
   // Bottom-Right cluster (Учебные и жилые корпуса)
-  // Top horizontal block
+  // Top horizontal block (Block B - Academic Building No. 2, 55m x 15m calibrated to CAD elevation)
   'bld-g': [
-    [500, 720, 700, 770]
+    [508, 720, 691, 770] // 183px × 50px (54.9m × 15.0m ≈ 55.0m × 15.0m)
   ],
   // Middle horizontal block (Block A - Main academic building, 66m x 18m)
   'bld-h': [
@@ -95,5 +95,5 @@ export const contextFeaturesPx: ContextFeaturePx[] = [
   { id: 'kpp-n', kind: 'structure', rect: [400, 20, 450, 40] },
   { id: 'kpp-w', kind: 'structure', rect: [210, 410, 270, 460] },
   { id: 'kpp-sw', kind: 'structure', rect: [180, 790, 220, 830] },
-  { id: 'kpp-e', kind: 'structure', rect: [700, 680, 740, 710] }
+  { id: 'kpp-e', kind: 'structure', rect: [700, 534, 740, 596] }
 ];
