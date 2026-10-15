@@ -12,6 +12,7 @@ import type { Building as BuildingData } from '../../domain/campus/types';
 import type { BuildingGeometry, Footprint } from '../../domain/geometry/types';
 import { EXTRUDE_ROTATION, footprintOutline, useExtrudedGeometry } from './geometryUtils';
 import { isClick } from './pointer';
+import { BlockCFacade } from './facades/BlockCFacade';
 
 type Props = {
   building: BuildingData;
@@ -366,9 +367,13 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
     >
       {geometry.parts.map((footprint, i) => {
         const outline = footprintOutline(footprint);
-        const wallHeight = appearance.hasCornice ? geometry.height - 0.5 : geometry.height;
+        const isCustomFacade = appearance.customFacade === 'block-c' && i === 0;
+        const wallHeight = isCustomFacade
+          ? 10.8
+          : (appearance.hasCornice ? geometry.height - 0.5 : geometry.height);
+        const parapetHeight = isCustomFacade ? 2.7 : 0.8;
         const wallGeo = useExtrudedGeometry(outline, wallHeight);
-        const parapetGeo = useExtrudedGeometry(outline, 0.8);
+        const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
 
         const { worldX, worldZ, width, depth } = getFootprintMetrics(footprint);
 
@@ -401,7 +406,7 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
             )}
 
             {/* 3. Exterior Windows */}
-            {appearance.hasWindows && (
+            {appearance.hasWindows && !(appearance.customFacade === 'block-c' && i === 0) && (
               <group position={[worldX, 0, worldZ]}>
                 <InstancedWindows
                   width={width}
@@ -415,9 +420,30 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
             )}
 
             {/* 4. Ground Entrance Portal */}
-            <group position={[worldX, 0, worldZ]}>
-              <EntrancePortal width={width} depth={depth} opacity={opacity} transparent={transparent} />
-            </group>
+            {!(appearance.customFacade === 'block-c' && i === 0) && (
+              <group position={[worldX, 0, worldZ]}>
+                <EntrancePortal width={width} depth={depth} opacity={opacity} transparent={transparent} />
+              </group>
+            )}
+
+            {/* Dedicated Architectural Front Facade (Block C) */}
+            {appearance.customFacade === 'block-c' && i === 0 && (
+              <group position={[worldX, 0, worldZ]}>
+                <BlockCFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="east"
+                  wallHeight={10.8}
+                  totalHeight={13.5}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                />
+              </group>
+            )}
 
             {/* 5. Horizontal Decorative Stripes (e.g. Dormitory bands) */}
             {appearance.accentStripe && (

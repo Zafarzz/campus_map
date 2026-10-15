@@ -328,7 +328,9 @@ type ContextFeatureDoc = ContextFeature;  // существующий тип, wo
 | `SpaceDoc.polygon` (есть `room`) | `RoomGeometry { type:'polygon', points(world), elevation, height, precision }` |
 | `FloorDoc.layout === 'procedural'` | fallback: `layoutRoomsInRect` с теми же параметрами, что сейчас → `type:'box'` |
 | `walls`, `openings`, `verticals`, пространства без `room` | **новые** поля render-модели (`floorPlans`) — добавляются в `CampusGeometry` в задаче A7 с обновлением этого документа |
+| `connectors` (межкорпусные переходы) | `CampusGeometry.connectors: ConnectorGeometry[]` (ADR-020) — замкнутые наземные объемы переходов между корпусами |
 | `precision: 'plan'` | требуется расширить `GeometryPrecision` (сейчас `'approximate' \| 'surveyed'`). Затрагивает `RoomDetails.tsx` (`!== 'surveyed'`) — ADR-007 |
+
 
 ### 4.4 Правила построения геометрии
 

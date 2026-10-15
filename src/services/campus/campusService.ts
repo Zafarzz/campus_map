@@ -24,9 +24,12 @@ export async function loadCampus(): Promise<Campus> {
   try {
     const draft = await loadDraft();
     if (draft && draft.buildings && draft.buildings.length > 0) {
-      const { campus, buildingFootprintsPx, roomOverrides } = editorDocToCampusAndGeom(draft);
-      activeEditorOverrides = { buildingFootprintsPx, roomOverrides };
-      return campus;
+      const cCount = draft.buildings.filter((b) => b.shortName === 'C').length;
+      if (cCount <= 1) {
+        const { campus, buildingFootprintsPx, roomOverrides } = editorDocToCampusAndGeom(draft);
+        activeEditorOverrides = { buildingFootprintsPx, roomOverrides };
+        return campus;
+      }
     }
   } catch (err) {
     console.warn('[campusService] Failed to load draft from storage, using demoCampus:', err);

@@ -246,7 +246,7 @@ flowchart TD
 1. **Документ** — единственный источник геометрии и метаданных помещений (ADR-005). Литералы в `data/*.ts` заменяются им после миграции v0→v1.
 2. **`DocumentStore`** хранит текущий документ с номером ревизии. `MapProvider` пересчитывает `Campus`, `CampusIndex` и `CampusGeometry` мемоизированно по ревизии; так устраняется TD-12.
 3. **Редактор** (этап B) меняет документ **только через команды** (ADR-014). 3D-сцена видит те же изменения через store — синхронизация достигается одной моделью данных, без двустороннего связывания.
-4. **Render-контракт** `CampusGeometry` расширяется аддитивно: добавляются `floorPlans` (стены, проёмы, пространства без room, вертикали), `precision: 'plan'` (ADR-003, ADR-007).
+4. **Render-контракт** `CampusGeometry` расширяется аддитивно: добавляются `floorPlans` (стены, проёмы, пространства без room, вертикали), `connectors` (межкорпусные переходы, ADR-020), `precision: 'plan'` (ADR-003, ADR-007).
 5. **Внешний вид** (этап C) задаётся данными (`BuildingDoc.appearance`), а не `switch` по ID (ADR-015).
 
 ---
@@ -265,7 +265,7 @@ flowchart TD
 
 | Что | Почему | Документы |
 |---|---|---|
-| `src/domain/geometry/types.ts` (render-контракт) | от него зависят провайдеры, все 3D-компоненты, `RoomDetails`, `CameraController` | GEOMETRY_SPEC §4.3, ARCHITECTURE §7 |
+| `src/domain/geometry/types.ts` (render-контракт) | от него зависят провайдеры, все 3D-компоненты, `RoomDetails`, `CameraController` | GEOMETRY_SPEC §4.3, ARCHITECTURE §7, DECISIONS (ADR-020) |
 | `src/domain/campus/types.ts` | поиск, расписание, UI, индекс | ARCHITECTURE, GEOMETRY_SPEC §5.4 |
 | Формат `CampusDocument`, `schemaVersion`, миграции | данные, редактор, провайдер | GEOMETRY_SPEC §4, §9 |
 | Системы координат, `yaw`, datum, единицы | всё | GEOMETRY_SPEC §3 |

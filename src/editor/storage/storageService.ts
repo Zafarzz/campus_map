@@ -1,14 +1,14 @@
 import { createInitialDocument } from '../domain/adapter';
 import type { CampusVersion, EditorDocument, VersionType } from '../domain/types';
 
-const DB_NAME = 'campus_map_editor_db';
+const DB_NAME = 'campus_map_editor_db_v3';
 const DB_VERSION = 1;
 const STORE_DRAFTS = 'drafts';
 const STORE_VERSIONS = 'versions';
 
-const DRAFT_KEY = 'current_draft';
-const LS_DRAFT_KEY = 'campus_map_draft_v1';
-const LS_VERSIONS_KEY = 'campus_map_versions_v1';
+const DRAFT_KEY = 'current_draft_v3';
+const LS_DRAFT_KEY = 'campus_map_draft_v3';
+const LS_VERSIONS_KEY = 'campus_map_versions_v3';
 
 // In-memory fallback if neither IDB nor localStorage are available
 let memoryDraft: EditorDocument | null = null;

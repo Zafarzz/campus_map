@@ -126,6 +126,25 @@ export const UTILITY: BuildingAppearance = {
   hasWindows: true,
 };
 
+export const BLOCK_C_FRONT: BuildingAppearance = {
+  ...DEFAULT_APPEARANCE,
+  preset: 'block-c-front',
+  wallColor: '#e2c391',
+  wallRoughness: 0.82,
+  wallMetalness: 0.04,
+  roofType: 'flat',
+  roofColor: '#475569',
+  roofRoughness: 0.85,
+  hasCornice: true,
+  corniceColor: '#f1e6cf',
+  hasPlinth: true,
+  plinthColor: '#7b4a3a',
+  plinthHeight: 1.1,
+  hasWindows: true,
+  windowColor: '#4a5561',
+  customFacade: 'block-c',
+};
+
 export const APPEARANCE_PRESETS: Record<string, BuildingAppearance> = {
   'academic-classic': ACADEMIC_CLASSIC,
   'academic-modern': ACADEMIC_MODERN,
@@ -133,6 +152,7 @@ export const APPEARANCE_PRESETS: Record<string, BuildingAppearance> = {
   'administration': ADMINISTRATION,
   'sports-complex': SPORTS_COMPLEX,
   'utility': UTILITY,
+  'block-c-front': BLOCK_C_FRONT,
   'default': DEFAULT_APPEARANCE,
 };
 
@@ -145,7 +165,7 @@ export const BUILDING_APPEARANCE_REGISTRY: Record<string, BuildingAppearance> = 
   'bld-b': UTILITY,          // Utility
   'bld-d': UTILITY,          // Building F
   'bld-f': ACADEMIC_CLASSIC, // Cluster red
-  'bld-i': ACADEMIC_CLASSIC, // Cluster red
+  'bld-i': BLOCK_C_FRONT,    // Block C Front Facade (next to Block A and B)
   'bld-j': ADMINISTRATION,   // Block J
 };
 
@@ -204,6 +224,11 @@ export function getBuildingAppearance(
       base = {
         ...base,
         wallColor: tuning.utilityWallColor ?? base.wallColor,
+      };
+    } else if (base.preset === 'block-c-front') {
+      base = {
+        ...base,
+        wallColor: tuning.classicWallColor ?? base.wallColor,
       };
     }
     if (tuning.windowGlassColor) {

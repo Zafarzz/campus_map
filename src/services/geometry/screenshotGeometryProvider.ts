@@ -3,17 +3,20 @@ import type {
   BuildingGeometry,
   CampusGeometry,
   CampusGeometryProvider,
+  ConnectorGeometry,
   ContextFeature,
   Footprint,
   RoomGeometry,
   Vec2,
 } from '../../domain/geometry/types';
-import type { ContextFeaturePx, PxRect } from '../../data/reference-footprints';
+import type { ConnectorPx, ContextFeaturePx, PxRect } from '../../data/reference-footprints';
 import { layoutRoomsInRect, type RoomLayoutOptions } from './proceduralRoomLayout';
 
 export type ScreenshotGeometryOptions = {
   buildingFootprintsPx: Record<string, PxRect[]>;
   contextFeaturesPx: ContextFeaturePx[];
+  /** Enclosed passages between buildings (ADR-020). */
+  connectorsPx?: ConnectorPx[];
   imageSizePx: [number, number];
   metersPerPixel: number;
   floorHeight: number;
@@ -121,7 +124,25 @@ export function createScreenshotGeometryProvider(opts: ScreenshotGeometryOptions
         };
       });
 
-      return { buildings, rooms, context, bounds: { min, max } };
+      const connectors: ConnectorGeometry[] = (opts.connectorsPx ?? []).map((c) => {
+        const missing = c.buildingIds.filter((id) => !buildings[id]);
+        if (missing.length) {
+          console.warn(`[geometry] Connector "${c.id}" references buildings without geometry: ${missing.join(', ')}`);
+        }
+        const rect = pxRectToRect(c.rect);
+        extend(rect);
+        return {
+          id: c.id,
+          kind: c.kind,
+          buildingIds: c.buildingIds,
+          footprint: toFootprint(rect),
+          elevation: 0,
+          height: Math.max(1, c.floorCount) * opts.floorHeight,
+          precision: 'approximate',
+        };
+      });
+
+      return { buildings, rooms, context, connectors, bounds: { min, max } };
     },
   };
 }

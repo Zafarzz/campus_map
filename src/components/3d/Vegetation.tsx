@@ -52,7 +52,7 @@ export function Vegetation({ geometry }: { geometry: CampusGeometry }) {
     const lawns = geometry.context.filter((f) => f.kind === 'lawn');
     if (lawns.length === 0) return result;
 
-    // Building bounding boxes for collision exclusion
+    // Building & connector bounding boxes for collision exclusion
     const buildingBoxes: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
     for (const bld of Object.values(geometry.buildings)) {
       for (const part of bld.parts) {
@@ -66,6 +66,18 @@ export function Vegetation({ geometry }: { geometry: CampusGeometry }) {
             maxZ: part.center[1] + hd,
           });
         }
+      }
+    }
+    for (const conn of geometry.connectors ?? []) {
+      if (conn.footprint.type === 'rect') {
+        const hw = conn.footprint.size[0] / 2 + 1.5;
+        const hd = conn.footprint.size[1] / 2 + 1.5;
+        buildingBoxes.push({
+          minX: conn.footprint.center[0] - hw,
+          maxX: conn.footprint.center[0] + hw,
+          minZ: conn.footprint.center[1] - hd,
+          maxZ: conn.footprint.center[1] + hd,
+        });
       }
     }
 
