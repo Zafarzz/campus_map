@@ -1,6 +1,6 @@
 import { mapConfig } from '../../config/mapConfig';
 import { accurateRoomOverrides } from '../../data/floor-plans';
-import { buildingFootprintsPx, contextFeaturesPx } from '../../data/reference-footprints';
+import { buildingFootprintsPx, connectorsPx, contextFeaturesPx } from '../../data/reference-footprints';
 import type { Campus } from '../../domain/campus/types';
 import type { CampusGeometry, CampusGeometryProvider } from '../../domain/geometry/types';
 import { getActiveEditorOverrides } from '../campus/campusService';
@@ -9,6 +9,7 @@ import { createScreenshotGeometryProvider } from './screenshotGeometryProvider';
 const baseProvider = createScreenshotGeometryProvider({
   buildingFootprintsPx,
   contextFeaturesPx,
+  connectorsPx,
   imageSizePx: mapConfig.reference.imageSizePx,
   metersPerPixel: mapConfig.reference.metersPerPixel,
   floorHeight: mapConfig.building.floorHeight,
@@ -30,6 +31,7 @@ export const geometryProvider: CampusGeometryProvider = {
       const dynamicProvider = createScreenshotGeometryProvider({
         buildingFootprintsPx: { ...buildingFootprintsPx, ...overrides.buildingFootprintsPx },
         contextFeaturesPx,
+        connectorsPx,
         imageSizePx: mapConfig.reference.imageSizePx,
         metersPerPixel: mapConfig.reference.metersPerPixel,
         floorHeight: mapConfig.building.floorHeight,

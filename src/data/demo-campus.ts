@@ -14,9 +14,10 @@ const knownRooms: Record<string, string[]> = {
 
 /** Rooms with specific known names based on the "C Block" description */
 const specialRooms: Record<string, { id: string; number: string; name: string; kind: RoomKind }[]> = {
-  'bld-e': [{ id: 'room-c-sport', number: 'C-sport hall', name: 'Indoor Courts (3 Tennis Courts)', kind: 'hall' }],
-  'bld-f': [{ id: 'room-c-conf', number: 'C-conF', name: 'Conference Hall', kind: 'hall' }],
-  'bld-i': [{ id: 'room-canteen', number: 'Canteen', name: 'Canteen', kind: 'other' }],
+  'bld-i': [
+    { id: 'room-c-conf', number: 'C-conF', name: 'Conference Hall', kind: 'hall' },
+    { id: 'room-canteen', number: 'Canteen', name: 'Canteen', kind: 'other' },
+  ],
 };
 
 import { confirmedFloorPlans } from './floor-plans';
@@ -33,7 +34,7 @@ function buildRoomsForFloor(structure: BuildingStructure, level: number): Room[]
       name: r.name,
       kind: r.kind,
       capacity: r.capacity ?? 30,
-      provenance: 'confirmed',
+      provenance: r.provenance ?? 'confirmed',
     }));
   }
 

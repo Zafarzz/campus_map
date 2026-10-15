@@ -26,7 +26,7 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
   ],
   // Below Sports Complex (Red buildings)
   'bld-f': [
-    [220, 680, 280, 790], // Vertical
+    [220, 672, 280, 800], // Vertical main facade wing (35.9m calibrated to CAD elevation)
     [280, 700, 320, 730], // Horizontal connection
     [320, 690, 360, 750]  // Right vertical
   ],
@@ -35,14 +35,13 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
   'bld-g': [
     [500, 720, 700, 770]
   ],
-  // Middle horizontal block (main)
+  // Middle horizontal block (Block A - Main academic building, 66m x 18m)
   'bld-h': [
-    [330, 810, 550, 870], // Left wing
-    [550, 790, 630, 890]  // Intersection
+    [310, 795, 530, 855] // 220px × 60px (66.0m × 18.0m, calibrated to CAD)
   ],
-  // Bottom vertical block
+  // Bottom vertical block (Block C, extended by +10% from 35.9m CAD facade to 39.6m)
   'bld-i': [
-    [550, 890, 630, 1000] 
+    [550, 790, 630, 922] // 80px × 132px (24.0m × 39.6m)
   ],
   // Bottom-Left U-shape (Учебный корпус №3)
   'bld-j': [
@@ -51,6 +50,26 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
     [250, 850, 300, 900]  // Right vertical
   ]
 };
+
+/**
+ * Enclosed passages between buildings (ADR-020), same pixel frame as `buildingFootprintsPx`.
+ * Each passage must touch both connected buildings (validated in tests).
+ */
+export type ConnectorPx = {
+  id: string;
+  kind: 'enclosed-corridor';
+  buildingIds: [a: string, b: string];
+  rect: PxRect;
+  /** Number of storeys of the passage (ground level = 1). */
+  floorCount: number;
+};
+
+export const connectorsPx: ConnectorPx[] = [
+  // Block B (bld-g) ↔ Block C Hall (bld-i). Length: 6.0m (20px), Width: 3.0m (10px).
+  { id: 'conn-bld-g-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-g', 'bld-i'], rect: [585, 770, 595, 790], floorCount: 1 },
+  // Block A (bld-h) ↔ Block C Hall (bld-i). Length: 6.0m (20px), Width: 3.0m (10px).
+  { id: 'conn-bld-h-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-h', 'bld-i'], rect: [530, 800, 550, 810], floorCount: 1 },
+];
 
 export type ContextFeaturePx = {
   id: string;

@@ -72,10 +72,29 @@ export type ContextFeature = {
   label?: string;
 };
 
+/**
+ * Enclosed passage (corridor) between two buildings (ADR-020).
+ * Not a building: it has no floors/rooms, is not selectable and is not part of search.
+ */
+export type ConnectorGeometry = {
+  id: string;
+  kind: 'enclosed-corridor';
+  /** IDs of the two connected buildings. */
+  buildingIds: [a: string, b: string];
+  footprint: Footprint;
+  /** Y of the passage floor (0 = ground level). */
+  elevation: number;
+  /** Height of the passage volume above `elevation`. */
+  height: number;
+  precision: GeometryPrecision;
+};
+
 export type CampusGeometry = {
   buildings: Record<string, BuildingGeometry>;
   rooms: Record<string, RoomGeometry>;
   context: ContextFeature[];
+  /** Passages between buildings (ADR-020). Empty array if none. */
+  connectors: ConnectorGeometry[];
   bounds: { min: Vec2; max: Vec2 };
 };
 

@@ -14,6 +14,16 @@ export type PlanRoomDef = {
   /** Normalized short-axis span [v0, v1] within [0, 1] */
   vSpan: [number, number];
   legacyId?: string;
+  /**
+   * Index into `buildingFootprintsPx[buildingId]` that uSpan/vSpan are relative to.
+   * Omitted → the largest part (historical behaviour).
+   */
+  part?: number;
+  /**
+   * 'confirmed' (default) = traced from the CAD/PDF sheet → precision 'surveyed'.
+   * 'demo' = from a rough sketch, no drawing → precision 'approximate'.
+   */
+  provenance?: 'confirmed' | 'demo';
 };
 
 export type FloorPlanDef = {
@@ -194,6 +204,19 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
       { id: 'bld-d-f2-f202', number: 'F-202', name: 'Tiered Lecture Hall (Amphitheatre East)', kind: 'hall', capacity: 120, uSpan: [0.56, 0.97], vSpan: [0.40, 0.96], legacyId: 'bld-d-f2-r2' },
     ],
   },
+  // ==========================================
+  // BUILDING C (bld-i) - Conference Hall & Canteen
+  // ==========================================
+  {
+    buildingId: 'bld-i',
+    level: 1,
+    rooms: [
+      // North entrance hall (aligned directly with the 8.4m entrance pavilion on the east facade: uSpan [0.03, 0.28])
+      { id: 'room-c-conf', number: 'C-conF', name: 'Conference Hall & Main Lobby', kind: 'hall', capacity: 100, uSpan: [0.03, 0.28], vSpan: [0.05, 0.95] },
+      // South section (Canteen & Dining Hall)
+      { id: 'room-canteen', number: 'Canteen', name: 'Canteen & Dining Hall', kind: 'other', capacity: 120, uSpan: [0.32, 0.97], vSpan: [0.05, 0.95] },
+    ],
+  },
 ];
 
 /**
@@ -211,16 +234,22 @@ export function buildAccurateRoomOverrides(): Record<string, RoomGeometry> {
     // Find primary rectangle of the building
     const primary = rects.reduce((a, b) => (b.size[0] * b.size[1] > a.size[0] * a.size[1] ? b : a));
 
-    const [w, d] = primary.size;
-    const [cx, cz] = primary.center;
-    const isXLong = w >= d;
-    const len = isXLong ? w : d;
-    const short = isXLong ? d : w;
-
     const elevation = (plan.level - 1) * floorHeight;
     const y = elevation + slabThickness + roomHeight / 2;
 
     for (const roomDef of plan.rooms) {
+      // Spans are relative to the explicitly chosen part, or to the largest part by default.
+      const host = roomDef.part !== undefined ? rects[roomDef.part] : primary;
+      if (!host) {
+        console.warn(`[floor-plans] Room "${roomDef.id}" references missing part ${roomDef.part} of "${plan.buildingId}"`);
+        continue;
+      }
+      const [w, d] = host.size;
+      const [cx, cz] = host.center;
+      const isXLong = w >= d;
+      const len = isXLong ? w : d;
+      const short = isXLong ? d : w;
+
       const [u0, u1] = roomDef.uSpan;
       const [v0, v1] = roomDef.vSpan;
 
@@ -242,7 +271,7 @@ export function buildAccurateRoomOverrides(): Record<string, RoomGeometry> {
         type: 'box',
         position,
         size,
-        precision: 'surveyed',
+        precision: roomDef.provenance === 'demo' ? 'approximate' : 'surveyed',
       };
 
       overrides[roomDef.id] = geometry;

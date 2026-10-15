@@ -36,4 +36,6 @@ export type BuildingAppearance = {
   /** Classical entrance portico with pediment and columns */
   hasPortico?: boolean;
   porticoColor?: string;
+  /** Custom architectural facade model (e.g. 'block-c') */
+  customFacade?: 'block-c' | 'none';
 };
