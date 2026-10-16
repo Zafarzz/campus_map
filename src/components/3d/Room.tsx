@@ -7,6 +7,7 @@ import type { RoomGeometry } from '../../domain/geometry/types';
 import type { RoomStatus } from '../../domain/schedule/types';
 import { EXTRUDE_ROTATION, roomCenter, roomTop, useExtrudedGeometry } from './geometryUtils';
 import { isClick } from './pointer';
+import { BlockFLibraryInterior, LIBRARY_ROOM_ID } from './BlockFLibraryInterior';
 
 type Props = {
   room: RoomData;
@@ -39,10 +40,20 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
 
   const center = roomCenter(geometry);
   const labelY = roomTop(geometry) + 0.6;
+  const isLibraryRoom =
+    (room.id === LIBRARY_ROOM_ID || room.number === 'F-101') && geometry.type === 'box';
 
   return (
     <group>
-      {geometry.type === 'box' ? (
+      {isLibraryRoom ? (
+        <group {...events}>
+          <BlockFLibraryInterior
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : geometry.type === 'box' ? (
         <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]} {...events}>
           <boxGeometry args={geometry.size} />
           {material}
@@ -60,7 +71,7 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
           className={`room-label${selected ? ' room-label--selected' : ''}`}
           onClick={() => onSelect(room.id)}
         >
-          {room.number}
+          {isLibraryRoom ? '📚 F-101 · Library' : room.number}
         </button>
       </Html>
     </group>
