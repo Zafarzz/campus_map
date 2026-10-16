@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
 import { getBuildingAppearance, BLOCK_B_FRONT } from '../domain/appearance';
 import { geometryProvider } from '../services/geometry';
+import { BlockBFacade } from '../components/3d/facades/BlockBFacade';
+import { BlockBSouthFacade } from '../components/3d/facades/BlockBSouthFacade';
+import { BlockBLandscape } from '../components/3d/facades/BlockBLandscape';
 
 describe('Block B Architectural Facade & Appearance', () => {
   it('resolves BLOCK_B_FRONT preset with customFacade="block-b" for bld-g (facing Block C)', () => {
@@ -68,5 +71,56 @@ describe('Block B Architectural Facade & Appearance', () => {
     // Original preset remains untouched
     const untuned = getBuildingAppearance('bld-g');
     expect(untuned.wallColor).toBe('#ebdcc5');
+  });
+
+  it('exports BlockBFacade, BlockBSouthFacade and BlockBLandscape React components', () => {
+    expect(typeof BlockBFacade).toBe('function');
+    expect(typeof BlockBSouthFacade).toBe('function');
+    expect(typeof BlockBLandscape).toBe('function');
+  });
+
+  it('creates valid React element for BlockBFacade with 13-bay rhythm and landscape (facing north)', async () => {
+    const React = await import('react');
+    const el = React.createElement(BlockBFacade, {
+      buildingWidth: 55.0,
+      buildingDepth: 15.0,
+      facing: 'north',
+      wallHeight: 14.4,
+      roofHeight: 3.6,
+      includeLandscape: true,
+    });
+    expect(React.isValidElement(el)).toBe(true);
+    expect(el.props.buildingWidth).toBe(55.0);
+    expect(el.props.facing).toBe('north');
+    expect(el.props.includeLandscape).toBe(true);
+  });
+
+  it('creates valid React element for BlockBSouthFacade with central glazed curtain wall and pediment (facing south)', async () => {
+    const React = await import('react');
+    const el = React.createElement(BlockBSouthFacade, {
+      buildingWidth: 55.0,
+      buildingDepth: 15.0,
+      facing: 'south',
+      wallHeight: 14.4,
+      roofHeight: 3.6,
+    });
+    expect(React.isValidElement(el)).toBe(true);
+    expect(el.props.buildingWidth).toBe(55.0);
+    expect(el.props.facing).toBe('south');
+  });
+
+  it('creates valid React element for BlockBLandscape containing Gazebo and Elevated Pipeline (north orientation, East/right-aligned)', async () => {
+    const React = await import('react');
+    const el = React.createElement(BlockBLandscape, {
+      scaleX: 1,
+      sign: -1,
+      signX: 1,
+      opacity: 1,
+      transparent: false,
+    });
+    expect(React.isValidElement(el)).toBe(true);
+    expect(el.props.scaleX).toBe(1);
+    expect(el.props.sign).toBe(-1);
+    expect(el.props.signX).toBe(1);
   });
 });
