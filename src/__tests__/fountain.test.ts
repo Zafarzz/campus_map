@@ -85,4 +85,12 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
   it('exports valid React component CampusFountain', () => {
     expect(typeof CampusFountain).toBe('function');
   });
+
+  it('verifies central cascade sculpture features exact AUT diamond emblem reaching +3.200m', () => {
+    // Высота вершины скульптуры по чертежу +3.200 м от уровня земли
+    expect(FOUNTAIN_DIMENSIONS.autSculptureHeight).toBe(3.2);
+    expect(FOUNTAIN_DIMENSIONS.cascadeTopHeight).toBe(2.35);
+    // Дельта высоты скульптуры точно 0.85 м (от +2.350 до +3.200 м)
+    expect(FOUNTAIN_DIMENSIONS.autSculptureHeight - FOUNTAIN_DIMENSIONS.cascadeTopHeight).toBeCloseTo(0.85, 2);
+  });
 });

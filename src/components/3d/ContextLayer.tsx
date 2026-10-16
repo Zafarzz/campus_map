@@ -6,6 +6,7 @@ import { ExtrudedFootprint } from './ExtrudedFootprint';
 import { getFenceTexture } from './facades/facadeTextures';
 import { MainEntranceGate, MAIN_ENTRANCE_WIDTH } from './MainEntranceGate';
 import { CampusFountain, FOUNTAIN_DIMENSIONS } from './CampusFountain';
+import { AjouArtObject } from './AjouArtObject';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.03,
@@ -189,6 +190,12 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
       {/* Main Campus Entrance & Checkpoint Ensemble (КПП AUT, Стела, Павильон, Баннер) */}
       <MainEntranceGate
         position={[right, 0, gateZ]}
+        rotation={[0, Math.PI / 2, 0]}
+      />
+
+      {/* Landmark Art-Object "I ♥ AJOU" immediately past the entrance roadway (Лист 3, М 1:25) */}
+      <AjouArtObject
+        position={[106.5, 0, gateZ]}
         rotation={[0, Math.PI / 2, 0]}
       />
     </group>

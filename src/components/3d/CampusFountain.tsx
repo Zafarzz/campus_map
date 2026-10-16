@@ -65,6 +65,61 @@ export const FOUNTAIN_MATERIALS = {
   plazaBorder: '#B5B2A8', // Бордюр площади
 } as const;
 
+/**
+ * Точные векторные контуры двух переплетающихся элементов официальной эмблемы AUT
+ * (Ajou University in Tashkent), извлеченные из брендбука и чертежа каскада (H = 0.85 м).
+ */
+const AUT_EMBLEM_POLY_0 = [
+  [-0.113, 0.425],
+  [-0.3934, 0.0136],
+  [-0.416, -0.0452],
+  [-0.416, -0.113],
+  [-0.3934, -0.1718],
+  [-0.2532, -0.3888],
+  [-0.208, -0.425],
+  [-0.0949, -0.4205],
+  [-0.2713, -0.1537],
+  [-0.2894, -0.0678],
+  [-0.2713, -0.0136],
+  [-0.113, 0.2215],
+  [0.0769, -0.0678],
+  [0.0723, -0.1085],
+  [0.0271, -0.1221],
+  [0.0814, -0.2035],
+  [0.104, -0.2215],
+  [0.1266, -0.217],
+  [0.1944, -0.0995],
+  [0.1763, -0.0181],
+] as const;
+
+const AUT_EMBLEM_POLY_1 = [
+  [-0.0226, 0.425],
+  [0.0949, 0.425],
+  [0.1492, 0.3843],
+  [0.4114, -0.0316],
+  [0.416, -0.113],
+  [0.3934, -0.1763],
+  [0.2487, -0.3934],
+  [0.208, -0.425],
+  [0.0045, -0.416],
+  [-0.1944, -0.104],
+  [-0.1944, -0.0543],
+  [-0.1402, 0.0407],
+  [-0.1176, 0.0588],
+  [-0.0949, 0.0543],
+  [-0.0271, -0.0452],
+  [-0.0497, -0.0407],
+  [-0.0769, -0.0588],
+  [-0.0769, -0.0995],
+  [0.0543, -0.2984],
+  [0.0859, -0.321],
+  [0.1447, -0.321],
+  [0.1809, -0.2894],
+  [0.2848, -0.1085],
+  [0.2894, -0.0633],
+  [0.2622, 0.009],
+] as const;
+
 export type CampusFountainProps = {
   position?: [number, number, number];
   rotation?: [number, number, number];
@@ -127,11 +182,13 @@ export function CampusFountain({
       opacity: 0.8,
     });
 
-    // 4. Золотой логотип AUT и арки
+    // 4. Золотой логотип AUT и арки (полированное архитектурное золото с благородным теплым отблеском)
     const goldMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.goldAccent,
-      roughness: 0.25,
+      roughness: 0.18,
       metalness: 0.85,
+      emissive: '#B45309',
+      emissiveIntensity: 0.2,
     });
 
     // 5. Мостики (настил и перила)
@@ -202,6 +259,37 @@ export function CampusFountain({
       plazaMat,
       plazaBorderMat,
     };
+  }, []);
+
+  // Векторная 3D-геометрия золотой эмблемы AUT (два переплетающихся объемных элемента с фаской)
+  const emblemGeometries = useMemo(() => {
+    function createShape(pts: readonly (readonly [number, number])[]) {
+      const s = new THREE.Shape();
+      s.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        s.lineTo(pts[i][0], pts[i][1]);
+      }
+      s.closePath();
+      return s;
+    }
+
+    const depth = 0.14;
+    const extrudeSettings = {
+      depth,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.012,
+      bevelThickness: 0.012,
+    };
+
+    const g0 = new THREE.ExtrudeGeometry(createShape(AUT_EMBLEM_POLY_0), extrudeSettings);
+    const g1 = new THREE.ExtrudeGeometry(createShape(AUT_EMBLEM_POLY_1), extrudeSettings);
+
+    g0.translate(0, 0, -depth / 2);
+    g1.translate(0, 0, -depth / 2);
+
+    return { g0, g1 };
   }, []);
 
   const d = FOUNTAIN_DIMENSIONS;
@@ -395,26 +483,16 @@ export function CampusFountain({
         ))}
 
         {/* ВЕРШИНА: ЗОЛОТАЯ ОБЪЕМНАЯ СКУЛЬПТУРА ЛОГОТИПА AUT (+3.200 М) */}
-        <group position={[0, 2.38, 0]}>
-          {/* Золотой постамент эмблемы */}
-          <mesh position={[0, 0.1, 0]} material={materials.goldMat}>
-            <cylinderGeometry args={[0.65, 0.8, 0.2, 16]} />
+        <group position={[0, 2.37, 0]}>
+          {/* Низкий постамент из травертина/гранита каскада */}
+          <mesh position={[0, 0.03, 0]} material={materials.cascadeStoneMat} castShadow receiveShadow>
+            <boxGeometry args={[1.05, 0.06, 0.32]} />
           </mesh>
 
-          {/* Скульптурные витки золотого знака AUT (H = 3.200 - 2.35 = 0.85 м) */}
-          <group position={[0, 0.48, 0]}>
-            {/* Внешнее золотое кольцо-ромб */}
-            <mesh material={materials.goldMat} castShadow>
-              <torusGeometry args={[0.42, 0.07, 12, 32]} />
-            </mesh>
-            {/* Внутренняя витая золотая лента Мебиуса */}
-            <mesh rotation={[Math.PI / 3, 0, 0]} material={materials.goldMat} castShadow>
-              <torusGeometry args={[0.28, 0.05, 10, 24]} />
-            </mesh>
-            {/* Объемные золотые буквы AUT */}
-            <mesh position={[0, -0.48, 0.12]} material={materials.goldMat}>
-              <boxGeometry args={[0.6, 0.16, 0.08]} />
-            </mesh>
+          {/* Официальная золотая скульптура эмблемы AUT (отметка от +2.350 до +3.200 м, H = 0.85 м) */}
+          <group position={[0, 0.47, 0]}>
+            <mesh geometry={emblemGeometries.g0} material={materials.goldMat} castShadow receiveShadow />
+            <mesh geometry={emblemGeometries.g1} material={materials.goldMat} castShadow receiveShadow />
           </group>
 
           {/* Кольцо пенных форсунок вокруг золотой эмблемы */}
