@@ -5,6 +5,7 @@ import type { CampusGeometry, ContextFeatureKind } from '../../domain/geometry/t
 import { ExtrudedFootprint } from './ExtrudedFootprint';
 import { getFenceTexture } from './facades/facadeTextures';
 import { MainEntranceGate, MAIN_ENTRANCE_WIDTH } from './MainEntranceGate';
+import { CampusFountain, FOUNTAIN_DIMENSIONS } from './CampusFountain';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.03,
@@ -245,9 +246,24 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       {/* Perimeter fence and gate */}
       <PerimeterFenceAndGate geometry={geometry} />
 
+      {/* Grand Architectural Campus Fountain replacing the green sports pitch (shifted 50m further from East Main Entrance) */}
+      <CampusFountain
+        scale={FOUNTAIN_DIMENSIONS.defaultScale}
+        position={
+          (() => {
+            const pitchFeature = geometry.context.find((f) => f.id === 'pitch');
+            if (pitchFeature && pitchFeature.footprint.type === 'rect') {
+              return [pitchFeature.footprint.center[0] - 50.0, 0, pitchFeature.footprint.center[1]];
+            }
+            return [-2.45, 0, 15.9];
+          })()
+        }
+      />
+
       {/* Context landscape layers (roads, lawns, sports tracks, pitches) */}
       {geometry.context.map((f) => {
         if (f.id === 'kpp-e') return null;
+        if (f.id === 'pitch') return null; // Replaced by CampusFountain
         return f.kind === 'structure' ? (
           <ExtrudedFootprint
             key={f.id}
