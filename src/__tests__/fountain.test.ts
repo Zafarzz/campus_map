@@ -93,4 +93,10 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
     // Дельта высоты скульптуры точно 0.85 м (от +2.350 до +3.200 м)
     expect(FOUNTAIN_DIMENSIONS.autSculptureHeight - FOUNTAIN_DIMENSIONS.cascadeTopHeight).toBeCloseTo(0.85, 2);
   });
+
+  it('features bilateral architectural palm promenades along both North and South sides', () => {
+    expect(FOUNTAIN_DIMENSIONS.palmTreeCount).toBe(7);
+    expect(FOUNTAIN_DIMENSIONS.palmMinHeight).toBeGreaterThanOrEqual(3.5);
+    expect(FOUNTAIN_DIMENSIONS.palmMaxHeight).toBeLessThanOrEqual(4.5);
+  });
 });

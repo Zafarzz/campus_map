@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { FountainWaterAnimation } from './fountain/FountainWaterAnimation';
 
 export const FOUNTAIN_DIMENSIONS = {
   // Габариты чаши бассейна, масштабированные в 1.5х по запросу пользователя (исходные 36х12 м)
@@ -127,6 +129,59 @@ export type CampusFountainProps = {
 };
 
 /**
+ * Создает оптимизированную 3D-геометрию изогнутого перистого пальмового листа:
+ * - V-образный поперечный профиль со стеблем по центру.
+ * - Плавный дугообразный изгиб с поникающим кончиком.
+ * - Естественное расширение в средней части и сужение к основанию и вершине.
+ */
+function createPalmFrondGeometry(length = 2.6, maxWidth = 0.55, segments = 8): THREE.BufferGeometry {
+  const geom = new THREE.BufferGeometry();
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const z = t * length;
+    const y = 0.25 * Math.sin(t * Math.PI * 0.8) - 0.65 * t * t;
+    const w = maxWidth * Math.sin(t * Math.PI);
+    const edgeDroop = -w * 0.25;
+
+    // Левый край листа
+    positions.push(-w, y + edgeDroop, z);
+    normals.push(0, 1, 0);
+    uvs.push(0, t);
+
+    // Центральный стебель
+    positions.push(0, y, z);
+    normals.push(0, 1, 0);
+    uvs.push(0.5, t);
+
+    // Правый край листа
+    positions.push(w, y + edgeDroop, z);
+    normals.push(0, 1, 0);
+    uvs.push(1, t);
+  }
+
+  for (let i = 0; i < segments; i++) {
+    const row0 = i * 3;
+    const row1 = (i + 1) * 3;
+    indices.push(row0 + 0, row0 + 1, row1 + 1);
+    indices.push(row0 + 0, row1 + 1, row1 + 0);
+    indices.push(row0 + 1, row0 + 2, row1 + 2);
+    indices.push(row0 + 1, row1 + 2, row1 + 1);
+  }
+
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+/**
  * 3D-модель Главного фонтана кампуса с двумя мостиками и каскадом:
  * - Увеличен масштаб: базовый 54x18 м, с коэффициентом scale=1.5x (эффективно 81x27 м).
  * - Ориентация поперек поля (Запад-Восток): длинная сторона идет вдоль оси X.
@@ -134,7 +189,7 @@ export type CampusFountainProps = {
  * - 2 пешеходных мостика со смотровыми площадками, золотыми арками и ступенями.
  * - Центральный каскад с золотой скульптурой логотипа AUT (+3.20 м).
  * - 2 круглые чаши с веерными струями и высокими вертикальными гейзерами (+5.80 м).
- * - 7 пальм (+3.5 – +4.5 м) вдоль южного борта.
+ * - 14 архитектурных пальм (+3.5 – +4.5 м) вдоль северного и южного променадов.
  * - Мощеная площадь-променада вокруг чаши.
  */
 export function CampusFountain({
@@ -221,7 +276,7 @@ export function CampusFountain({
       roughness: 0.2,
     });
 
-    // 7. Пальмы
+    // 7. Пальмы (многоярусная ботаническая листва и фактурная кора)
     const palmTrunkMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.palmTrunk,
       roughness: 0.9,
@@ -230,6 +285,33 @@ export function CampusFountain({
       color: FOUNTAIN_MATERIALS.palmFronds,
       roughness: 0.5,
       side: THREE.DoubleSide,
+    });
+    const palmFrondYoungMat = new THREE.MeshStandardMaterial({
+      color: '#22c55e',
+      roughness: 0.45,
+      side: THREE.DoubleSide,
+    });
+    const palmFrondMatureMat = new THREE.MeshStandardMaterial({
+      color: FOUNTAIN_MATERIALS.palmFronds,
+      roughness: 0.5,
+      side: THREE.DoubleSide,
+    });
+    const palmFrondOldMat = new THREE.MeshStandardMaterial({
+      color: '#166534',
+      roughness: 0.6,
+      side: THREE.DoubleSide,
+    });
+    const palmBarkRingMat = new THREE.MeshStandardMaterial({
+      color: '#3E2723',
+      roughness: 0.95,
+    });
+    const palmCrownShaftMat = new THREE.MeshStandardMaterial({
+      color: '#2E5A27',
+      roughness: 0.65,
+    });
+    const coconutMat = new THREE.MeshStandardMaterial({
+      color: '#78350F',
+      roughness: 0.8,
     });
 
     // 8. Мощение площади
@@ -256,6 +338,12 @@ export function CampusFountain({
       geyserMat,
       palmTrunkMat,
       palmFrondMat,
+      palmFrondYoungMat,
+      palmFrondMatureMat,
+      palmFrondOldMat,
+      palmBarkRingMat,
+      palmCrownShaftMat,
+      coconutMat,
       plazaMat,
       plazaBorderMat,
     };
@@ -291,6 +379,25 @@ export function CampusFountain({
 
     return { g0, g1 };
   }, []);
+
+  // Кэшированные 3D-геометрии изогнутых пальмовых ветвей для многоярусной кроны
+  const palmFrondGeometries = useMemo(() => {
+    return {
+      upper: createPalmFrondGeometry(2.1, 0.44, 6),
+      middle: createPalmFrondGeometry(2.7, 0.58, 8),
+      lower: createPalmFrondGeometry(2.4, 0.50, 7),
+    };
+  }, []);
+
+  // Непрерывный поток и пульсация воды через существующие струи и зеркало бассейна
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    // Легкая динамическая пульсация струй и гейзеров
+    materials.waterJetMat.emissiveIntensity = 0.32 + Math.sin(t * 8.0) * 0.08;
+    materials.geyserMat.emissiveIntensity = 0.50 + Math.sin(t * 6.0) * 0.12;
+    // Тонкое естественное мерцание зеркала воды бассейна
+    materials.poolWaterMat.opacity = 0.84 + Math.sin(t * 3.0) * 0.04;
+  });
 
   const d = FOUNTAIN_DIMENSIONS;
 
@@ -556,51 +663,149 @@ export function CampusFountain({
       ))}
 
       {/* ============================================================== */}
-      {/* 6. ОЗЕЛЕНЕНИЕ: 7 ПАЛЬМ (+3.5 – +4.5 М) ВДОЛЬ ЮЖНОГО БОРТА       */}
+      {/* 6. ОЗЕЛЕНЕНИЕ: 14 АРХИТЕКТУРНЫХ ПАЛЬМ ВДОЛЬ СЕВЕРНОГО И ЮЖНОГО БОРТОВ */}
       {/* ============================================================== */}
-      {palmXCoords.map((px, pidx) => {
-        const treeH = 3.8 + ((pidx * 3) % 4) * 0.25;
-        const trunkTilt = ((pidx % 2 === 0 ? 1 : -1) * 0.08);
+      {[-1, 1].map((sideMultiplier, sIdx) => {
+        const sideZ = sideMultiplier * (d.basinWidth / 2 + 1.25);
+        const sidePrefix = sideMultiplier > 0 ? 'south' : 'north';
 
-        return (
-          <group key={`palm-${pidx}`} position={[px, 0, d.basinWidth / 2 + 1.2]}>
-            {/* Круглая клумба-приствольный круг */}
-            <mesh position={[0, 0.05, 0]} material={materials.plazaBorderMat}>
-              <cylinderGeometry args={[0.7, 0.75, 0.1, 16]} />
-            </mesh>
-            <mesh position={[0, 0.1, 0]} material={materials.palmTrunkMat}>
-              <cylinderGeometry args={[0.6, 0.6, 0.04, 16]} />
-            </mesh>
+        return palmXCoords.map((px, pidx) => {
+          const treeH = 3.8 + (((pidx * 3 + sIdx * 2) % 4) * 0.25);
+          // Естественный наклон пальмы к водному зеркалу чаши
+          const leanZ = -sideMultiplier * 0.065;
+          const leanX = ((pidx % 2 === 0 ? 1 : -1) * 0.035);
 
-            {/* Кольчатый изогнутый ствол пальмы */}
-            <group position={[0, 0, 0]} rotation={[trunkTilt, 0, 0]}>
-              <mesh position={[0, treeH / 2, 0]} material={materials.palmTrunkMat} castShadow>
-                <cylinderGeometry args={[0.15, 0.24, treeH, 10]} />
+          // Высоты сегментов ствола
+          const seg1H = treeH * 0.38;
+          const seg2H = treeH * 0.34;
+          const seg3H = treeH * 0.28;
+
+          return (
+            <group key={`palm-${sidePrefix}-${pidx}`} position={[px, 0, sideZ]}>
+              {/* Круглая мощеная клумба-приствольный круг */}
+              <mesh position={[0, 0.05, 0]} material={materials.plazaBorderMat} receiveShadow>
+                <cylinderGeometry args={[0.75, 0.82, 0.1, 16]} />
+              </mesh>
+              {/* Темный плодородный грунт/мульча */}
+              <mesh position={[0, 0.1, 0]} material={materials.palmBarkRingMat} receiveShadow>
+                <cylinderGeometry args={[0.7, 0.7, 0.03, 16]} />
               </mesh>
 
-              {/* Крона веерных пальмовых ветвей на вершине */}
-              <group position={[0, treeH, 0]}>
-                {Array.from({ length: 9 }).map((_, fidx) => {
-                  const fAngle = (fidx / 9) * Math.PI * 2;
-                  const droopAngle = 0.55 + (fidx % 3) * 0.1;
-                  return (
-                    <group key={`frond-${fidx}`} rotation={[0, fAngle, 0]}>
-                      <mesh
-                        position={[1.0, -0.35, 0]}
-                        rotation={[0, 0, -droopAngle]}
-                        material={materials.palmFrondMat}
-                        castShadow
-                      >
-                        <boxGeometry args={[2.0, 0.02, 0.5]} />
+              {/* Утолщенное комлевое основание ствола */}
+              <mesh position={[0, 0.25, 0]} material={materials.palmTrunkMat} castShadow receiveShadow>
+                <cylinderGeometry args={[0.22, 0.32, 0.45, 12]} />
+              </mesh>
+
+              {/* Сегментированный ствол пальмы с естественным изгибом к воде */}
+              <group position={[0, 0.45, 0]} rotation={[leanZ, 0, leanX]}>
+                {/* Сегмент 1 (нижний) */}
+                <mesh position={[0, seg1H / 2, 0]} material={materials.palmTrunkMat} castShadow>
+                  <cylinderGeometry args={[0.19, 0.22, seg1H, 12]} />
+                </mesh>
+                {/* Кольца коры */}
+                {[0.25, 0.5, 0.75].map((factor, rIdx) => (
+                  <mesh key={`ring1-${rIdx}`} position={[0, seg1H * factor, 0]} material={materials.palmBarkRingMat}>
+                    <torusGeometry args={[0.205, 0.022, 6, 16]} />
+                  </mesh>
+                ))}
+
+                {/* Сегмент 2 (средний) с плавным изгибом */}
+                <group position={[0, seg1H, 0]} rotation={[leanZ * 0.7, 0, -leanX * 0.5]}>
+                  <mesh position={[0, seg2H / 2, 0]} material={materials.palmTrunkMat} castShadow>
+                    <cylinderGeometry args={[0.16, 0.19, seg2H, 12]} />
+                  </mesh>
+                  {[0.3, 0.65].map((factor, rIdx) => (
+                    <mesh key={`ring2-${rIdx}`} position={[0, seg2H * factor, 0]} material={materials.palmBarkRingMat}>
+                      <torusGeometry args={[0.175, 0.02, 6, 16]} />
+                    </mesh>
+                  ))}
+
+                  {/* Сегмент 3 (верхний) */}
+                  <group position={[0, seg2H, 0]} rotation={[leanZ * 0.5, 0, leanX * 0.3]}>
+                    <mesh position={[0, seg3H / 2, 0]} material={materials.palmTrunkMat} castShadow>
+                      <cylinderGeometry args={[0.14, 0.16, seg3H, 12]} />
+                    </mesh>
+                    {[0.35, 0.7].map((factor, rIdx) => (
+                      <mesh key={`ring3-${rIdx}`} position={[0, seg3H * factor, 0]} material={materials.palmBarkRingMat}>
+                        <torusGeometry args={[0.15, 0.018, 6, 16]} />
                       </mesh>
+                    ))}
+
+                    {/* Шейка кроны (зеленый воротник) */}
+                    <mesh position={[0, seg3H + 0.2, 0]} material={materials.palmCrownShaftMat}>
+                      <cylinderGeometry args={[0.12, 0.15, 0.45, 12]} />
+                    </mesh>
+
+                    {/* Гроздья плодов/кокосов под кроной */}
+                    {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((angle, cIdx) => (
+                      <mesh
+                        key={`fruit-${cIdx}`}
+                        position={[Math.cos(angle) * 0.18, seg3H + 0.12, Math.sin(angle) * 0.18]}
+                        material={materials.coconutMat}
+                      >
+                        <sphereGeometry args={[0.09, 8, 8]} />
+                      </mesh>
+                    ))}
+
+                    {/* ============================================================== */}
+                    {/* МНОГОЯРУСНАЯ ПЫШНАЯ КРОНА ИЗОГНУТЫХ ПАЛЬМОВЫХ ЛИСТЬЕВ          */}
+                    {/* ============================================================== */}
+                    <group position={[0, seg3H + 0.42, 0]}>
+                      {/* Ярус 1 (верхний): 5 молодых побегов, устремленных вверх */}
+                      {Array.from({ length: 5 }).map((_, fidx) => {
+                        const fAngle = (fidx / 5) * Math.PI * 2;
+                        return (
+                          <group key={`ufrond-${fidx}`} rotation={[0, fAngle, 0]}>
+                            <mesh
+                              geometry={palmFrondGeometries.upper}
+                              material={materials.palmFrondYoungMat}
+                              rotation={[0.62, 0, 0]}
+                              castShadow
+                            />
+                          </group>
+                        );
+                      })}
+
+                      {/* Ярус 2 (средний): 8 зрелых листьев, пышно раскинувшихся в стороны */}
+                      {Array.from({ length: 8 }).map((_, fidx) => {
+                        const fAngle = (fidx / 8) * Math.PI * 2 + 0.35;
+                        return (
+                          <group key={`mfrond-${fidx}`} rotation={[0, fAngle, 0]}>
+                            <mesh
+                              geometry={palmFrondGeometries.middle}
+                              material={materials.palmFrondMatureMat}
+                              rotation={[0.22, 0, 0]}
+                              castShadow
+                            />
+                          </group>
+                        );
+                      })}
+
+                      {/* Ярус 3 (нижний): 6 зрелых поникающих ветвей */}
+                      {Array.from({ length: 6 }).map((_, fidx) => {
+                        const fAngle = (fidx / 6) * Math.PI * 2 + 0.7;
+                        return (
+                          <group key={`lfrond-${fidx}`} rotation={[0, fAngle, 0]}>
+                            <mesh
+                              geometry={palmFrondGeometries.lower}
+                              material={materials.palmFrondOldMat}
+                              rotation={[-0.45, 0, 0]}
+                              castShadow
+                            />
+                          </group>
+                        );
+                      })}
                     </group>
-                  );
-                })}
+                  </group>
+                </group>
               </group>
             </group>
-          </group>
-        );
+          );
+        });
       })}
+
+      {/* 7. Легковесная процедурная анимация воды и баллистическая физика струй */}
+      <FountainWaterAnimation />
     </group>
   );
 }
