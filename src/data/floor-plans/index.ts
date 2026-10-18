@@ -183,16 +183,16 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
     ],
   },
   // ==========================================
-  // BUILDING F (bld-d) - Amphitheatres & Large Studios
+  // BUILDING F (bld-d) - Library, Amphitheatres & Large Studios
   // ==========================================
   {
     buildingId: 'bld-d',
     level: 1,
     rooms: [
-      // Studios
+      // Studios & Ground Floor Campus Library (F-101)
       { id: 'bld-d-f1-f102', number: 'F-102', name: 'Design Studio 3-C', kind: 'classroom', capacity: 45, uSpan: [0.10, 0.50], vSpan: [0.04, 0.35], legacyId: 'bld-d-f1-r2' },
       { id: 'bld-d-f1-f103', number: 'F-103', name: 'Design Studio 3-D', kind: 'classroom', capacity: 45, uSpan: [0.50, 0.90], vSpan: [0.04, 0.35], legacyId: 'bld-d-f1-r3' },
-      { id: 'bld-d-f1-f101', number: 'F-101', name: 'Architecture Studio (2-A..3-B)', kind: 'hall', capacity: 120, uSpan: [0.04, 0.96], vSpan: [0.42, 0.96], legacyId: 'bld-d-f1-r1' },
+      { id: 'bld-d-f1-f101', number: 'F-101', name: 'Campus Library & Reading Hall (F101)', kind: 'hall', capacity: 120, uSpan: [0.04, 0.96], vSpan: [0.42, 0.96], legacyId: 'bld-d-f1-r1' },
     ],
   },
   {

@@ -33,118 +33,119 @@ const coniferMat = new THREE.MeshStandardMaterial({
   roughness: 0.85,
 });
 
-type TreePlacement = {
+export type TreePlacement = {
   pos: THREE.Vector3;
   scale: number;
   rotY: number;
   type: 'deciduous' | 'conifer';
 };
 
-export function Vegetation({ geometry }: { geometry: CampusGeometry }) {
+export function computeTreePlacements(geometry: CampusGeometry): TreePlacement[] {
   const treeCount = 180;
   const SEED = 20261014;
+  const prng = createPRNG(SEED);
+  const result: TreePlacement[] = [];
 
-  const placements = useMemo(() => {
-    const prng = createPRNG(SEED);
-    const result: TreePlacement[] = [];
+  // Lawns in context
+  const lawns = geometry.context.filter((f) => f.kind === 'lawn');
+  if (lawns.length === 0) return result;
 
-    // Lawns in context
-    const lawns = geometry.context.filter((f) => f.kind === 'lawn');
-    if (lawns.length === 0) return result;
-
-    // Building & connector bounding boxes for collision exclusion
-    const buildingBoxes: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
-    for (const bld of Object.values(geometry.buildings)) {
-      for (const part of bld.parts) {
-        if (part.type === 'rect') {
-          const hw = part.size[0] / 2 + 2.5; // 2.5m buffer
-          const hd = part.size[1] / 2 + 2.5;
-          buildingBoxes.push({
-            minX: part.center[0] - hw,
-            maxX: part.center[0] + hw,
-            minZ: part.center[1] - hd,
-            maxZ: part.center[1] + hd,
-          });
-        }
-      }
-    }
-    for (const conn of geometry.connectors ?? []) {
-      if (conn.footprint.type === 'rect') {
-        const hw = conn.footprint.size[0] / 2 + 1.5;
-        const hd = conn.footprint.size[1] / 2 + 1.5;
+  // Building & connector bounding boxes for collision exclusion
+  const buildingBoxes: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
+  for (const bld of Object.values(geometry.buildings)) {
+    for (const part of bld.parts) {
+      if (part.type === 'rect') {
+        const hw = part.size[0] / 2 + 2.5; // 2.5m buffer
+        const hd = part.size[1] / 2 + 2.5;
         buildingBoxes.push({
-          minX: conn.footprint.center[0] - hw,
-          maxX: conn.footprint.center[0] + hw,
-          minZ: conn.footprint.center[1] - hd,
-          maxZ: conn.footprint.center[1] + hd,
+          minX: part.center[0] - hw,
+          maxX: part.center[0] + hw,
+          minZ: part.center[1] - hd,
+          maxZ: part.center[1] + hd,
         });
       }
     }
+  }
+  for (const conn of geometry.connectors ?? []) {
+    if (conn.footprint.type === 'rect') {
+      const hw = conn.footprint.size[0] / 2 + 1.5;
+      const hd = conn.footprint.size[1] / 2 + 1.5;
+      buildingBoxes.push({
+        minX: conn.footprint.center[0] - hw,
+        maxX: conn.footprint.center[0] + hw,
+        minZ: conn.footprint.center[1] - hd,
+        maxZ: conn.footprint.center[1] + hd,
+      });
+    }
+  }
 
-    const isInsideBuilding = (x: number, z: number) => {
-      return buildingBoxes.some((b) => x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ);
-    };
+  const isInsideBuilding = (x: number, z: number) => {
+    return buildingBoxes.some((b) => x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ);
+  };
 
-    let attempts = 0;
-    while (result.length < treeCount && attempts < 2500) {
-      attempts++;
-      const lawn = lawns[Math.floor(prng() * lawns.length)];
+  let attempts = 0;
+  while (result.length < treeCount && attempts < 2500) {
+    attempts++;
+    const lawn = lawns[Math.floor(prng() * lawns.length)];
 
-      let px = 0,
-        pz = 0;
-      let insideLawn = false;
+    let px = 0,
+      pz = 0;
+    let insideLawn = false;
 
-      if (lawn.footprint.type === 'rect') {
-        const { center, size } = lawn.footprint;
-        const hw = size[0] / 2;
-        const hd = size[1] / 2;
-        px = center[0] - hw + prng() * size[0];
-        pz = center[1] - hd + prng() * size[1];
-        insideLawn = true;
-      } else if (lawn.footprint.type === 'polygon') {
-        const pts = lawn.footprint.points;
-        if (pts.length < 3) continue;
+    if (lawn.footprint.type === 'rect') {
+      const { center, size } = lawn.footprint;
+      const hw = size[0] / 2;
+      const hd = size[1] / 2;
+      px = center[0] - hw + prng() * size[0];
+      pz = center[1] - hd + prng() * size[1];
+      insideLawn = true;
+    } else if (lawn.footprint.type === 'polygon') {
+      const pts = lawn.footprint.points;
+      if (pts.length < 3) continue;
 
-        let minX = Infinity,
-          maxX = -Infinity,
-          minZ = Infinity,
-          maxZ = -Infinity;
-        for (const [x, z] of pts) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (z < minZ) minZ = z;
-          if (z > maxZ) maxZ = z;
-        }
-
-        px = minX + prng() * (maxX - minX);
-        pz = minZ + prng() * (maxZ - minZ);
-
-        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-          const xi = pts[i][0],
-            zi = pts[i][1];
-          const xj = pts[j][0],
-            zj = pts[j][1];
-          const intersect = zi > pz !== zj > pz && px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi;
-          if (intersect) insideLawn = !insideLawn;
-        }
+      let minX = Infinity,
+        maxX = -Infinity,
+        minZ = Infinity,
+        maxZ = -Infinity;
+      for (const [x, z] of pts) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (z < minZ) minZ = z;
+        if (z > maxZ) maxZ = z;
       }
 
-      // Ensure tree is within lawn and strictly outside building perimeters
-      if (insideLawn && !isInsideBuilding(px, pz)) {
-        const type: 'deciduous' | 'conifer' = prng() > 0.4 ? 'deciduous' : 'conifer';
-        const scale = 0.85 + prng() * 0.5;
-        const rotY = prng() * Math.PI * 2;
-        result.push({
-          pos: new THREE.Vector3(px, 0, pz),
-          scale,
-          rotY,
-          type,
-        });
+      px = minX + prng() * (maxX - minX);
+      pz = minZ + prng() * (maxZ - minZ);
+
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const xi = pts[i][0],
+          zi = pts[i][1];
+        const xj = pts[j][0],
+          zj = pts[j][1];
+        const intersect = zi > pz !== zj > pz && px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi;
+        if (intersect) insideLawn = !insideLawn;
       }
     }
 
-    return result;
-  }, [geometry]);
+    // Ensure tree is within lawn and strictly outside building perimeters
+    if (insideLawn && !isInsideBuilding(px, pz)) {
+      const type: 'deciduous' | 'conifer' = prng() > 0.4 ? 'deciduous' : 'conifer';
+      const scale = 0.85 + prng() * 0.5;
+      const rotY = prng() * Math.PI * 2;
+      result.push({
+        pos: new THREE.Vector3(px, 0, pz),
+        scale,
+        rotY,
+        type,
+      });
+    }
+  }
+
+  return result;
+}
+
+export function Vegetation({ geometry }: { geometry: CampusGeometry }) {
+  const placements = useMemo(() => computeTreePlacements(geometry), [geometry]);
 
   // Instanced Trunks
   const trunkMesh = useMemo(() => {

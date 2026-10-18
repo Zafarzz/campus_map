@@ -14,6 +14,7 @@ import { EXTRUDE_ROTATION, footprintOutline, useExtrudedGeometry } from './geome
 import { isClick } from './pointer';
 import { BlockCFacade } from './facades/BlockCFacade';
 import { BlockBFacade } from './facades/BlockBFacade';
+import { BlockBSouthFacade } from './facades/BlockBSouthFacade';
 
 type Props = {
   building: BuildingData;
@@ -452,10 +453,26 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
               </group>
             )}
 
-            {/* Dedicated Architectural Front Facade (Block B, facing South towards Block C) */}
+            {/* Dedicated Architectural Facades for Block B:
+                - North Facade (facing courtyard/driveway): 13-bay rhythm with stair ribbons, dormers, gazebo & pipeline
+                - South Facade (facing Block C): 8-bay rhythm with central glazed curtain wall (ВИТ-1) & pediment */}
             {appearance.customFacade === 'block-b' && i === 0 && (
               <group position={[worldX, 0, worldZ]}>
                 <BlockBFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="north"
+                  wallHeight={14.4}
+                  roofHeight={appearance.roofHeight ?? 3.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+                <BlockBSouthFacade
                   buildingWidth={width}
                   buildingDepth={depth}
                   facing="south"

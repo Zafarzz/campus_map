@@ -1,5 +1,5 @@
 import { Leva } from 'leva';
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { CampusMap } from './components/3d/CampusMap';
 import { isDevOrDebugMode } from './components/3d/tuning/useVisualTuning';
 import { Breadcrumbs } from './components/ui/Breadcrumbs';
@@ -9,8 +9,15 @@ import { FloorSelector } from './components/ui/FloorSelector';
 import { DataNotice, Legend, TimeControl } from './components/ui/MapControls';
 import { RoomDetails } from './components/ui/RoomDetails';
 import { SearchBox } from './components/ui/SearchBox';
-import { EditorPage } from './editor/components/EditorPage';
+import { isGameRoute, navigateToGame } from './game/config/gameConfig';
 import { MapProvider, useMap } from './state/MapProvider';
+
+const LazyEditorPage = lazy(() =>
+  import('./editor/components/EditorPage').then((m) => ({ default: m.EditorPage })),
+);
+const LazyGameScene = lazy(() =>
+  import('./game/GameScene').then((m) => ({ default: m.GameScene })),
+);
 
 function isEditorRoute(): boolean {
   if (typeof window === 'undefined') return false;
@@ -59,7 +66,7 @@ function AppLayout() {
             <h1>Campus Map</h1>
             <Breadcrumbs />
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {isDev && (
               <button
                 onClick={() => setShowTuning((prev) => !prev)}
@@ -79,6 +86,24 @@ function AppLayout() {
                 {showTuning ? '🎛️ Скрыть тюнинг' : '🎛️ Тюнинг'}
               </button>
             )}
+            <button
+              onClick={navigateToGame}
+              style={{
+                backgroundColor: '#059669',
+                color: '#ffffff',
+                border: 'none',
+                padding: '6px 10px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              }}
+              title="Режим прогулки от первого лица (/game)"
+            >
+              🎮 3D Walk
+            </button>
             <button
               onClick={() => {
                 window.location.hash = '#/editor';
@@ -120,10 +145,12 @@ function AppLayout() {
 
 export default function App() {
   const [inEditor, setInEditor] = useState<boolean>(isEditorRoute);
+  const [inGame, setInGame] = useState<boolean>(isGameRoute);
 
   useEffect(() => {
     const handleLocationChange = () => {
       setInEditor(isEditorRoute());
+      setInGame(isGameRoute());
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -137,10 +164,21 @@ export default function App() {
 
   if (inEditor) {
     return (
-      <>
+      <Suspense fallback={<div className="loading">Loading 2D Editor...</div>}>
         <Leva hidden={true} />
-        <EditorPage />
-      </>
+        <LazyEditorPage />
+      </Suspense>
+    );
+  }
+
+  if (inGame) {
+    return (
+      <MapProvider fallback={<div className="loading">Loading campus world...</div>}>
+        <Suspense fallback={<div className="loading">Initializing 3D Physics...</div>}>
+          <Leva hidden={true} />
+          <LazyGameScene />
+        </Suspense>
+      </MapProvider>
     );
   }
 
