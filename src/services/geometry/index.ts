@@ -30,7 +30,7 @@ export const geometryProvider: CampusGeometryProvider = {
     if (overrides.buildingFootprintsPx && Object.keys(overrides.buildingFootprintsPx).length > 0) {
       const dynamicProvider = createScreenshotGeometryProvider({
         buildingFootprintsPx: { ...buildingFootprintsPx, ...overrides.buildingFootprintsPx },
-        contextFeaturesPx,
+        contextFeaturesPx: overrides.contextFeaturesPx ?? contextFeaturesPx,
         connectorsPx,
         imageSizePx: mapConfig.reference.imageSizePx,
         metersPerPixel: mapConfig.reference.metersPerPixel,
@@ -44,3 +44,4 @@ export const geometryProvider: CampusGeometryProvider = {
     return baseProvider.build(campus);
   },
 };
+
