@@ -1,6 +1,6 @@
 import type { Campus } from '../../domain/campus/types';
 import type { RoomGeometry } from '../../domain/geometry/types';
-import type { PxRect } from '../../data/reference-footprints';
+import type { ContextFeaturePx, PxRect } from '../../data/reference-footprints';
 import { demoCampus } from '../../data/demo-campus';
 import { loadDraft } from '../../editor/storage/storageService';
 import { editorDocToCampusAndGeom } from '../../editor/domain/adapter';
@@ -8,6 +8,7 @@ import { editorDocToCampusAndGeom } from '../../editor/domain/adapter';
 export type ActiveEditorOverrides = {
   buildingFootprintsPx?: Record<string, PxRect[]>;
   roomOverrides?: Record<string, RoomGeometry>;
+  contextFeaturesPx?: ContextFeaturePx[];
 };
 
 let activeEditorOverrides: ActiveEditorOverrides = {};
@@ -26,8 +27,9 @@ export async function loadCampus(): Promise<Campus> {
     if (draft && draft.buildings && draft.buildings.length > 0) {
       const cCount = draft.buildings.filter((b) => b.shortName === 'C').length;
       if (cCount <= 1) {
-        const { campus, buildingFootprintsPx, roomOverrides } = editorDocToCampusAndGeom(draft);
-        activeEditorOverrides = { buildingFootprintsPx, roomOverrides };
+        const { campus, buildingFootprintsPx, roomOverrides, contextFeaturesPx } =
+          editorDocToCampusAndGeom(draft);
+        activeEditorOverrides = { buildingFootprintsPx, roomOverrides, contextFeaturesPx };
         return campus;
       }
     }
@@ -38,3 +40,4 @@ export async function loadCampus(): Promise<Campus> {
   activeEditorOverrides = {};
   return demoCampus;
 }
+

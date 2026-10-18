@@ -1,5 +1,6 @@
 import { createInitialDocument } from '../domain/adapter';
 import type { CampusVersion, EditorDocument, VersionType } from '../domain/types';
+import { initAttachmentStorage } from './attachmentStorage';
 
 const DB_NAME = 'campus_map_editor_db_v3';
 const DB_VERSION = 1;
@@ -290,6 +291,7 @@ export async function createNamedVersion(
  * Initializes storage, guaranteeing a valid draft and an initial version snapshot.
  */
 export async function initStorage(): Promise<{ doc: EditorDocument; versions: CampusVersion[] }> {
+  await initAttachmentStorage();
   let doc = await loadDraft();
   let versions = await loadVersions();
 

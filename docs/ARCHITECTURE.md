@@ -293,3 +293,35 @@ flowchart TD
    - Окружение (`Vegetation.tsx`, `ContextLayer.tsx`): детерминированная генерация растительности по фиксированному seed без коллизий со зданиями.
    - Освещение (`CampusMap.tsx`): мягкие тени `PCFSoftShadowMap`, физический `Sky`, отказ от внешних CDN HDRI (ADR-018).
 
+---
+
+## 10. Архитектура 2D Visual Editor (`src/editor/`) [факт]
+
+2D-редактор (`src/editor/`) построен как визуальный графический редактор со светлой (white) темой и строгим разделением пяти уровней ответственности:
+
+1. **Семантическая схема данных (`src/editor/domain/types.ts`, `adapter.ts`)**:
+   - Единый документ `EditorDocument` (`schemaVersion: 1`) хранит здания (`EditorBuilding`, включая многосекционные крылья `parts`), этажи (`EditorFloor`), внутренние элементы этажей (`EditorRoom` с `elementType`: `room`, `corridor`, `hall`, `lobby`, `door`, `window`, `stairs`, `elevator`, `entrance`, `exit`, `wall`, `partition`, `custom`, поддержкой прямоугольников и полигонов `polygon`) и внешние элементы кампуса (`EditorOutdoorElement`: `path`, `walkway`, `road`, `lawn`, `tree`, `plaza`, `fountain`, `entrance`, `custom`).
+   - Каждый объект поддерживает стабильный `id`, `name`, `description`, `customMetadata` и поле **`aiComment` ("Instructions for AI")** для описания желаемых правок на естественном языке.
+   - Преобразование координат: мировые метры `[wx, wz]` (`+X` = Восток, `+Z` = Юг) напрямую отображаются на 2D-холст (`screenX = pan.x + wx * zoom`, `screenY = pan.y + wz * zoom`). Координаты элементов этажа `localCenter: [lx, lz]` хранятся относительно центра родительского здания `building.footprint.center`, поэтому перемещение здания сохраняет его внутреннюю планировку и все секции `parts`.
+2. **Состояние и прямое манипулирование на холсте (`src/editor/components/EditorCanvas.tsx`, `EditorPage.tsx`, `history/`)**:
+   - Прямое манипулирование мышью/тачем: выбор кликом, множественный выбор (`Shift+Click` и рамка выделения marquee), перетаскивание, изменение размеров за 8 маркеров (`nw`, `n`, `ne`, `e`, `se`, `s`, `sw`, `w`), редактирование вершин полигонов и полилиний дорожек, рисование прямоугольников перетаскиванием и пошаговое рисование полигонов/дорожек, привязка к сетке, направляющие выравнивания (smart alignment guides) и переименование двойным кликом.
+   - Переключатель этажей (`Floor 1`, `Floor 2`, ... `+ Floor`) на холсте и в боковой панели, а также переключаемые слои кампуса (`buildings`, `paths`, `greenery`, `infrastructure`, `annotations`).
+   - Все мутации проходят через `SnapshotCommand` и `HistoryManager` (`Undo` / `Redo`) с автоматическим сохранением черновика (`saveDraft`) в IndexedDB / `localStorage`.
+3. **Генерация 3D-геометрии и синхронизация (`src/editor/domain/adapter.ts`, `src/services/campus/campusService.ts`)**:
+   - Функция `editorDocToCampusAndGeom(doc)` преобразует `EditorDocument` обратно в `Campus`, `buildingFootprintsPx`, `roomOverrides` и `contextFeaturesPx`, которые подхватываются `MapProvider` и `screenshotGeometryProvider` без дублирования состояния.
+4. **Отслеживание изменений и индивидуальный откат (`src/editor/changeTracking/changeTracker.ts`)**:
+   - `computeSemanticChanges(baselineDoc, currentDoc)` вычисляет семантический дифф относительно исходного состояния кампуса по категориям: `added`, `modified`, `moved`, `resized`, `renamed`, `deleted` (включая удалённые объекты, отображаемые пунктирным контуром в режиме `Review Changes`).
+   - `revertIndividualChange(currentDoc, baselineDoc, change)` позволяет откатить или восстановить любой отдельный объект без потери остальных правок.
+5. **Фото-вложения и визуальные референсы (`src/editor/storage/attachmentStorage.ts`, `src/editor/components/PhotoAttachmentsSection.tsx`)**:
+   - Каждый объект кампуса (`EditorDocument`, `EditorBuilding`, `EditorFloor`, `EditorRoom`, `EditorOutdoorElement`) поддерживает массив метаданных `photos?: PhotoAttachment[]` (`id`, `fileId`, `fileName`, `mimeType`, `byteSize`, опциональные `title`, `caption`, `aiInstruction`, `direction`, `order`).
+   - Бинарные изображения (JPEG, PNG, WebP и др.) хранятся **отдельно** от `EditorDocument` и `geometry.json` в специализированном хранилище `attachmentStorage.ts` (IndexedDB `CampusMapAttachmentsDB` + синхронный кэш предпросмотра и безопасный фоллбэк), что исключает раздувание JSON-документа строками base64 и гарантирует сохранность связей при перемещении, изменении размеров или переименовании объектов, а также после перезагрузки страницы.
+6. **AI-friendly ZIP экспорт (`src/editor/export/exportService.ts`, `zipWriter.ts`)**:
+   - Формирует самодостаточный архив `campus-edit-*.zip` (схема `1.0.0`) без внешних runtime-зависимостей с выбором охвата референсов (`referenceScope: 'all' | 'changed-only'`):
+     - `campus-edit/manifest.json` — версия схемы, система координат, единицы измерения, статистика правок, реестр прикреплённых фото-референсов и список файлов;
+     - `campus-edit/instructions.md` — человеко- и AI-читаемая сводка всех инструкций `aiComment`, раздел интерпретации визуальных фото-референсов (какие фото относятся к каким корпусам, этажам и объектам, ракурс `direction`, описание `caption` и инструкции `aiInstruction`) и перечень всех внесённых изменений;
+     - `campus-edit/changes.json` — структурированный список всех изменений (`added`, `modified`, `moved`, `resized`, `renamed`, `deleted`) с состояниями `before` и `after`;
+     - `campus-edit/geometry.json` — полное состояние `EditorDocument` и производных 3D-координат (без встраивания base64-изображений);
+     - `campus-edit/references/...` — оригинальные бинарные файлы фотографий, сгруппированные по корпусам/этажам/объектам (`references/<building>/floor-<level>/<object>/...`), сопровождаемые локальными `metadata.json` и сводным `references/index.json`;
+     - `campus-edit/preview.png`, `campus-edit/campus-overview.svg` и `campus-edit/floor-plans/<buildingId>-floor-<level>.svg` — визуальные превью генерального плана и поэтажных планов с маркерами изменений.
+
+
