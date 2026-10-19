@@ -1,0 +1,60 @@
+# English (default locale) catalogue for the Campus Digital Twin backend.
+msgid ""
+msgstr ""
+"Project-Id-Version: campus-backend 0.1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "error.internal"
+msgstr "Internal server error."
+
+msgid "error.not_found"
+msgstr "Not found."
+
+msgid "error.validation"
+msgstr "Invalid request."
+
+msgid "error.conflict"
+msgstr "The request conflicts with existing data."
+
+msgid "error.not_authenticated"
+msgstr "Authentication required."
+
+msgid "error.permission_denied"
+msgstr "You do not have permission to do that."
+
+msgid "error.ambiguous_alias"
+msgstr "That legacy identifier matches more than one room, so it cannot be resolved."
+
+msgid "error.not_implemented_yet"
+msgstr "This endpoint is documented but not implemented yet."
+
+msgid "room_state.free"
+msgstr "Free"
+
+msgid "room_state.lesson_now"
+msgstr "Lesson now"
+
+msgid "room_state.starts_soon"
+msgstr "Starts soon"
+
+msgid "room_state.done_for_today"
+msgstr "Done for today"
+
+msgid "room_state.cancelled"
+msgstr "Cancelled"
+
+msgid "provenance.scheduled"
+msgstr "From the timetable"
+
+msgid "provenance.confirmed"
+msgstr "Confirmed by a person"
+
+msgid "provenance.reported"
+msgstr "Reported by users"
+
+msgid "provenance.estimated"
+msgstr "Estimated by a model"

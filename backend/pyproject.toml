@@ -1,0 +1,134 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "campus-backend"
+version = "0.1.0"
+description = "Campus Digital Twin backend for the Ajou University in Tashkent 3D campus map"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+
+# Versions verified against PyPI on 2026-10-17 and pinned exactly (MASTER_PROMPT.md section 4.6).
+# Rationale for each choice is in backend/docs/adr/0004-async-stack-and-migrations.md.
+dependencies = [
+  "fastapi==0.143.3",
+  "uvicorn[standard]==0.54.0",
+  "sqlalchemy==2.1.5",
+  "greenlet==3.5.6",          # required by SQLAlchemy's asyncio bridge
+  "alembic==1.20.0",
+  "asyncpg==0.32.0",
+  "pydantic==2.14.1",
+  "pydantic-settings==2.16.0",
+  "structlog==26.1.0",
+  "prometheus-client==0.26.0",
+  "babel==2.18.0",
+  "python-dateutil==2.9.0.post0",
+  "pyjwt[crypto]==2.15.1",
+  "email-validator==2.3.0",
+  # --- Phase 2 (Layer 0). Versions verified against PyPI on 2026-10-19.
+  "icalendar==7.3.0",             # ICS parsing; RRULE/EXDATE/RECURRENCE-ID
+  "recurring-ical-events==3.8.2", # occurrence expansion incl. overrides
+  "openpyxl==3.1.5",              # read XLSX timetable exports
+  "redis==8.1.0",                 # pub/sub fan-out; in-process fallback if unset
+  "apscheduler==3.11.3",          # transition scheduler (ADR-0011)
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.1.0",
+  "httpx==0.28.1",
+  "hypothesis==6.170.1",
+  "faker==40.43.0",
+  "ruff==0.17.1",
+  "mypy==2.4.0",
+  "types-python-dateutil==2.9.0.20251008",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# ----------------------------------------------------------------------------- ruff
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["app", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",    # pycodestyle
+  "F",         # pyflakes
+  "I",         # isort
+  "B",         # bugbear
+  "UP",        # pyupgrade
+  "SIM",       # simplify
+  "C4",        # comprehensions
+  "DTZ",       # naive-datetime misuse: the whole design depends on tz-aware times
+  "ASYNC",     # async correctness
+  "RUF",
+]
+ignore = [
+  "B008",      # FastAPI's Depends() in defaults is the documented idiom
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "scripts", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*" = ["E501"]   # generated DDL is allowed to be wide
+# Naive datetimes are the *subject* of the time tests: they assert that the
+# helpers refuse or correctly localise them, so DTZ must not forbid writing one.
+"tests/test_time.py" = ["E501", "DTZ001", "DTZ005"]
+"tests/*" = ["E501"]
+
+# ----------------------------------------------------------------------------- mypy
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+# Generated migration scripts are not worth typing strictly.
+exclude = ["^alembic/versions/"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg.*"]
+ignore_missing_imports = true
+
+# ----------------------------------------------------------------------------- pytest
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Fixtures and tests must share one event loop. The database engine and its
+# connection pool are created by a session-scoped fixture; a function-scoped
+# test loop would then touch them from a different loop and fail with
+# "Task attached to a different loop".
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+  "db: requires a live PostgreSQL test database",
+]
+filterwarnings = [
+  # A warning we did not plan for is usually a real problem, so warnings are
+  # errors by default.
+  "error",
+  # Exception: asyncpg emits ResourceWarning from Connection.__del__ when the
+  # garbage collector reclaims a connection whose engine was already disposed.
+  # It is a GC-timing artefact of the short-lived engines the migration tests
+  # create, not a leak in application code, and it surfaces as an unraisable
+  # exception during teardown rather than inside the test that caused it.
+  "ignore::ResourceWarning:asyncpg.connection",
+  "ignore:unclosed connection:ResourceWarning",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

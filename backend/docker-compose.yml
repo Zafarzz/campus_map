@@ -1,0 +1,91 @@
+# Local development stack. Lives inside backend/ so the whole backend can be
+# reviewed, run, or deleted without affecting the rest of the repository.
+#
+#   docker compose up -d db     # just PostgreSQL
+#   docker compose up           # PostgreSQL + the API
+#
+# PostgreSQL 18 (current major, verified on Docker Hub 2026-10-17; the brief
+# requires 16 or newer). See docs/adr/0003-postgresql-version-and-schema.md.
+
+name: campus-backend
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      # The superuser of this container is the MIGRATION/OWNER role. The limited
+      # application role is created by docker/initdb/10-roles.sql.
+      POSTGRES_USER: campus_owner
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD in backend/.env}
+      POSTGRES_DB: campus
+      APP_ROLE_PASSWORD: ${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in backend/.env}
+      DB_SCHEMA: ${DATABASE_SCHEMA:-campus}
+      # Deterministic collation so ORDER BY is stable across machines.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # Bound to localhost only, and on 5433 so it cannot collide with a
+      # PostgreSQL already installed on the host.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      # PostgreSQL 18+ images store data in a major-version subdirectory so that
+      # `pg_upgrade --link` works across a mount boundary, so the volume must be
+      # mounted at /var/lib/postgresql and NOT at /var/lib/postgresql/data.
+      # Mounting the old path makes the container refuse to start.
+      # Verified against the postgres:18-alpine entrypoint on 2026-10-17.
+      - pgdata:/var/lib/postgresql
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus_owner -d campus"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    # Keeps the dev database honest about the features the design relies on.
+    command:
+      - postgres
+      - -c
+      - timezone=UTC
+      - -c
+      - log_min_duration_statement=500
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the database is reachable as "db:5432",
+      # overriding whatever localhost URL .env uses for host-side tooling.
+      DATABASE_URL: postgresql+asyncpg://campus_app:${POSTGRES_APP_PASSWORD:?}@db:5432/campus
+      DATABASE_MIGRATION_URL: postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD:?}@db:5432/campus
+      DATABASE_TEST_URL: postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD:?}@db:5432/campus
+      # .env's "../src" is a host-side path. Inside the container the front end
+      # is bind-mounted read-only at the path below, so the extractor and the
+      # seeding tests need the override.
+      FRONTEND_SRC_DIR: /srv/frontend-src
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      # Live reload during development.
+      - ./app:/srv/app:ro
+      - ./alembic:/srv/alembic:ro
+      - ./scripts:/srv/scripts:ro
+      - ./tests:/srv/tests:ro
+      - ./locales:/srv/locales:ro
+      # The extractor reads the front end. Mounted READ-ONLY on purpose: the
+      # container is physically unable to modify front-end files.
+      - ../src:/srv/frontend-src:ro
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      --reload-dir /srv/app
+
+volumes:
+  pgdata:
+    name: campus-backend-pgdata
