@@ -12,13 +12,13 @@ describe('Campus Building Connectors & Block C Hall (ADR-020)', () => {
     const bToC = connectorsPx.find((c) => c.id === 'conn-bld-g-bld-i');
     expect(bToC).toBeDefined();
     expect(bToC?.buildingIds).toEqual(['bld-g', 'bld-i']);
-    expect(bToC?.floorCount).toBe(1);
+    expect(bToC?.floorCount).toBe(2); // Two storeys (ADR-029)
     expect(bToC?.kind).toBe('enclosed-corridor');
 
     const aToC = connectorsPx.find((c) => c.id === 'conn-bld-h-bld-i');
     expect(aToC).toBeDefined();
     expect(aToC?.buildingIds).toEqual(['bld-h', 'bld-i']);
-    expect(aToC?.floorCount).toBe(1);
+    expect(aToC?.floorCount).toBe(2); // Two storeys (ADR-029)
     expect(aToC?.kind).toBe('enclosed-corridor');
   });
 
@@ -30,15 +30,15 @@ describe('Campus Building Connectors & Block C Hall (ADR-020)', () => {
     for (const conn of campusGeom.connectors) {
       expect(conn.kind).toBe('enclosed-corridor');
       expect(conn.elevation).toBe(0); // Ground level
-      expect(conn.height).toBe(3.6); // 1-floor standard height
+      expect(conn.height).toBe(7.2); // 2-floor standard height (3.6m * 2, ADR-029)
       expect(conn.precision).toBe('approximate');
       expect(conn.footprint.type).toBe('rect');
       if (conn.footprint.type === 'rect') {
         const [w, d] = conn.footprint.size;
         const length = Math.max(w, d);
         const width = Math.min(w, d);
-        expect(length).toBeCloseTo(6.0, 1); // 6 meters length
-        expect(width).toBeCloseTo(3.0, 1);  // 3 meters width
+        expect(length).toBeGreaterThanOrEqual(14.0);
+        expect(width).toBeGreaterThanOrEqual(6.8);
       }
     }
   });

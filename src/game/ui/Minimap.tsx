@@ -1,5 +1,6 @@
 import { useEffect, useRef, type MutableRefObject } from 'react';
 import { FOUNTAIN_DIMENSIONS } from '../../components/3d/CampusFountain';
+import { AMPHITHEATER_HALL } from '../../data/amphitheater-hall';
 import type { Campus } from '../../domain/campus/types';
 import type { CampusGeometry } from '../../domain/geometry/types';
 import type { PlayerTransformState } from '../config/gameConfig';
@@ -126,6 +127,27 @@ export function Minimap({
         ctx.textBaseline = 'middle';
         ctx.fillText(b.shortName, lx, lz);
       }
+
+      // Amphitheater Hall (out-plaza-mvijfubr)
+      const isAmphEntered = enteredBuildingId === 'amph-hall';
+      const isAmphTarget = wayfindingTarget?.buildingId === 'amph-hall';
+      ctx.fillStyle = isAmphTarget
+        ? 'rgba(59, 130, 246, 0.85)'
+        : isAmphEntered
+        ? 'rgba(16, 185, 129, 0.85)'
+        : 'rgba(185, 28, 28, 0.75)'; // Signature red slate roof
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 0.8;
+      const [ax, az] = toCanvas(AMPHITHEATER_HALL.center[0], AMPHITHEATER_HALL.center[1]);
+      const aw = AMPHITHEATER_HALL.size[0] * scale;
+      const ad = AMPHITHEATER_HALL.size[1] * scale;
+      ctx.fillRect(ax - aw / 2, az - ad / 2, aw, ad);
+      ctx.strokeRect(ax - aw / 2, az - ad / 2, aw, ad);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 7px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('AMPH', ax, az);
 
       const { x: px, z: pz, yaw } = playerTransformRef.current;
       const [pcx, pcz] = toCanvas(px, pz);

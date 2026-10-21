@@ -31,17 +31,23 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
     [320, 690, 360, 750]  // Right vertical
   ],
   // Bottom-Right cluster (Учебные и жилые корпуса)
+  // Positions of bld-g / bld-h / bld-i updated from the 2D-editor package
+  // `campus-edit-2026-10-21-20-05-05` (ADR-029). Sizes are calibrated to CAD drawings.
   // Top horizontal block (Block B - Academic Building No. 2, 55m x 15m calibrated to CAD elevation)
+  // Calibrated to [490, 688.67, 673, 738.67] -> center (69.0, 60.5), size 54.9m x 15.0m.
+  // South face is at exactly Z = 68.0m, perfectly flush with the Amphitheater Hall (north face Z = 68.0m) with zero gap (ADR-029).
   'bld-g': [
-    [508, 720, 691, 770] // 183px × 50px (54.9m × 15.0m ≈ 55.0m × 15.0m)
+    [490, 688.67, 673, 738.67] // 183px × 50px (54.9m × 15.0m ≈ 55.0m × 15.0m), center (69.0, 60.5)
   ],
   // Middle horizontal block (Block A - Main academic building, 66m x 18m)
+  // Editor export: [288, 795, 508, 855] -> center (13.95, 93.9), north face z=84.9m.
   'bld-h': [
-    [310, 795, 530, 855] // 220px × 60px (66.0m × 18.0m, calibrated to CAD)
+    [288, 795, 508, 855] // 220px × 60px (66.0m × 18.0m, calibrated to CAD), center (13.95, 93.9)
   ],
   // Bottom vertical block (Block C, extended by +10% from 35.9m CAD facade to 39.6m)
+  // Editor export: [552, 794, 632, 926] -> center (72.15, 104.4), west face x=60.15m.
   'bld-i': [
-    [550, 790, 630, 922] // 80px × 132px (24.0m × 39.6m)
+    [552, 794, 632, 926] // 80px × 132px (24.0m × 39.6m), center (72.15, 104.4)
   ],
   // Bottom-Left U-shape (Учебный корпус №3)
   'bld-j': [
@@ -65,10 +71,13 @@ export type ConnectorPx = {
 };
 
 export const connectorsPx: ConnectorPx[] = [
-  // Block B (bld-g) ↔ Block C Hall (bld-i). Length: 6.0m (20px), Width: 3.0m (10px).
-  { id: 'conn-bld-g-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-g', 'bld-i'], rect: [585, 770, 595, 790], floorCount: 1 },
-  // Block A (bld-h) ↔ Block C Hall (bld-i). Length: 6.0m (20px), Width: 3.0m (10px).
-  { id: 'conn-bld-h-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-h', 'bld-i'], rect: [530, 800, 550, 810], floorCount: 1 },
+  // Block B (bld-g) ↔ Block C Hall (bld-i). Two storeys (editor instruction "dvux etjaniy").
+  // Spans from Block B south face (px 738.67 / z=68.0m) to Block C north face (px 794 / z=84.6m).
+  // Width 7.5m (25px), length 16.6m (55.33px) (ADR-029).
+  { id: 'conn-bld-g-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-g', 'bld-i'], rect: [557, 738.67, 582, 794], floorCount: 2 },
+  // Block A (bld-h) ↔ Block C Hall (bld-i). Two storeys, length 14.1m (47px, instruction "14 metrov dlina, dvux etjaniy"),
+  // width 6.9m (23px) (ADR-029).
+  { id: 'conn-bld-h-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-h', 'bld-i'], rect: [505, 809, 552, 832], floorCount: 2 },
 ];
 
 export type ContextFeaturePx = {
@@ -86,9 +95,11 @@ export const contextFeaturesPx: ContextFeaturePx[] = [
   // Lawns / Gardens
   { id: 'lawn-sq', kind: 'lawn', rect: [300, 300, 550, 410] }, // Сквер
   { id: 'lawn-g1', kind: 'lawn', rect: [370, 420, 710, 460] }, // Газоны
-  { id: 'lawn-orchard1', kind: 'lawn', rect: [370, 700, 480, 800] }, // Trees between red buildings
+  { id: 'lawn-orchard1', kind: 'lawn', rect: [345, 695, 455, 795] }, // Trees between red buildings (moved −7.6m/−1.4m via 2D editor, ADR-029)
   { id: 'lawn-orchard2', kind: 'lawn', rect: [310, 890, 530, 1000] }, // Сад (bottom)
   { id: 'lawn-n', kind: 'lawn', rect: [50, 40, 240, 200] },
+  // Amphitheater Hall plaza/court footprint from 2D editor (ADR-029)
+  { id: 'out-plaza-mvijfubr', kind: 'court', rect: [487, 739, 553, 795], label: 'Зал амфитеатра' },
   // Roads
   { id: 'road-east', kind: 'road', rect: [720, 0, 750, 1050] },
   // Entrance structures (КПП)

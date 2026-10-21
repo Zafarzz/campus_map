@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { AMPHITHEATER_HALL } from '../../data/amphitheater-hall';
 import type { CampusGeometry } from '../../domain/geometry/types';
 
 // Deterministic Pseudo-Random Number Generator (Mulberry32)
@@ -78,6 +79,14 @@ export function computeTreePlacements(geometry: CampusGeometry): TreePlacement[]
       });
     }
   }
+
+  // Exclude Amphitheater Hall area and surrounding plaza (ADR-029)
+  buildingBoxes.push({
+    minX: AMPHITHEATER_HALL.center[0] - AMPHITHEATER_HALL.size[0] / 2 - 12.0, // Clear 12m plaza on West
+    maxX: AMPHITHEATER_HALL.center[0] + AMPHITHEATER_HALL.size[0] / 2 + 6.0,  // East gallery & walkway
+    minZ: AMPHITHEATER_HALL.center[1] - AMPHITHEATER_HALL.size[1] / 2 - 4.0,  // North
+    maxZ: AMPHITHEATER_HALL.center[1] + AMPHITHEATER_HALL.size[1] / 2 + 5.0,  // South
+  });
 
   const isInsideBuilding = (x: number, z: number) => {
     return buildingBoxes.some((b) => x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ);
