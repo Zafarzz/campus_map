@@ -32,10 +32,10 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
   ],
   // Bottom-Right cluster (Учебные и жилые корпуса)
   // Positions of bld-g / bld-h / bld-i updated from the 2D-editor package
-  // `campus-edit-2026-10-21-20-05-05` (ADR-029). Sizes are unchanged.
+  // `campus-edit-2026-10-21-20-05-05` (ADR-029). Sizes are calibrated to CAD drawings.
   // Top horizontal block (Block B - Academic Building No. 2, 55m x 15m calibrated to CAD elevation)
   // Editor export: [490, 685, 673, 735] -> center (69.0, 59.4), south face z=66.9m.
-  // Clears a 1.1m passage north of the Amphitheater Hall (north face z=68.0m).
+  // Leaves 1.2m clear passage north of the Amphitheater Hall (north face z=68.1m).
   'bld-g': [
     [490, 685, 673, 735] // 183px × 50px (54.9m × 15.0m ≈ 55.0m × 15.0m), center (69.0, 59.4)
   ],

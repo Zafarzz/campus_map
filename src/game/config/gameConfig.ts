@@ -107,6 +107,12 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
     yaw: 0,
   },
   {
+    id: 'amph-hall',
+    label: '🏛️ Amphitheater Hall & Grand Screen',
+    position: [50.5, 2.2, 82.0],
+    yaw: 0,
+  },
+  {
     id: 'bld-i',
     label: '🏢 Block C (Conference & Classrooms)',
     position: [96.0, 2.2, 103.2],
@@ -115,7 +121,7 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'bld-g',
     label: '🏢 Block B (Academic Building No. 2)',
-    position: [74.4, 2.2, 45.0],
+    position: [69.0, 2.2, 48.0],
     yaw: Math.PI,
   },
   {

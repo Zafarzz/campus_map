@@ -5,6 +5,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import * as THREE from 'three';
 import { Building, type BuildingMode } from '../components/3d/Building';
 import { CampusConnectors } from '../components/3d/CampusConnectors';
+import { AmphitheaterHall } from '../components/3d/amphitheater/AmphitheaterHall';
 import { ContextLayer } from '../components/3d/ContextLayer';
 import { Vegetation } from '../components/3d/Vegetation';
 import { useVisualTuning } from '../components/3d/tuning/useVisualTuning';
@@ -331,6 +332,7 @@ export function GameScene() {
             connectors={geometry.connectors}
             selectedBuildingId={enteredBuildingId ?? undefined}
           />
+          <AmphitheaterHall selected={enteredBuildingId === 'amph-hall'} />
           {campus.buildings.map((building) => {
             const g = geometry.buildings[building.id];
             if (!g) return null;

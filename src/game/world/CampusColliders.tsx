@@ -6,6 +6,7 @@ import { FOUNTAIN_DIMENSIONS } from '../../components/3d/CampusFountain';
 import { MAIN_ENTRANCE_WIDTH } from '../../components/3d/MainEntranceGate';
 import { computeTreePlacements } from '../../components/3d/Vegetation';
 import { mapConfig } from '../../config/mapConfig';
+import { AMPHITHEATER_HALL } from '../../data/amphitheater-hall';
 import type { CampusGeometry, Footprint } from '../../domain/geometry/types';
 
 export type BoxColliderSpec = {
@@ -376,6 +377,56 @@ export function buildCampusColliderSpecs(
       rotation: [-rampAngle, 0, 0],
       friction: 0.3,
     });
+  });
+
+  // 8. Amphitheater Hall (out-plaza-mvijfubr, ADR-029)
+  const [amphX, amphZ] = AMPHITHEATER_HALL.center;
+  // North solid wall
+  list.push({
+    id: 'amph-wall-north',
+    position: [amphX, 3.6, amphZ - 8.4],
+    halfExtents: [10.0, 3.6, 0.15],
+  });
+  // West panoramic curtain wall
+  list.push({
+    id: 'amph-wall-west',
+    position: [amphX - 9.95, 3.6, amphZ],
+    halfExtents: [0.15, 3.6, 8.5],
+  });
+  // East wall gallery (leaving 2.6m center entrance portal open)
+  list.push({
+    id: 'amph-wall-east-north',
+    position: [amphX + 11.15, 3.6, amphZ - 3.65],
+    halfExtents: [0.15, 3.6, 2.35],
+  });
+  list.push({
+    id: 'amph-wall-east-south',
+    position: [amphX + 11.15, 3.6, amphZ + 3.65],
+    halfExtents: [0.15, 3.6, 2.35],
+  });
+  // South colonnade corner walls
+  list.push({
+    id: 'amph-wall-south-sw',
+    position: [amphX - 8.5, 3.6, amphZ + 8.3],
+    halfExtents: [1.5, 3.6, 0.2],
+  });
+  list.push({
+    id: 'amph-wall-south-se',
+    position: [amphX + 8.5, 3.6, amphZ + 8.3],
+    halfExtents: [1.5, 3.6, 0.2],
+  });
+  // South glass rail (H=0.9m)
+  list.push({
+    id: 'amph-south-railing',
+    position: [amphX, 1.8, amphZ + 8.1],
+    halfExtents: [7.0, 0.45, 0.05],
+  });
+  // Stage podium
+  list.push({
+    id: 'amph-stage-podium',
+    position: [amphX, 1.35 / 2, amphZ - 7.3],
+    halfExtents: [3.2, 1.35 / 2, 1.2],
+    friction: 0.2,
   });
 
   return list;

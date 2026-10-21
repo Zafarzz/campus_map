@@ -51,6 +51,10 @@ describe('First-Person Game Prototype & Enhancements', () => {
     expect(colliders.some((c) => c.id === 'fountain-bridge-deck-1')).toBe(true);
     expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-n-0')).toBe(true);
     expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-s-0')).toBe(true);
+
+    // Amphitheater Hall walls and stage
+    expect(colliders.some((c) => c.id === 'amph-wall-north')).toBe(true);
+    expect(colliders.some((c) => c.id === 'amph-stage-podium')).toBe(true);
   });
 
   it('generates deterministic tree trunk cylinder colliders outside building footprints', () => {

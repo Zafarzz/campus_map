@@ -7,7 +7,58 @@ import {
   getBookshelfTexture,
   getGrilyatoTexture,
   getParquetFloorTexture,
+  getSlateRoofTexture,
 } from './amphitheaterTextures';
+
+/**
+ * Creates a 4-pitched hip roof geometry for the Amphitheater Hall,
+ * matching the red pitched roofs ("шифер") of Block B and Block A.
+ */
+function createAmphitheaterHipRoofGeometry(
+  width: number,
+  depth: number,
+  height: number,
+): THREE.BufferGeometry {
+  const geom = new THREE.BufferGeometry();
+  const hw = width / 2;
+  const hd = depth / 2;
+  const ridgeLen = Math.max(0, width - depth * 0.7);
+  const hr = ridgeLen / 2;
+
+  const positions: number[] = [
+    // South face (Z > 0)
+    -hw, 0, hd,   hw, 0, hd,   hr, height, 0,
+    -hw, 0, hd,   hr, height, 0,  -hr, height, 0,
+
+    // North face (Z < 0)
+    hw, 0, -hd,  -hw, 0, -hd,  -hr, height, 0,
+    hw, 0, -hd,  -hr, height, 0,   hr, height, 0,
+
+    // West hip (X < 0)
+    -hw, 0, -hd, -hw, 0, hd,   -hr, height, 0,
+
+    // East hip (X > 0)
+    hw, 0, hd,    hw, 0, -hd,   hr, height, 0,
+  ];
+
+  const uvs: number[] = [
+    // South
+    0, 0,  1, 0,  0.8, 1,
+    0, 0,  0.8, 1, 0.2, 1,
+    // North
+    0, 0,  1, 0,  0.8, 1,
+    0, 0,  0.8, 1, 0.2, 1,
+    // West
+    0, 0,  1, 0,  0.5, 1,
+    // East
+    0, 0,  1, 0,  0.5, 1,
+  ];
+
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geom.computeVertexNormals();
+  return geom;
+}
 
 /**
  * Creates an 8-point 2D octagon polygon contour centered at (0, 0).
@@ -292,6 +343,32 @@ export function AmphitheaterHall({
     () => new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 }),
     [],
   );
+
+  const slateRoofTex = useMemo(() => getSlateRoofTexture(), []);
+
+  const roofMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        map: slateRoofTex ?? undefined,
+        color: slateRoofTex ? '#ffffff' : '#991b1b',
+        roughness: 0.65,
+        metalness: 0.2,
+      }),
+    [slateRoofTex],
+  );
+
+  const fasciaMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#f1e6cf',
+        roughness: 0.7,
+      }),
+    [],
+  );
+
+  const hipRoofGeo = useMemo(() => {
+    return createAmphitheaterHipRoofGeometry(20.4, 17.4, 3.4);
+  }, []);
 
   // Octagonal Sunken Floor Bowl (elevation 0.00m)
   const floorBowlGeo = useMemo(() => {
@@ -769,9 +846,9 @@ export function AmphitheaterHall({
       )}
 
       {/* =========================================================================
-          10. EXTERIOR ENCLOSURE & CLERESTORY SKYLIGHT ROOF
-          Clean contemporary university facade + transparent clerestory skylight
-          allowing the amphitheater interior to be admired from the campus orbit camera
+          10. EXTERIOR ENCLOSURE & CORRUGATED SLATE HIP ROOF ("ШИФЕР")
+          Red corrugated slate / metal profile hip roof matching Block B and Block A.
+          When selected in orbit camera, fades to reveal the interior amphitheater.
           ========================================================================= */}
       {/* Perimeter Parapet & Roof Slab (+8.90..+9.70m) */}
       {/* North parapet */}
@@ -791,24 +868,28 @@ export function AmphitheaterHall({
         <boxGeometry args={[0.35, 0.8, 12.4]} />
       </mesh>
 
-      {/* Architectural Clerestory Atrium Skylight Framework (16.0 x 13.0m over Grilyato) */}
-      <group position={[0, 9.0, 0]}>
-        {/* Transparent Skylight Glass Plane */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} material={glassMat}>
-          <planeGeometry args={[16.0, 13.0]} />
-        </mesh>
-        {/* Aluminum Structural Space-Frame Rafters across X & Z */}
-        {[-4.8, -1.6, 1.6, 4.8].map((rx) => (
-          <mesh key={`rafter-x-${rx}`} position={[rx, 0.05, 0]} material={metalFrameMat}>
-            <boxGeometry args={[0.1, 0.2, 13.0]} />
+      {/* Corrugated Slate Hip Roof ("Крыша из шифера") */}
+      {!selected && (
+        <group position={[0, 8.9, 0]}>
+          {/* Overhanging Fascia & Eaves board */}
+          <mesh position={[0, 0.15, 0]} material={fasciaMat} castShadow receiveShadow>
+            <boxGeometry args={[20.6, 0.3, 17.6]} />
           </mesh>
-        ))}
-        {[-3.9, 0, 3.9].map((rz) => (
-          <mesh key={`rafter-z-${rz}`} position={[0, 0.05, rz]} material={metalFrameMat}>
-            <boxGeometry args={[16.0, 0.2, 0.1]} />
+
+          {/* 4-Pitched Hip Roof with Slate ("Шифер") Texture */}
+          <mesh position={[0, 0.3, 0]} geometry={hipRoofGeo} material={roofMat} castShadow receiveShadow />
+
+          {/* East Gallery Annex Lean-to Roof Canopy at +7.20m */}
+          <mesh position={[10.6, -1.55, 0]} material={roofMat} castShadow receiveShadow>
+            <boxGeometry args={[1.25, 0.25, 12.2]} />
           </mesh>
-        ))}
-      </group>
+
+          {/* Central Ridge Cap (Конёк) */}
+          <mesh position={[0, 3.72, 0]} material={metalFrameMat}>
+            <boxGeometry args={[8.4, 0.08, 0.25]} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

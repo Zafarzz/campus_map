@@ -5,6 +5,7 @@ let cachedBookshelf: THREE.CanvasTexture | null = null;
 let cachedScreen: THREE.CanvasTexture | null = null;
 let cachedGrilyato: THREE.CanvasTexture | null = null;
 let cachedParquet: THREE.CanvasTexture | null = null;
+let cachedSlateRoof: THREE.CanvasTexture | null = null;
 
 /**
  * Creates the high-resolution circular floor emblem (AUT 2020)
@@ -358,3 +359,64 @@ export function getParquetFloorTexture(): THREE.CanvasTexture | null {
   cachedParquet = texture;
   return texture;
 }
+
+/**
+ * Creates high-resolution corrugated slate / metal profile roof texture ("шифер" / металлочерепица),
+ * perfectly matching the signature red pitched roofs of Block B and Block A (RAL 3011 / #991b1b).
+ */
+export function getSlateRoofTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  if (cachedSlateRoof) return cachedSlateRoof;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Rich terracotta red base coat
+  ctx.fillStyle = '#8f1d1d';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Corrugated slate wave profiles (vertical flutes / волны шифера)
+  const waveWidth = 32;
+  for (let x = 0; x < 512; x += waveWidth) {
+    const grad = ctx.createLinearGradient(x, 0, x + waveWidth, 0);
+    grad.addColorStop(0.0, 'rgba(30, 5, 5, 0.55)');
+    grad.addColorStop(0.25, 'rgba(230, 90, 90, 0.22)');
+    grad.addColorStop(0.5, 'rgba(255, 200, 200, 0.35)'); // Highlight on wave crest
+    grad.addColorStop(0.75, 'rgba(180, 50, 50, 0.15)');
+    grad.addColorStop(1.0, 'rgba(20, 3, 3, 0.65)'); // Deep shadow in trough
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, 0, waveWidth, 512);
+  }
+
+  // Horizontal overlapping sheet courses (stepped rows with shadow and bevel)
+  const courseHeight = 64;
+  for (let y = 0; y < 512; y += courseHeight) {
+    // Drop shadow under overlapping sheet lap
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, y, 512, 4);
+
+    // Cast shadow gradient
+    const shadowGrad = ctx.createLinearGradient(0, y, 0, y + 16);
+    shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.35)');
+    shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = shadowGrad;
+    ctx.fillRect(0, y, 512, 16);
+
+    // Bright highlighted bottom cut edge of the upper sheet
+    ctx.fillStyle = 'rgba(255, 210, 210, 0.4)';
+    ctx.fillRect(0, y - 2, 512, 2);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(8, 6);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  cachedSlateRoof = texture;
+  return texture;
+}
+

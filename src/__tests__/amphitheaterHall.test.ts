@@ -8,6 +8,7 @@ import {
   getBookshelfTexture,
   getGrilyatoTexture,
   getParquetFloorTexture,
+  getSlateRoofTexture,
 } from '../components/3d/amphitheater/amphitheaterTextures';
 
 describe('Amphitheater Hall Architectural Specification (ADR-029)', () => {
@@ -112,6 +113,7 @@ describe('Amphitheater Hall Architectural Specification (ADR-029)', () => {
       getAmphitheaterScreenTexture();
       getGrilyatoTexture();
       getParquetFloorTexture();
+      getSlateRoofTexture();
     }).not.toThrow();
   });
 });
