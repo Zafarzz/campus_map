@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { getArchitecturalWallTextures, getWindowGlassTexture } from '../materials/pbrMaterials';
 import { BlockBLandscape } from './BlockBLandscape';
 
 export type BlockBFacadeProps = {
@@ -80,29 +81,36 @@ export function BlockBFacade({
   const wallZ = sign * (buildingDepth / 2);
 
   const plinthHeight = 1.0; // Plinth up to +1.000m
-  const glassColor = '#7fa6c2'; // Blue-grey architectural glazing
+  const glassColor = '#b8d8f0'; // Architectural sky-reflective glazing tint
   const pipeColor = '#853629'; // Terracotta downpipes
+
+  const wallTextures = useMemo(() => getArchitecturalWallTextures(14, 4), []);
+  const glassTexture = useMemo(() => getWindowGlassTexture(), []);
 
   // Materials
   const wallMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: wallColor,
-        roughness: 0.8,
-        metalness: 0.04,
+        map: wallTextures?.map ?? null,
+        normalMap: wallTextures?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.25, 0.25),
+        roughnessMap: wallTextures?.roughnessMap ?? null,
+        roughness: 0.78,
+        metalness: 0.03,
         transparent,
         opacity,
         depthWrite: !transparent,
       }),
-    [wallColor, transparent, opacity]
+    [wallColor, wallTextures, transparent, opacity]
   );
 
   const plinthMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: plinthColor,
-        roughness: 0.88,
-        metalness: 0.08,
+        roughness: 0.85,
+        metalness: 0.06,
         transparent,
         opacity,
         depthWrite: !transparent,
@@ -114,7 +122,7 @@ export function BlockBFacade({
     () =>
       new THREE.MeshStandardMaterial({
         color: trimColor,
-        roughness: 0.75,
+        roughness: 0.7,
         metalness: 0.05,
         transparent,
         opacity,
@@ -126,27 +134,29 @@ export function BlockBFacade({
   const frameMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: frameColor,
-        roughness: 0.45,
-        metalness: 0.6,
+        color: '#dde3ea',
+        roughness: 0.38,
+        metalness: 0.3,
         transparent,
         opacity,
         depthWrite: !transparent,
       }),
-    [frameColor, transparent, opacity]
+    [transparent, opacity]
   );
 
   const glassMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: glassColor,
+        map: glassTexture ?? null,
         roughness: 0.08,
-        metalness: 0.35,
+        metalness: 0.28,
+        envMapIntensity: 1.35,
         transparent: true,
-        opacity: transparent ? opacity * 0.75 : 0.88,
+        opacity: transparent ? opacity * 0.8 : 0.94,
         depthWrite: !transparent,
       }),
-    [glassColor, transparent, opacity]
+    [glassColor, glassTexture, transparent, opacity]
   );
 
   const jointMat = useMemo(
@@ -284,21 +294,21 @@ export function BlockBFacade({
               <group key={`win-f${fIdx}-${bIdx}`} position={[wx, wy, sign * 0.08]}>
                 {/* Window Outer Frame */}
                 <mesh material={frameMat}>
-                  <boxGeometry args={[ww, wh, 0.1]} />
+                  <boxGeometry args={[ww, wh, 0.06]} />
                 </mesh>
                 {/* Window Glass Pane */}
-                <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-                  <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.04]} />
+                <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+                  <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.03]} />
                 </mesh>
                 {/* 2 Vertical Mullions (3-pane casement) */}
                 {[-ww / 3, ww / 3].map((mx, mIdx) => (
-                  <mesh key={`m-${mIdx}`} position={[mx, 0, sign * 0.03]} material={frameMat}>
-                    <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.06]} />
+                  <mesh key={`m-${mIdx}`} position={[mx, 0, sign * 0.045]} material={frameMat}>
+                    <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.04]} />
                   </mesh>
                 ))}
                 {/* Upper Horizontal Transom Beam (Фрамуга) */}
-                <mesh position={[0, wh / 2 - 0.45, sign * 0.03]} material={frameMat}>
-                  <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.05]} />
+                <mesh position={[0, wh / 2 - 0.45, sign * 0.045]} material={frameMat}>
+                  <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.04]} />
                 </mesh>
                 {/* Stone Sill Molding */}
                 <mesh position={[0, -wh / 2 - 0.05, sign * 0.06]} material={trimMat}>
@@ -329,15 +339,15 @@ export function BlockBFacade({
             <group position={[sx, floorCenterYs[0] - 0.1, sign * 0.08]}>
               {/* Outer Door Frame */}
               <mesh material={frameMat}>
-                <boxGeometry args={[2.4 * scaleX, 2.3, 0.12]} />
+                <boxGeometry args={[2.4 * scaleX, 2.3, 0.06]} />
               </mesh>
               {/* Glazed Twin Doors */}
-              <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-                <boxGeometry args={[2.24 * scaleX, 2.14, 0.04]} />
+              <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+                <boxGeometry args={[2.24 * scaleX, 2.14, 0.03]} />
               </mesh>
               {/* Central Stile Divider */}
-              <mesh position={[0, 0, sign * 0.04]} material={frameMat}>
-                <boxGeometry args={[0.06 * scaleX, 2.14, 0.08]} />
+              <mesh position={[0, 0, sign * 0.045]} material={frameMat}>
+                <boxGeometry args={[0.06 * scaleX, 2.14, 0.05]} />
               </mesh>
               {/* Entrance Overhead Canopy */}
               <mesh position={[0, 1.25, sign * 0.4]} material={trimMat} castShadow>
@@ -358,16 +368,16 @@ export function BlockBFacade({
                 <group key={`ribbon-f${fIdx}-${sIdx}`} position={[sx, ry, sign * 0.08]}>
                   {/* Ribbon Outer Frame */}
                   <mesh material={frameMat}>
-                    <boxGeometry args={[ribbonW, ribbonH, 0.1]} />
+                    <boxGeometry args={[ribbonW, ribbonH, 0.06]} />
                   </mesh>
                   {/* Ribbon Glass Pane */}
-                  <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-                    <boxGeometry args={[ribbonW - 0.12 * scaleX, ribbonH - 0.12, 0.04]} />
+                  <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+                    <boxGeometry args={[ribbonW - 0.12 * scaleX, ribbonH - 0.12, 0.03]} />
                   </mesh>
                   {/* 3 Vertical Mullions dividing ribbon into 4 panes */}
                   {[-ribbonW * 0.25, 0, ribbonW * 0.25].map((mx, mIdx) => (
-                    <mesh key={`rm-${mIdx}`} position={[mx, 0, sign * 0.03]} material={frameMat}>
-                      <boxGeometry args={[0.05 * scaleX, ribbonH - 0.12, 0.06]} />
+                    <mesh key={`rm-${mIdx}`} position={[mx, 0, sign * 0.045]} material={frameMat}>
+                      <boxGeometry args={[0.05 * scaleX, ribbonH - 0.12, 0.04]} />
                     </mesh>
                   ))}
                   {/* Lintel and Sill Trim */}

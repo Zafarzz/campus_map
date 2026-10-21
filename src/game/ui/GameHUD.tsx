@@ -3,7 +3,9 @@ import { sortedFloors } from '../../domain/campus/campusIndex';
 import type { Building, Campus } from '../../domain/campus/types';
 import type { CampusGeometry } from '../../domain/geometry/types';
 import {
+  GRAPHICS_QUALITY_PRESETS,
   TIME_OF_DAY_PRESETS,
+  type GraphicsQualityPresetId,
   type PlayerTransformState,
   type TimeOfDayPresetId,
 } from '../config/gameConfig';
@@ -16,6 +18,12 @@ type Props = {
   playerTransformRef: MutableRefObject<PlayerTransformState>;
   timeOfDay: TimeOfDayPresetId;
   onChangeTimeOfDay: (preset: TimeOfDayPresetId) => void;
+  qualityPreset: GraphicsQualityPresetId;
+  onChangeQualityPreset: (preset: GraphicsQualityPresetId) => void;
+  audioMuted: boolean;
+  onToggleAudioMute: () => void;
+  showTuning: boolean;
+  onToggleTuning: () => void;
   nearbyBuilding: Building | null;
   nearbyBuildingLiveCount: number;
   enteredBuildingId: string | null;
@@ -32,8 +40,7 @@ type Props = {
 /**
  * In-game HUD with:
  * - Center crosshair
- * - Top-left navigation bar & 2D radar Minimap
- * - Time-of-day toggle (Day / Sunset / Evening)
+ * - Top-left navigation bar, Time-of-Day, Quality/Baseline comparison, Audio mute, & 2D radar Minimap
  * - Proximity building card with Indoor Floor Walkthrough toggle (E)
  * - Active 3D wayfinding distance banner
  */
@@ -44,6 +51,12 @@ export function GameHUD({
   playerTransformRef,
   timeOfDay,
   onChangeTimeOfDay,
+  qualityPreset,
+  onChangeQualityPreset,
+  audioMuted,
+  onToggleAudioMute,
+  showTuning,
+  onToggleTuning,
   nearbyBuilding,
   nearbyBuildingLiveCount,
   enteredBuildingId,
@@ -87,9 +100,15 @@ export function GameHUD({
   const floors = activeBuilding ? sortedFloors(activeBuilding) : [];
 
   const cycleTimeOfDay = () => {
-    const order: TimeOfDayPresetId[] = ['day', 'sunset', 'night'];
+    const order: TimeOfDayPresetId[] = ['morning', 'day', 'sunset', 'night'];
     const next = order[(order.indexOf(timeOfDay) + 1) % order.length];
     onChangeTimeOfDay(next);
+  };
+
+  const cycleQualityPreset = () => {
+    const order: GraphicsQualityPresetId[] = ['high', 'medium', 'low', 'original'];
+    const next = order[(order.indexOf(qualityPreset) + 1) % order.length];
+    onChangeQualityPreset(next);
   };
 
   return (
@@ -194,7 +213,7 @@ export function GameHUD({
             <button
               type="button"
               onClick={cycleTimeOfDay}
-              title="Switch lighting time of day"
+              title="Switch lighting time of day (Morning / Midday / Golden Hour / Evening)"
               style={{
                 background: 'rgba(15, 23, 42, 0.68)',
                 color: '#fde68a',
@@ -208,6 +227,69 @@ export function GameHUD({
             >
               {TIME_OF_DAY_PRESETS[timeOfDay].label}
             </button>
+
+            <button
+              type="button"
+              onClick={cycleQualityPreset}
+              title="Switch Graphics Quality or compare with Original Baseline"
+              style={{
+                background:
+                  qualityPreset === 'original'
+                    ? 'rgba(180, 83, 9, 0.82)'
+                    : 'rgba(15, 23, 42, 0.68)',
+                color: '#bae6fd',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 8,
+                padding: '7px 11px',
+                fontSize: 12,
+                fontWeight: 600,
+                backdropFilter: 'blur(6px)',
+              }}
+            >
+              {GRAPHICS_QUALITY_PRESETS[qualityPreset].label}
+            </button>
+
+            <button
+              type="button"
+              onClick={onToggleAudioMute}
+              title="Toggle ambient soundscape & footsteps"
+              style={{
+                background: audioMuted
+                  ? 'rgba(15, 23, 42, 0.55)'
+                  : 'rgba(14, 116, 144, 0.78)',
+                color: '#f8fafc',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 8,
+                padding: '7px 11px',
+                fontSize: 12,
+                fontWeight: 600,
+                backdropFilter: 'blur(6px)',
+              }}
+            >
+              {audioMuted ? '🔇 Muted' : '🔊 Audio'}
+            </button>
+
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={onToggleTuning}
+                title="Toggle live 3D visual & shader tuning panel"
+                style={{
+                  background: showTuning
+                    ? 'rgba(37, 99, 235, 0.85)'
+                    : 'rgba(15, 23, 42, 0.68)',
+                  color: '#e2e8f0',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: 8,
+                  padding: '7px 11px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                🎛️ Tuning
+              </button>
+            )}
           </div>
 
           <Minimap
@@ -414,7 +496,7 @@ export function GameHUD({
         >
           <strong>WASD</strong> Move &nbsp;·&nbsp; <strong>Mouse</strong> Look &nbsp;·&nbsp;{' '}
           <strong>Shift</strong> Sprint &nbsp;·&nbsp; <strong>Space</strong> Jump &nbsp;·&nbsp;{' '}
-          <strong>E</strong> Enter Building &nbsp;·&nbsp; <strong>Esc</strong> Menu / Teleport
+          <strong>E</strong> Enter Building &nbsp;·&nbsp; <strong>Esc</strong> Menu / Settings
         </div>
       )}
     </div>

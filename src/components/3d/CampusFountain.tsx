@@ -42,7 +42,7 @@ export const FOUNTAIN_DIMENSIONS = {
 
 export const FOUNTAIN_MATERIALS = {
   // ДПК (древесно-полимерный композит) для борта H=550 мм
-  dpkBoard: '#2D251E', // Темный благородный шоколадно-графитовый композит
+  dpkBoard: '#2D251E', // Благородный орехово-терракотовый древесный композит
   dpkCap: '#1E1712', // Верхняя фасонная планка борта ДПК
   // Бассейн и чаша
   poolTile: '#0284c7', // Лазурная керамическая плитка дна и стенок
@@ -61,7 +61,7 @@ export const FOUNTAIN_MATERIALS = {
   geyserFoam: '#F0F9FF', // Пенные центральные гейзеры
   // Пальмы
   palmTrunk: '#5D4037', // Кольчатый ствол пальмы
-  palmFronds: '#15803d', // Сочные веерные ветви пальмы
+  palmFronds: '#15803D', // Ботанический зеленый веерных ветвей пальмы
   // Мощение площади
   plazaPaving: '#E2DFD7', // Мощение променада вокруг чаши
   plazaBorder: '#B5B2A8', // Бордюр площади
@@ -129,54 +129,67 @@ export type CampusFountainProps = {
 };
 
 /**
- * Создает оптимизированную 3D-геометрию изогнутого перистого пальмового листа:
- * - V-образный поперечный профиль со стеблем по центру.
- * - Плавный дугообразный изгиб с поникающим кончиком.
- * - Естественное расширение в средней части и сужение к основанию и вершине.
+ * Создает реалистичную 3D-геометрию перистого пальмового листа (pinnate frond):
+ * - Центральный дугообразный черешок (рахис).
+ * - Отдельные заостренные листочки-перья (leaflets), веерообразно расходящиеся по обе стороны
+ *   с естественным пониканием кончиков.
  */
-function createPalmFrondGeometry(length = 2.6, maxWidth = 0.55, segments = 8): THREE.BufferGeometry {
+function createPalmFrondGeometry(length = 2.6, maxWidth = 0.62, segments = 14): THREE.BufferGeometry {
   const geom = new THREE.BufferGeometry();
   const positions: number[] = [];
-  const normals: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
 
-  for (let i = 0; i <= segments; i++) {
-    const t = i / segments;
-    const z = t * length;
-    const y = 0.25 * Math.sin(t * Math.PI * 0.8) - 0.65 * t * t;
-    const w = maxWidth * Math.sin(t * Math.PI);
-    const edgeDroop = -w * 0.25;
+  const pushTri = (
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    cx: number,
+    cy: number,
+    cz: number,
+  ) => {
+    positions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+  };
 
-    // Левый край листа
-    positions.push(-w, y + edgeDroop, z);
-    normals.push(0, 1, 0);
-    uvs.push(0, t);
-
-    // Центральный стебель
-    positions.push(0, y, z);
-    normals.push(0, 1, 0);
-    uvs.push(0.5, t);
-
-    // Правый край листа
-    positions.push(w, y + edgeDroop, z);
-    normals.push(0, 1, 0);
-    uvs.push(1, t);
-  }
+  const spineY = (t: number) => 0.28 * Math.sin(t * Math.PI * 0.78) - 0.68 * t * t;
 
   for (let i = 0; i < segments; i++) {
-    const row0 = i * 3;
-    const row1 = (i + 1) * 3;
-    indices.push(row0 + 0, row0 + 1, row1 + 1);
-    indices.push(row0 + 0, row1 + 1, row1 + 0);
-    indices.push(row0 + 1, row0 + 2, row1 + 2);
-    indices.push(row0 + 1, row1 + 2, row1 + 1);
+    const t0 = i / segments;
+    const t1 = (i + 1) / segments;
+    const z0 = t0 * length;
+    const z1 = t1 * length;
+    const y0 = spineY(t0);
+    const y1 = spineY(t1);
+    const stemW0 = 0.032 * (1 - t0 * 0.75);
+    const stemW1 = 0.032 * (1 - t1 * 0.75);
+
+    // Central rachis stem segment
+    pushTri(-stemW0, y0, z0, stemW0, y0, z0, stemW1, y1, z1);
+    pushTri(-stemW0, y0, z0, stemW1, y1, z1, -stemW1, y1, z1);
+
+    // Individual pinnate leaflets on left and right (from t >= 0.1)
+    if (i >= 1) {
+      const tMid = (t0 + t1) * 0.5;
+      const env = Math.sin(Math.pow(tMid, 0.85) * Math.PI);
+      const leafSpan = maxWidth * env;
+      const tipForward = (z1 - z0) * 1.45;
+      const tipZ = z0 + tipForward;
+      const tipY = y0 - leafSpan * 0.34 - tMid * 0.08;
+      const midZ = (z0 + tipZ) * 0.5;
+      const midY = (y0 + tipY) * 0.5 + 0.035;
+
+      // Left leaflet (2-triangle V-folded blade)
+      pushTri(-stemW0 * 0.5, y0, z0, -leafSpan * 0.55, midY, midZ, -leafSpan, tipY, tipZ);
+      pushTri(-stemW0 * 0.5, y0, z0, -leafSpan, tipY, tipZ, -stemW1 * 0.5, y1, z1);
+
+      // Right leaflet (2-triangle V-folded blade)
+      pushTri(stemW0 * 0.5, y0, z0, leafSpan, tipY, tipZ, leafSpan * 0.55, midY, midZ);
+      pushTri(stemW0 * 0.5, y0, z0, stemW1 * 0.5, y1, z1, leafSpan, tipY, tipZ);
+    }
   }
 
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geom.setIndex(indices);
   geom.computeVertexNormals();
   return geom;
 }
@@ -200,14 +213,14 @@ export function CampusFountain({
   const materials = useMemo(() => {
     // 1. Борт из ДПК
     const dpkBoardMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.dpkBoard,
+      color: '#4e3829',
       roughness: 0.65,
-      metalness: 0.1,
+      metalness: 0.08,
     });
     const dpkCapMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.dpkCap,
+      color: '#3b281c',
       roughness: 0.5,
-      metalness: 0.15,
+      metalness: 0.12,
     });
 
     // 2. Чаша бассейна и вода
@@ -248,9 +261,9 @@ export function CampusFountain({
 
     // 5. Мостики (настил и перила)
     const bridgeDeckMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.bridgeDeck,
+      color: '#4A3228',
       roughness: 0.6,
-      metalness: 0.1,
+      metalness: 0.08,
     });
     const bridgeRailingMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.bridgeRailing,
@@ -278,35 +291,35 @@ export function CampusFountain({
 
     // 7. Пальмы (многоярусная ботаническая листва и фактурная кора)
     const palmTrunkMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.palmTrunk,
-      roughness: 0.9,
+      color: '#694b3c',
+      roughness: 0.88,
     });
     const palmFrondMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.palmFronds,
-      roughness: 0.5,
+      color: '#2e6f34',
+      roughness: 0.55,
       side: THREE.DoubleSide,
     });
     const palmFrondYoungMat = new THREE.MeshStandardMaterial({
-      color: '#22c55e',
-      roughness: 0.45,
-      side: THREE.DoubleSide,
-    });
-    const palmFrondMatureMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.palmFronds,
+      color: '#3e8242',
       roughness: 0.5,
       side: THREE.DoubleSide,
     });
+    const palmFrondMatureMat = new THREE.MeshStandardMaterial({
+      color: '#2e6f34',
+      roughness: 0.55,
+      side: THREE.DoubleSide,
+    });
     const palmFrondOldMat = new THREE.MeshStandardMaterial({
-      color: '#166534',
-      roughness: 0.6,
+      color: '#235328',
+      roughness: 0.65,
       side: THREE.DoubleSide,
     });
     const palmBarkRingMat = new THREE.MeshStandardMaterial({
-      color: '#3E2723',
-      roughness: 0.95,
+      color: '#4a3326',
+      roughness: 0.92,
     });
     const palmCrownShaftMat = new THREE.MeshStandardMaterial({
-      color: '#2E5A27',
+      color: '#345e2e',
       roughness: 0.65,
     });
     const coconutMat = new THREE.MeshStandardMaterial({
@@ -704,7 +717,12 @@ export function CampusFountain({
                 </mesh>
                 {/* Кольца коры */}
                 {[0.25, 0.5, 0.75].map((factor, rIdx) => (
-                  <mesh key={`ring1-${rIdx}`} position={[0, seg1H * factor, 0]} material={materials.palmBarkRingMat}>
+                  <mesh
+                    key={`ring1-${rIdx}`}
+                    position={[0, seg1H * factor, 0]}
+                    rotation={[Math.PI / 2, 0, 0]}
+                    material={materials.palmBarkRingMat}
+                  >
                     <torusGeometry args={[0.205, 0.022, 6, 16]} />
                   </mesh>
                 ))}
@@ -715,7 +733,12 @@ export function CampusFountain({
                     <cylinderGeometry args={[0.16, 0.19, seg2H, 12]} />
                   </mesh>
                   {[0.3, 0.65].map((factor, rIdx) => (
-                    <mesh key={`ring2-${rIdx}`} position={[0, seg2H * factor, 0]} material={materials.palmBarkRingMat}>
+                    <mesh
+                      key={`ring2-${rIdx}`}
+                      position={[0, seg2H * factor, 0]}
+                      rotation={[Math.PI / 2, 0, 0]}
+                      material={materials.palmBarkRingMat}
+                    >
                       <torusGeometry args={[0.175, 0.02, 6, 16]} />
                     </mesh>
                   ))}
@@ -726,7 +749,12 @@ export function CampusFountain({
                       <cylinderGeometry args={[0.14, 0.16, seg3H, 12]} />
                     </mesh>
                     {[0.35, 0.7].map((factor, rIdx) => (
-                      <mesh key={`ring3-${rIdx}`} position={[0, seg3H * factor, 0]} material={materials.palmBarkRingMat}>
+                      <mesh
+                        key={`ring3-${rIdx}`}
+                        position={[0, seg3H * factor, 0]}
+                        rotation={[Math.PI / 2, 0, 0]}
+                        material={materials.palmBarkRingMat}
+                      >
                         <torusGeometry args={[0.15, 0.018, 6, 16]} />
                       </mesh>
                     ))}

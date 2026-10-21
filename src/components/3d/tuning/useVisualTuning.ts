@@ -73,6 +73,21 @@ export type VisualTuningParams = {
   dormitoryStripeColor: string;
   utilityWallColor: string;
 
+  // Immersion, Wind & Environmental Life
+  toneMappingExposure?: number;
+  contactShadowsEnabled?: boolean;
+  contactShadowOpacity?: number;
+  pbrTexturesEnabled?: boolean;
+  windEnabled?: boolean;
+  windSpeed?: number;
+  windStrength?: number;
+  campusPropsEnabled?: boolean;
+  skyLifeEnabled?: boolean;
+
+  // Audio
+  audioEnabled?: boolean;
+  audioVolume?: number;
+
   // Performance (Drei)
   adaptiveDpr: boolean;
   showStats: boolean;
@@ -111,22 +126,37 @@ export const DEFAULT_TUNING_VALUES: VisualTuningParams = {
   skyMieDirectionalG: 0.8,
 
   // Terrain
-  groundColor: '#cbd5e1',
-  lawnColor: '#6ee7b7',
-  roadColor: '#334155',
-  trackColor: '#ef4444',
-  pitchColor: '#22c55e',
-  courtColor: '#0284c7',
+  groundColor: '#d8d4cc',
+  lawnColor: '#6d964b',
+  roadColor: '#3b4654',
+  trackColor: '#c24136',
+  pitchColor: '#3d8c45',
+  courtColor: '#2c6fa8',
 
   // Materials
   classicWallColor: '#fdfbf7',
-  classicRoofColor: '#b91c1c',
+  classicRoofColor: '#a83228',
   modernWallColor: '#f8fafc',
   modernRoofColor: '#475569',
-  curtainGlassColor: '#0284c7',
-  windowGlassColor: '#1e293b',
+  curtainGlassColor: '#3876a8',
+  windowGlassColor: '#4b779e',
   dormitoryStripeColor: '#991b1b',
   utilityWallColor: '#e2e8f0',
+
+  // Immersion, Wind & Environmental Life
+  toneMappingExposure: 1.05,
+  contactShadowsEnabled: true,
+  contactShadowOpacity: 0.36,
+  pbrTexturesEnabled: true,
+  windEnabled: true,
+  windSpeed: 1.25,
+  windStrength: 0.22,
+  campusPropsEnabled: true,
+  skyLifeEnabled: true,
+
+  // Audio
+  audioEnabled: true,
+  audioVolume: 0.65,
 
   // Performance (Drei)
   adaptiveDpr: false,
@@ -153,6 +183,7 @@ export function useVisualTuning(): VisualTuningParams {
         hemisphereSkyColor: { value: '#ffffff', label: 'Hemi Sky' },
         hemisphereGroundColor: { value: '#94a3b8', label: 'Hemi Ground' },
         fillLightIntensity: { value: 0.35, min: 0, max: 1.5, step: 0.05, label: 'Fill Light' },
+        toneMappingExposure: { value: 1.05, min: 0.4, max: 2.0, step: 0.05, label: 'Exposure' },
       }),
       Shadows: folder({
         shadowsEnabled: { value: true, label: 'Enable Shadows' },
@@ -161,6 +192,8 @@ export function useVisualTuning(): VisualTuningParams {
         shadowBias: { value: -0.00015, min: -0.001, max: 0.001, step: 0.00005, label: 'Bias' },
         shadowNormalBias: { value: 0.02, min: 0, max: 0.1, step: 0.005, label: 'Normal Bias' },
         shadowMapSize: { value: 2048, options: [1024, 2048, 4096], label: 'Resolution' },
+        contactShadowsEnabled: { value: true, label: 'Contact AO Shadows' },
+        contactShadowOpacity: { value: 0.36, min: 0, max: 0.85, step: 0.04, label: 'Contact Opacity' },
         bakeShadows: { value: false, label: 'Bake Shadows (Drei)' },
       }),
       Environment: folder({
@@ -175,22 +208,34 @@ export function useVisualTuning(): VisualTuningParams {
         skyMieDirectionalG: { value: 0.8, min: 0, max: 1, step: 0.05, label: 'Mie Directional G' },
       }),
       Terrain: folder({
-        groundColor: { value: '#cbd5e1', label: 'Ground Base' },
-        lawnColor: { value: '#6ee7b7', label: 'Lawn Grass' },
-        roadColor: { value: '#334155', label: 'Asphalt Road' },
-        trackColor: { value: '#ef4444', label: 'Athletics Track' },
-        pitchColor: { value: '#22c55e', label: 'Football Turf' },
-        courtColor: { value: '#0284c7', label: 'Court Blue' },
+        pbrTexturesEnabled: { value: true, label: 'PBR Surface Textures' },
+        groundColor: { value: '#d8d4cc', label: 'Ground Base' },
+        lawnColor: { value: '#6d964b', label: 'Lawn Grass' },
+        roadColor: { value: '#3b4654', label: 'Asphalt Road' },
+        trackColor: { value: '#c24136', label: 'Athletics Track' },
+        pitchColor: { value: '#3d8c45', label: 'Football Turf' },
+        courtColor: { value: '#2c6fa8', label: 'Court Blue' },
       }),
       Materials: folder({
         classicWallColor: { value: '#fdfbf7', label: 'Classic Wall' },
-        classicRoofColor: { value: '#b91c1c', label: 'Classic Red Roof' },
+        classicRoofColor: { value: '#a83228', label: 'Classic Red Roof' },
         modernWallColor: { value: '#f8fafc', label: 'Modern Wall' },
         modernRoofColor: { value: '#475569', label: 'Modern Roof' },
-        curtainGlassColor: { value: '#0284c7', label: 'Curtain Glass' },
-        windowGlassColor: { value: '#1e293b', label: 'Window Glass' },
+        curtainGlassColor: { value: '#3876a8', label: 'Curtain Glass' },
+        windowGlassColor: { value: '#4b779e', label: 'Window Glass' },
         dormitoryStripeColor: { value: '#991b1b', label: 'Dorm Brick Band' },
         utilityWallColor: { value: '#e2e8f0', label: 'Utility Wall' },
+      }),
+      LifeAndWind: folder({
+        windEnabled: { value: true, label: 'Foliage Wind Sway' },
+        windSpeed: { value: 1.25, min: 0, max: 4, step: 0.1, label: 'Wind Speed' },
+        windStrength: { value: 0.22, min: 0, max: 0.8, step: 0.02, label: 'Wind Strength' },
+        campusPropsEnabled: { value: true, label: 'Benches, Lamps & Curbs' },
+        skyLifeEnabled: { value: true, label: 'Clouds, Birds & Horizon' },
+      }),
+      Audio: folder({
+        audioEnabled: { value: true, label: 'Enable Campus Audio' },
+        audioVolume: { value: 0.65, min: 0, max: 1, step: 0.05, label: 'Master Volume' },
       }),
       Performance: folder({
         adaptiveDpr: { value: false, label: 'Adaptive DPR (Drei)' },

@@ -7,6 +7,11 @@ import { getFenceTexture } from './facades/facadeTextures';
 import { MainEntranceGate, MAIN_ENTRANCE_WIDTH } from './MainEntranceGate';
 import { CampusFountain, FOUNTAIN_DIMENSIONS } from './CampusFountain';
 import { AjouArtObject } from './AjouArtObject';
+import {
+  getAsphaltRoadTextures,
+  getLushGrassTextures,
+  getPromenadePavingTextures,
+} from './materials/pbrMaterials';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.03,
@@ -18,11 +23,11 @@ const flatLayerElevation: Record<ContextFeatureKind, number> = {
 };
 
 const contextColors: Record<ContextFeatureKind, string> = {
-  lawn: '#6ee7b7', // Vibrant natural grass
-  road: '#334155', // Clean asphalt
-  track: '#ef4444', // Running track terracotta
-  pitch: '#22c55e', // Sports field turf
-  court: '#0284c7', // Multi-sport court blue
+  lawn: '#6d964b', // Natural sunlit botanical grass
+  road: '#3b4654', // Weathered asphalt
+  track: '#c24136', // Running track terracotta
+  pitch: '#3d8c45', // Sports field turf
+  court: '#2c6fa8', // Multi-sport acrylic court blue
   structure: '#94a3b8',
 };
 
@@ -209,16 +214,28 @@ type ContextTuning = {
   trackColor?: string;
   pitchColor?: string;
   courtColor?: string;
+  pbrTexturesEnabled?: boolean;
 };
 
 /**
  * Ground terrain base, perimeter enclosures, and landscape surfaces (roads, turf, courts, paths).
  */
-export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; tuning?: ContextTuning }) {
+export function ContextLayer({
+  geometry,
+  tuning,
+}: {
+  geometry: CampusGeometry;
+  tuning?: ContextTuning;
+}) {
   const { min, max } = geometry.bounds;
   const margin = 120;
   const width = max[0] - min[0] + margin * 2;
   const depth = max[1] - min[1] + margin * 2;
+  const usePbr = tuning?.pbrTexturesEnabled !== false;
+
+  const pavingPbr = useMemo(() => (usePbr ? getPromenadePavingTextures() : null), [usePbr]);
+  const asphaltPbr = useMemo(() => (usePbr ? getAsphaltRoadTextures() : null), [usePbr]);
+  const grassPbr = useMemo(() => (usePbr ? getLushGrassTextures() : null), [usePbr]);
 
   const groundCenter: [number, number, number] = [
     (min[0] + max[0]) / 2,
@@ -239,7 +256,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
 
   return (
     <group>
-      {/* Base ground terrain (warm light pavement / soil) */}
+      {/* Base ground terrain (architectural stone promenade paving with normal/roughness detail) */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={groundCenter}
@@ -247,7 +264,15 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
         raycast={() => null}
       >
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color={tuning?.groundColor ?? '#cbd5e1'} roughness={0.95} />
+        <meshStandardMaterial
+          color={tuning?.groundColor ?? '#e2ddd5'}
+          map={pavingPbr?.map ?? null}
+          normalMap={pavingPbr?.normalMap ?? null}
+          normalScale={[0.22, 0.22]}
+          roughnessMap={pavingPbr?.roughnessMap ?? null}
+          roughness={0.85}
+          metalness={0.03}
+        />
       </mesh>
 
       {/* Perimeter fence and gate */}
@@ -271,25 +296,40 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       {geometry.context.map((f) => {
         if (f.id === 'kpp-e') return null;
         if (f.id === 'pitch') return null; // Replaced by CampusFountain
-        return f.kind === 'structure' ? (
-          <ExtrudedFootprint
-            key={f.id}
-            footprint={f.footprint}
-            bottom={0}
-            height={f.height ?? mapConfig.building.unknownStructureHeight}
-            color="#94a3b8"
-            opacity={1}
-            interactive={false}
-            castShadow
-            receiveShadow
-          />
-        ) : (
+        if (f.kind === 'structure') {
+          return (
+            <ExtrudedFootprint
+              key={f.id}
+              footprint={f.footprint}
+              bottom={0}
+              height={f.height ?? mapConfig.building.unknownStructureHeight}
+              color="#94a3b8"
+              opacity={1}
+              interactive={false}
+              castShadow
+              receiveShadow
+            />
+          );
+        }
+
+        const isLawn = f.kind === 'lawn';
+        const isRoad = f.kind === 'road';
+        const pbrSet = isLawn ? grassPbr : isRoad ? asphaltPbr : null;
+
+        return (
           <ExtrudedFootprint
             key={f.id}
             footprint={f.footprint}
             bottom={flatLayerElevation[f.kind] ?? 0.02}
-            height={0.025}
+            height={isLawn ? 0.065 : isRoad ? 0.035 : 0.025}
             color={getColor(f.kind)}
+            map={pbrSet?.map ?? null}
+            normalMap={pbrSet?.normalMap ?? null}
+            normalScale={isLawn ? [0.5, 0.5] : [0.35, 0.35]}
+            roughnessMap={pbrSet?.roughnessMap ?? null}
+            roughness={isLawn ? 0.9 : isRoad ? 0.84 : 0.78}
+            metalness={isRoad ? 0.06 : 0.02}
+            edgeColor={isLawn ? '#94a3b8' : isRoad ? '#cbd5e1' : undefined}
             interactive={false}
             receiveShadow
           />

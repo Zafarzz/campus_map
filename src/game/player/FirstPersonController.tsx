@@ -3,10 +3,12 @@ import { useRapier, type RapierRigidBody } from '@react-three/rapier';
 import { useEffect, useRef, type MutableRefObject } from 'react';
 import * as THREE from 'three';
 import type { CampusGeometry } from '../../domain/geometry/types';
+import { detectFootstepSurface, sharedCampusAudio } from '../audio/campusAudioEngine';
 import {
   findNearestBuildingInRange,
   gameConfig,
   type PlayerTransformState,
+  type TimeOfDayPresetId,
 } from '../config/gameConfig';
 import type { PlayerInputState } from '../controls/DesktopControls';
 import { PlayerPhysics } from './PlayerPhysics';
@@ -23,13 +25,16 @@ type Props = {
   geometry: CampusGeometry;
   isPlaying: boolean;
   teleportRequest: TeleportRequest;
+  enteredBuildingId?: string | null;
+  timeOfDay?: TimeOfDayPresetId;
   onNearestBuildingChange: (buildingId: string | null) => void;
 };
 
 /**
  * Frame-driven first-person controller:
  * - Smooth velocity acceleration/deceleration
- * - Dynamic sprint FOV transition & subtle ground head-bob
+ * - Dynamic sprint FOV transition & 2-axis natural stride motion with landing compression
+ * - Surface-aware procedural footsteps & spatial audio listener sync
  * - Rapier ground raycast for responsive jumping
  * - Live playerTransformRef updates for Minimap & Wayfinding without per-frame React state updates
  */
@@ -39,6 +44,8 @@ export function FirstPersonController({
   geometry,
   isPlaying,
   teleportRequest,
+  enteredBuildingId = null,
+  timeOfDay = 'day',
   onNearestBuildingChange,
 }: Props) {
   const bodyRef = useRef<RapierRigidBody | null>(null);
@@ -49,6 +56,9 @@ export function FirstPersonController({
   const pitchRef = useRef<number>(gameConfig.player.spawnPitch);
   const lastJumpTimeRef = useRef<number>(0);
   const headBobTimerRef = useRef<number>(0);
+  const lastStepIndexRef = useRef<number>(0);
+  const wasGroundedRef = useRef<boolean>(true);
+  const landingDipRef = useRef<number>(0);
   const currentVelXZRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
   const lastNearestBuildingRef = useRef<string | null>(null);
   const proximityCheckAccumRef = useRef<number>(0);
@@ -188,6 +198,21 @@ export function FirstPersonController({
     const isGrounded =
       hit !== null || (Math.abs(vel.y) < 0.08 && pos.y <= capsuleBottomOffset + 0.15);
 
+    // Detect landing from air for subtle landing compression & footstep sound
+    if (isGrounded && !wasGroundedRef.current && vel.y < -1.5) {
+      landingDipRef.current = -0.085;
+      const surface = detectFootstepSurface(
+        pos.x,
+        pos.y - capsuleBottomOffset,
+        pos.z,
+        geometry,
+        Boolean(enteredBuildingId),
+      );
+      sharedCampusAudio.playFootstep(surface, true);
+    }
+    wasGroundedRef.current = isGrounded;
+    landingDipRef.current = THREE.MathUtils.lerp(landingDipRef.current, 0, Math.min(1, dt * 10));
+
     let nextVelY = vel.y;
     const wantsJump = input.keyJump || input.touchJump;
     if (wantsJump && isGrounded) {
@@ -216,26 +241,57 @@ export function FirstPersonController({
       }
     }
 
-    // 5. Subtle camera head-bob while walking/running on ground
-    let bobOffsetY = 0;
+    // 5. Natural 2-axis stride motion & surface-dependent footsteps
+    let bobOffsetY = landingDipRef.current;
+    let bobOffsetSide = 0;
     const horizontalSpeed = Math.hypot(currentVelXZRef.current.x, currentVelXZRef.current.z);
-    if (isGrounded && horizontalSpeed > 0.6) {
-      const freqMult = isSprinting ? 1.35 : 1.0;
+    if (isGrounded && horizontalSpeed > 0.65) {
+      const freqMult = isSprinting ? 1.38 : 1.0;
       headBobTimerRef.current += dt * gameConfig.player.headBobFrequency * freqMult;
-      const speedRatio = Math.min(1, horizontalSpeed / gameConfig.player.walkSpeed);
-      bobOffsetY =
+      const speedRatio = Math.min(1.2, horizontalSpeed / gameConfig.player.walkSpeed);
+      bobOffsetY +=
         Math.sin(headBobTimerRef.current) * gameConfig.player.headBobAmplitude * speedRatio;
+      bobOffsetSide =
+        Math.cos(headBobTimerRef.current * 0.5) *
+        gameConfig.player.headBobAmplitude *
+        0.45 *
+        speedRatio;
+
+      // Trigger footstep audio on each stride cycle
+      const stepIndex = Math.floor((headBobTimerRef.current + Math.PI * 0.5) / Math.PI);
+      if (stepIndex > lastStepIndexRef.current) {
+        lastStepIndexRef.current = stepIndex;
+        const footY = pos.y - capsuleBottomOffset;
+        const surface = detectFootstepSurface(
+          pos.x,
+          footY,
+          pos.z,
+          geometry,
+          Boolean(enteredBuildingId),
+        );
+        sharedCampusAudio.playFootstep(surface, isSprinting);
+      }
     } else {
       headBobTimerRef.current = 0;
+      lastStepIndexRef.current = 0;
     }
 
-    // 6. Sync camera and live playerTransformRef
+    // 6. Sync camera, spatial audio listener, and live playerTransformRef
     const updatedPos = body.translation();
     camera.position.set(
-      updatedPos.x,
+      updatedPos.x + rightX * bobOffsetSide,
       updatedPos.y + gameConfig.player.eyeOffset + bobOffsetY,
-      updatedPos.z,
+      updatedPos.z + rightZ * bobOffsetSide,
     );
+
+    sharedCampusAudio.updateListener({
+      x: updatedPos.x,
+      y: updatedPos.y,
+      z: updatedPos.z,
+      yaw: yawRef.current,
+      isIndoor: Boolean(enteredBuildingId),
+      timeOfDay,
+    });
 
     playerTransformRef.current.x = updatedPos.x;
     playerTransformRef.current.y = updatedPos.y;

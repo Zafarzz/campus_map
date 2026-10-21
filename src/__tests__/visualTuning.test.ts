@@ -20,11 +20,11 @@ describe('Visual Tuning & Drei Integration', () => {
     expect(DEFAULT_TUNING_VALUES.softShadowSize).toBeGreaterThan(0);
     expect(DEFAULT_TUNING_VALUES.fogEnabled).toBe(true);
     expect(DEFAULT_TUNING_VALUES.backgroundColor).toBe('#dbeafe');
-    expect(DEFAULT_TUNING_VALUES.groundColor).toBe('#cbd5e1');
+    expect(DEFAULT_TUNING_VALUES.groundColor).toBe('#d8d4cc');
     expect(DEFAULT_TUNING_VALUES.classicWallColor).toBe('#fdfbf7');
-    expect(DEFAULT_TUNING_VALUES.classicRoofColor).toBe('#b91c1c');
+    expect(DEFAULT_TUNING_VALUES.classicRoofColor).toBe('#a83228');
     expect(DEFAULT_TUNING_VALUES.modernWallColor).toBe('#f8fafc');
-    expect(DEFAULT_TUNING_VALUES.curtainGlassColor).toBe('#0284c7');
+    expect(DEFAULT_TUNING_VALUES.curtainGlassColor).toBe('#3876a8');
   });
 
   it('Drei visual and performance helpers are available and exported', () => {

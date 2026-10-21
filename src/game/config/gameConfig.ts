@@ -1,12 +1,95 @@
 import type { BuildingGeometry, CampusGeometry, Vec3 } from '../../domain/geometry/types';
 
-export type TimeOfDayPresetId = 'day' | 'sunset' | 'night';
+export type TimeOfDayPresetId = 'morning' | 'day' | 'sunset' | 'night';
+
+export type GraphicsQualityPresetId = 'low' | 'medium' | 'high' | 'original';
+
+export type GraphicsQualityPreset = {
+  id: GraphicsQualityPresetId;
+  label: string;
+  dpr: [number, number];
+  shadowMapSize: number;
+  softShadowSamples: number;
+  enableContactShadows: boolean;
+  enablePbrTextures: boolean;
+  enableWindAnimation: boolean;
+  enableCampusProps: boolean;
+  enableGrassClusters: boolean;
+  enableSkyLife: boolean;
+  vegetationDensity: number;
+  vegetationCastShadows: boolean;
+};
+
+export const GRAPHICS_QUALITY_PRESETS: Record<GraphicsQualityPresetId, GraphicsQualityPreset> = {
+  low: {
+    id: 'low',
+    label: '⚡ Mobile / Low',
+    dpr: [1, 1.25],
+    shadowMapSize: 1024,
+    softShadowSamples: 0,
+    enableContactShadows: false,
+    enablePbrTextures: true,
+    enableWindAnimation: false,
+    enableCampusProps: false,
+    enableGrassClusters: false,
+    enableSkyLife: false,
+    vegetationDensity: 0.35,
+    vegetationCastShadows: false,
+  },
+  medium: {
+    id: 'medium',
+    label: '⚖️ Balanced',
+    dpr: [1, 1.5],
+    shadowMapSize: 1536,
+    softShadowSamples: 0,
+    enableContactShadows: true,
+    enablePbrTextures: true,
+    enableWindAnimation: true,
+    enableCampusProps: true,
+    enableGrassClusters: true,
+    enableSkyLife: true,
+    vegetationDensity: 0.7,
+    vegetationCastShadows: false,
+  },
+  high: {
+    id: 'high',
+    label: '✨ Ultra / RTX',
+    dpr: [1, 2],
+    shadowMapSize: 2048,
+    softShadowSamples: 16,
+    enableContactShadows: true,
+    enablePbrTextures: true,
+    enableWindAnimation: true,
+    enableCampusProps: true,
+    enableGrassClusters: true,
+    enableSkyLife: true,
+    vegetationDensity: 1.0,
+    vegetationCastShadows: true,
+  },
+  original: {
+    id: 'original',
+    label: '🏛️ Original Baseline',
+    dpr: [1, 2],
+    shadowMapSize: 1024,
+    softShadowSamples: 0,
+    enableContactShadows: false,
+    enablePbrTextures: false,
+    enableWindAnimation: false,
+    enableCampusProps: false,
+    enableGrassClusters: false,
+    enableSkyLife: false,
+    vegetationDensity: 0.5,
+    vegetationCastShadows: false,
+  },
+};
 
 export type TimeOfDayPreset = {
   id: TimeOfDayPresetId;
   label: string;
   backgroundColor: string;
   fogColor: string;
+  fogNear: number;
+  fogFar: number;
   ambientColor: string;
   ambientIntensity: number;
   hemisphereSkyColor: string;
@@ -18,44 +101,72 @@ export type TimeOfDayPreset = {
   fillLightIntensity: number;
   skyTurbidity: number;
   skyRayleigh: number;
+  exposure: number;
   enableNightLights: boolean;
 };
 
 export const TIME_OF_DAY_PRESETS: Record<TimeOfDayPresetId, TimeOfDayPreset> = {
+  morning: {
+    id: 'morning',
+    label: '🌄 Morning',
+    backgroundColor: '#e0f2fe',
+    fogColor: '#e0f2fe',
+    fogNear: 280,
+    fogFar: 1350,
+    ambientColor: '#fef3c7',
+    ambientIntensity: 0.48,
+    hemisphereSkyColor: '#bae6fd',
+    hemisphereGroundColor: '#94a3b8',
+    hemisphereIntensity: 0.46,
+    sunPosition: [185, 58, 70],
+    sunColor: '#fde68a',
+    sunIntensity: 1.75,
+    fillLightIntensity: 0.32,
+    skyTurbidity: 3.8,
+    skyRayleigh: 1.85,
+    exposure: 1.02,
+    enableNightLights: false,
+  },
   day: {
     id: 'day',
-    label: '☀️ Day',
+    label: '☀️ Midday',
     backgroundColor: '#dbeafe',
     fogColor: '#e2e8f0',
+    fogNear: 380,
+    fogFar: 1650,
     ambientColor: '#ffffff',
-    ambientIntensity: 0.55,
+    ambientIntensity: 0.54,
     hemisphereSkyColor: '#bae6fd',
     hemisphereGroundColor: '#cbd5e1',
     hemisphereIntensity: 0.5,
-    sunPosition: [120, 160, 100],
+    sunPosition: [120, 165, 100],
     sunColor: '#fffbeb',
-    sunIntensity: 1.65,
-    fillLightIntensity: 0.35,
-    skyTurbidity: 2.5,
-    skyRayleigh: 1.2,
+    sunIntensity: 1.85,
+    fillLightIntensity: 0.36,
+    skyTurbidity: 2.2,
+    skyRayleigh: 1.15,
+    exposure: 1.05,
     enableNightLights: false,
   },
   sunset: {
     id: 'sunset',
-    label: '🌅 Sunset',
+    label: '🌅 Golden Hour',
     backgroundColor: '#fed7aa',
     fogColor: '#fdba74',
+    fogNear: 240,
+    fogFar: 1200,
     ambientColor: '#ffedd5',
     ambientIntensity: 0.42,
     hemisphereSkyColor: '#fb923c',
     hemisphereGroundColor: '#475569',
     hemisphereIntensity: 0.48,
-    sunPosition: [-180, 24, 65],
+    sunPosition: [-180, 26, 65],
     sunColor: '#f97316',
-    sunIntensity: 1.5,
+    sunIntensity: 1.65,
     fillLightIntensity: 0.25,
-    skyTurbidity: 9.0,
-    skyRayleigh: 3.4,
+    skyTurbidity: 8.5,
+    skyRayleigh: 3.2,
+    exposure: 0.98,
     enableNightLights: true,
   },
   night: {
@@ -63,17 +174,20 @@ export const TIME_OF_DAY_PRESETS: Record<TimeOfDayPresetId, TimeOfDayPreset> = {
     label: '🌙 Evening',
     backgroundColor: '#0f172a',
     fogColor: '#0f172a',
+    fogNear: 180,
+    fogFar: 950,
     ambientColor: '#93c5fd',
     ambientIntensity: 0.28,
     hemisphereSkyColor: '#1e3a8a',
     hemisphereGroundColor: '#0f172a',
-    hemisphereIntensity: 0.35,
+    hemisphereIntensity: 0.36,
     sunPosition: [-80, -25, -120],
     sunColor: '#60a5fa',
-    sunIntensity: 0.35,
+    sunIntensity: 0.38,
     fillLightIntensity: 0.22,
     skyTurbidity: 10.0,
     skyRayleigh: 0.4,
+    exposure: 0.92,
     enableNightLights: true,
   },
 };

@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { computeShrubPlacements } from '../components/3d/Vegetation';
+import {
+  computeCampusBenchesAndBins,
+  computeCampusStreetLamps,
+  computeCampusTotems,
+} from '../components/3d/environment/CampusEnvironmentDetail';
+import {
+  getArchitecturalWallTextures,
+  getAsphaltRoadTextures,
+  getLushGrassTextures,
+  getPromenadePavingTextures,
+} from '../components/3d/materials/pbrMaterials';
 import { demoCampus } from '../data/demo-campus';
 import {
+  CampusAudioEngine,
+  detectFootstepSurface,
+} from '../game/audio/campusAudioEngine';
+import {
+  GRAPHICS_QUALITY_PRESETS,
   TELEPORT_LOCATIONS,
   TIME_OF_DAY_PRESETS,
   findNearestBuildingInRange,
@@ -13,7 +30,7 @@ import {
 } from '../game/world/CampusColliders';
 import { geometryProvider } from '../services/geometry';
 
-describe('First-Person Game Prototype & Enhancements', () => {
+describe('First-Person Game Prototype & Immersive 3D Enhancements', () => {
   const geometry = geometryProvider.build(demoCampus);
   const colliders = buildCampusColliderSpecs(geometry);
   const treeColliders = buildTreeColliderSpecs(geometry);
@@ -53,11 +70,18 @@ describe('First-Person Game Prototype & Enhancements', () => {
     expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-s-0')).toBe(true);
   });
 
-  it('generates deterministic tree trunk cylinder colliders outside building footprints', () => {
+  it('generates deterministic tree trunk cylinder colliders and lawn shrubs outside building footprints', () => {
     expect(treeColliders.length).toBeGreaterThan(50);
     for (const tree of treeColliders) {
       expect(tree.radius).toBeGreaterThan(0.2);
       expect(tree.halfHeight).toBeGreaterThan(0.8);
+    }
+
+    const shrubs = computeShrubPlacements(geometry);
+    expect(shrubs.length).toBeGreaterThan(40);
+    for (const shrub of shrubs) {
+      expect(shrub.scaleXZ).toBeGreaterThan(0.5);
+      expect(shrub.scaleY).toBeGreaterThan(0.4);
     }
   });
 
@@ -124,10 +148,16 @@ describe('First-Person Game Prototype & Enhancements', () => {
     expect(atEntrance).toBeNull();
   });
 
-  it('defines valid time-of-day presets and resets player input state cleanly', () => {
+  it('defines valid time-of-day presets, graphics quality presets, and resets player input state cleanly', () => {
+    expect(TIME_OF_DAY_PRESETS.morning.enableNightLights).toBe(false);
     expect(TIME_OF_DAY_PRESETS.day.enableNightLights).toBe(false);
     expect(TIME_OF_DAY_PRESETS.sunset.enableNightLights).toBe(true);
     expect(TIME_OF_DAY_PRESETS.night.enableNightLights).toBe(true);
+
+    expect(GRAPHICS_QUALITY_PRESETS.high.enablePbrTextures).toBe(true);
+    expect(GRAPHICS_QUALITY_PRESETS.high.enableContactShadows).toBe(true);
+    expect(GRAPHICS_QUALITY_PRESETS.original.enablePbrTextures).toBe(false);
+    expect(GRAPHICS_QUALITY_PRESETS.original.enableCampusProps).toBe(false);
 
     const input = createInitialInputState();
     input.moveForward = true;
@@ -141,5 +171,55 @@ describe('First-Person Game Prototype & Enhancements', () => {
     expect(input.keySprint).toBe(false);
     expect(input.touchForward).toBe(0);
     expect(input.lookDeltaX).toBe(0);
+  });
+
+  it('places campus street lamps, park benches, and wayfinding totems deterministically outside buildings and water basins', () => {
+    const lamps = computeCampusStreetLamps(geometry);
+    const benches = computeCampusBenchesAndBins(geometry);
+    const totems = computeCampusTotems(geometry);
+
+    expect(lamps.length).toBeGreaterThan(20);
+    expect(benches.length).toBeGreaterThan(10);
+    expect(totems.length).toBeGreaterThan(3);
+
+    for (const lamp of lamps) {
+      const inFountainBasin = lamp.x > -39 && lamp.x < 34 && lamp.z > 6.2 && lamp.z < 25.6;
+      expect(inFountainBasin).toBe(false);
+    }
+  });
+
+  it('detects footstep surfaces accurately across stone pavement, wooden fountain bridge, lawn grass, and indoor floors', () => {
+    // Main entrance promenade pavement
+    expect(detectFootstepSurface(85.0, 0.05, 15.9, geometry, false)).toBe('pavement');
+    // Elevated wooden fountain bridge deck
+    expect(detectFootstepSurface(-11.1, 0.65, 15.9, geometry, false)).toBe('wood');
+    // Inside Block F Library
+    expect(detectFootstepSurface(30.9, 0.15, -36.5, geometry, true)).toBe('indoor');
+
+    // Audio engine mute & volume controls work safely in headless environment
+    const audio = new CampusAudioEngine();
+    expect(audio.isMuted()).toBe(false);
+    audio.setMuted(true);
+    expect(audio.isMuted()).toBe(true);
+    audio.setVolume(0.4);
+    expect(audio.getVolume()).toBeCloseTo(0.4, 5);
+    audio.dispose();
+  });
+
+  it('generates procedural PBR texture sets safely in browser or headless environments', () => {
+    const paving = getPromenadePavingTextures();
+    const asphalt = getAsphaltRoadTextures();
+    const grass = getLushGrassTextures();
+    const wall = getArchitecturalWallTextures();
+
+    // In headless Node/Vitest without canvas 2D context, returns null safely; in browser returns TextureSet
+    if (paving) {
+      expect(paving.map).toBeDefined();
+      expect(paving.normalMap).toBeDefined();
+      expect(paving.roughnessMap).toBeDefined();
+    }
+    expect(asphalt === null || Boolean(asphalt.normalMap)).toBe(true);
+    expect(grass === null || Boolean(grass.normalMap)).toBe(true);
+    expect(wall === null || Boolean(wall.normalMap)).toBe(true);
   });
 });

@@ -5,8 +5,10 @@ import type { CampusGeometry } from '../../domain/geometry/types';
 import type { Lesson } from '../../domain/schedule/types';
 import { search } from '../../services/search/searchService';
 import {
+  GRAPHICS_QUALITY_PRESETS,
   TELEPORT_LOCATIONS,
   TIME_OF_DAY_PRESETS,
+  type GraphicsQualityPresetId,
   type TeleportDestination,
   type TimeOfDayPresetId,
 } from '../config/gameConfig';
@@ -20,6 +22,12 @@ type Props = {
   lessons: Lesson[];
   timeOfDay: TimeOfDayPresetId;
   onChangeTimeOfDay: (preset: TimeOfDayPresetId) => void;
+  qualityPreset: GraphicsQualityPresetId;
+  onChangeQualityPreset: (preset: GraphicsQualityPresetId) => void;
+  audioMuted: boolean;
+  audioVolume: number;
+  onToggleAudioMute: () => void;
+  onChangeAudioVolume: (volume: number) => void;
   onTeleport: (dest: TeleportDestination) => void;
   onSelectWayfindingTarget: (target: WayfindingTarget) => void;
   onStartOrResume: () => void;
@@ -31,7 +39,9 @@ type Props = {
  * Start and Pause menu overlay featuring:
  * - Room / Lesson search with 3D Wayfinding path activation
  * - Quick Teleport buttons to campus buildings and landmarks
- * - Time-of-Day atmosphere selector (Day / Sunset / Evening)
+ * - Time-of-Day atmosphere selector (Morning / Midday / Golden Hour / Evening)
+ * - Graphics Quality & Original Baseline comparison selector
+ * - Ambient Soundscape & Footstep Audio controls
  */
 export function GameMenu({
   mode,
@@ -41,6 +51,12 @@ export function GameMenu({
   lessons,
   timeOfDay,
   onChangeTimeOfDay,
+  qualityPreset,
+  onChangeQualityPreset,
+  audioMuted,
+  audioVolume,
+  onToggleAudioMute,
+  onChangeAudioVolume,
   onTeleport,
   onSelectWayfindingTarget,
   onStartOrResume,
@@ -95,13 +111,13 @@ export function GameMenu({
       <div
         style={{
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 510,
           maxHeight: '92dvh',
           overflowY: 'auto',
           background: 'rgba(15, 23, 42, 0.94)',
           border: '1px solid rgba(255, 255, 255, 0.18)',
           borderRadius: 16,
-          padding: '22px 20px',
+          padding: '20px 18px',
           color: '#f8fafc',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.45)',
           textAlign: 'center',
@@ -122,17 +138,17 @@ export function GameMenu({
             marginBottom: 8,
           }}
         >
-          First-Person Mode
+          Immersive 3D Walkthrough
         </div>
 
-        <h2 style={{ margin: '0 0 6px 0', fontSize: 21, fontWeight: 700 }}>
-          {isPaused ? 'Game Paused & Navigation' : 'Explore Campus in 3D'}
+        <h2 style={{ margin: '0 0 6px 0', fontSize: 20, fontWeight: 700 }}>
+          {isPaused ? 'Walkthrough Paused & Settings' : 'Explore Ajou Campus in 3D'}
         </h2>
 
-        <p style={{ margin: '0 0 14px 0', fontSize: 13, color: '#cbd5e1', lineHeight: 1.45 }}>
+        <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#cbd5e1', lineHeight: 1.45 }}>
           {isMobile
             ? 'Walk across the fountain bridges, teleport to buildings, or set a 3D route to any room.'
-            : 'Walk around campus, cross the fountain bridges, press E near buildings to inspect floors, or set a 3D route.'}
+            : 'Walk around campus with spatial sound, cross the fountain bridges, press E near buildings to inspect interiors, or set a 3D route.'}
         </p>
 
         {/* Primary Play / Resume Button */}
@@ -150,10 +166,10 @@ export function GameMenu({
             fontWeight: 700,
             cursor: 'pointer',
             boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
-            marginBottom: 14,
+            marginBottom: 12,
           }}
         >
-          {isPaused ? '▶ Resume Exploration' : '▶ Start Game'}
+          {isPaused ? '▶ Resume Exploration' : '▶ Start Walkthrough'}
         </button>
 
         {/* 3D Wayfinding Room Search */}
@@ -163,7 +179,7 @@ export function GameMenu({
             border: '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: 10,
             padding: '10px 12px',
-            marginBottom: 12,
+            marginBottom: 10,
             textAlign: 'left',
           }}
         >
@@ -226,7 +242,7 @@ export function GameMenu({
             border: '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: 10,
             padding: '10px 12px',
-            marginBottom: 12,
+            marginBottom: 10,
             textAlign: 'left',
           }}
         >
@@ -266,36 +282,135 @@ export function GameMenu({
         {/* Time of Day Selector */}
         <div
           style={{
-            display: 'flex',
-            gap: 6,
-            justifyContent: 'center',
-            marginBottom: 14,
+            background: 'rgba(30, 41, 59, 0.75)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            marginBottom: 10,
+            textAlign: 'left',
           }}
         >
-          {(Object.keys(TIME_OF_DAY_PRESETS) as TimeOfDayPresetId[]).map((presetId) => {
-            const active = timeOfDay === presetId;
-            return (
-              <button
-                key={presetId}
-                type="button"
-                onClick={() => onChangeTimeOfDay(presetId)}
-                style={{
-                  flex: 1,
-                  background: active ? '#0284c7' : 'rgba(30, 41, 59, 0.8)',
-                  color: '#ffffff',
-                  border: active
-                    ? '1px solid rgba(125, 211, 252, 0.7)'
-                    : '1px solid rgba(255, 255, 255, 0.14)',
-                  borderRadius: 8,
-                  padding: '7px 10px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
-                {TIME_OF_DAY_PRESETS[presetId].label}
-              </button>
-            );
-          })}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#fde68a', marginBottom: 7 }}>
+            ☀️ Atmosphere & Time of Day
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
+            {(Object.keys(TIME_OF_DAY_PRESETS) as TimeOfDayPresetId[]).map((presetId) => {
+              const active = timeOfDay === presetId;
+              return (
+                <button
+                  key={presetId}
+                  type="button"
+                  onClick={() => onChangeTimeOfDay(presetId)}
+                  style={{
+                    background: active ? '#0284c7' : 'rgba(15, 23, 42, 0.82)',
+                    color: '#ffffff',
+                    border: active
+                      ? '1px solid rgba(125, 211, 252, 0.7)'
+                      : '1px solid rgba(255, 255, 255, 0.14)',
+                    borderRadius: 7,
+                    padding: '6px 6px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {TIME_OF_DAY_PRESETS[presetId].label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Graphics Quality & Baseline Comparison + Audio Controls */}
+        <div
+          style={{
+            background: 'rgba(30, 41, 59, 0.75)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            marginBottom: 12,
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#bae6fd', marginBottom: 7 }}>
+            ✨ Graphics Quality & Baseline Comparison
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 5,
+              marginBottom: 10,
+            }}
+          >
+            {(['high', 'medium', 'low', 'original'] as GraphicsQualityPresetId[]).map(
+              (presetId) => {
+                const active = qualityPreset === presetId;
+                return (
+                  <button
+                    key={presetId}
+                    type="button"
+                    onClick={() => onChangeQualityPreset(presetId)}
+                    style={{
+                      background: active ? '#2563eb' : 'rgba(15, 23, 42, 0.82)',
+                      color: '#ffffff',
+                      border: active
+                        ? '1px solid rgba(147, 197, 253, 0.8)'
+                        : '1px solid rgba(255, 255, 255, 0.14)',
+                      borderRadius: 7,
+                      padding: '6px 6px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {GRAPHICS_QUALITY_PRESETS[presetId].label}
+                  </button>
+                );
+              },
+            )}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <button
+              type="button"
+              onClick={onToggleAudioMute}
+              style={{
+                background: audioMuted ? 'rgba(15, 23, 42, 0.85)' : '#0e7490',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 7,
+                padding: '6px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {audioMuted ? '🔇 Sound Muted' : '🔊 Ambient Audio On'}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                Vol {Math.round(audioVolume * 100)}%
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={audioVolume}
+                onChange={(e) => onChangeAudioVolume(Number(e.target.value))}
+                style={{ width: '100%', accentColor: '#38bdf8' }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Secondary Action Buttons */}
