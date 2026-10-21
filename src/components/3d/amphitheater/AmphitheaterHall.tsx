@@ -510,7 +510,7 @@ export function AmphitheaterHall({
         width={spec.stairs.width}
         depth={spec.stairs.depth}
         steps={spec.stairs.steps}
-        rotationY={-Math.PI / 2}
+        rotationY={Math.PI / 2}
         position={[8.8, 0, 0]}
       />
 
@@ -519,7 +519,7 @@ export function AmphitheaterHall({
         width={spec.stairs.width}
         depth={spec.stairs.depth}
         steps={spec.stairs.steps}
-        rotationY={Math.PI / 2}
+        rotationY={-Math.PI / 2}
         position={[-8.8, 0, 0]}
       />
 
@@ -528,7 +528,7 @@ export function AmphitheaterHall({
         width={spec.stairs.width}
         depth={spec.stairs.depth}
         steps={spec.stairs.steps}
-        rotationY={Math.PI}
+        rotationY={0}
         position={[0, 0, 7.3]}
       />
 
@@ -694,42 +694,144 @@ export function AmphitheaterHall({
       </group>
 
       {/* =========================================================================
-          7. WEST WALL (WALL 3 — PANORAMIC CURTAIN WALL GLAZING)
-          X = -10.0m. Window: Y -6.0..6.0 (W=12.0m), Z: 1.35..7.20 (H=5.85m)
+          7. WEST WALL (WALL 3 — EXTERIOR CLADDING, PANORAMIC WINDOWS & ENTRANCE)
+          X = -10.0m. Window: Y -6.0..6.0 (W=12.0m). Entrance: localZ -1.3..1.3.
           ========================================================================= */}
-      {/* West Panoramic Curtain Wall Glazing Pane */}
-      <mesh position={[-9.95, (1.35 + 7.2) / 2, 0]} material={glassMat}>
-        <boxGeometry args={[0.06, 5.85, 12.0]} />
+      {/* Exterior Wall Stone Cladding (warm travertine `#eae3d2`) on NW & SW flanks
+          Completely covers interior bookshelves from outside view (ADR-029) */}
+      <mesh position={[-10.02, (1.35 + 8.9) / 2, -7.25]} material={wallMat} castShadow receiveShadow>
+        <boxGeometry args={[0.26, 8.9 - 1.35, 2.5]} />
+      </mesh>
+      <mesh position={[-10.02, (1.35 + 8.9) / 2, 7.25]} material={wallMat} castShadow receiveShadow>
+        <boxGeometry args={[0.26, 8.9 - 1.35, 2.5]} />
       </mesh>
 
-      {/* 7 Vertical Mullions (6 bays of 2.00m) */}
-      {Array.from({ length: 7 }, (_, i) => -6.0 + i * 2.0).map((wy) => (
+      {/* Exterior Upper Spandrel Wall above Panoramic Windows (Y: 7.20..8.90m) */}
+      <mesh position={[-10.02, (7.2 + 8.9) / 2, 0]} material={wallMat} castShadow receiveShadow>
+        <boxGeometry args={[0.26, 8.9 - 7.2, 12.0]} />
+      </mesh>
+
+      {/* Exterior Dark Plinth Wall (Y: 0..1.35m) on NW and SW flanks (leaving 2.6m center entrance open) */}
+      <mesh position={[-10.02, 1.35 / 2, -4.9]} material={plinthMat} receiveShadow>
+        <boxGeometry args={[0.26, 1.35, 7.2]} />
+      </mesh>
+      <mesh position={[-10.02, 1.35 / 2, 4.9]} material={plinthMat} receiveShadow>
+        <boxGeometry args={[0.26, 1.35, 7.2]} />
+      </mesh>
+
+      {/* Interior Bookshelf Towers on West Flanks (backed by solid exterior wall) */}
+      {[-7.25, 7.25].map((by) => (
+        <mesh key={`bk-w-${by}`} position={[-9.65, (1.35 + 7.2) / 2, -by]} material={bookshelfMat}>
+          <boxGeometry args={[0.35, 5.85, 2.45]} />
+        </mesh>
+      ))}
+
+      {/* North Panoramic Glazing Pane (localZ: -6.0..-1.3m, W=4.7m) */}
+      <mesh position={[-9.95, (1.35 + 7.2) / 2, -3.65]} material={glassMat}>
+        <boxGeometry args={[0.06, 5.85, 4.7]} />
+      </mesh>
+
+      {/* South Panoramic Glazing Pane (localZ: +1.3..+6.0m, W=4.7m) */}
+      <mesh position={[-9.95, (1.35 + 7.2) / 2, 3.65]} material={glassMat}>
+        <boxGeometry args={[0.06, 5.85, 4.7]} />
+      </mesh>
+
+      {/* Upper Transom Glazing Pane above Entrance Doors (Y: 2.80..7.20m, W=2.6m) */}
+      <mesh position={[-9.95, (2.8 + 7.2) / 2, 0]} material={glassMat}>
+        <boxGeometry args={[0.06, 4.4, 2.6]} />
+      </mesh>
+
+      {/* Vertical Metal Mullions */}
+      {[-6.0, -4.0, -2.0, -1.3, 1.3, 2.0, 4.0, 6.0].map((wy) => (
         <mesh key={`mull-w-${wy}`} position={[-9.95, (1.35 + 7.2) / 2, -wy]} material={metalFrameMat}>
           <boxGeometry args={[0.12, 5.85, 0.08]} />
         </mesh>
       ))}
 
-      {/* Horizontal Transoms at Z = 2.10m and Z = 5.40m */}
-      <mesh position={[-9.95, 2.1, 0]} material={metalFrameMat}>
-        <boxGeometry args={[0.1, 0.08, 12.0]} />
+      {/* Horizontal Transoms at Z = 2.10m and Z = 5.40m on side window bays */}
+      <mesh position={[-9.95, 2.1, -3.65]} material={metalFrameMat}>
+        <boxGeometry args={[0.1, 0.08, 4.7]} />
       </mesh>
-      <mesh position={[-9.95, 5.4, 0]} material={metalFrameMat}>
-        <boxGeometry args={[0.1, 0.08, 12.0]} />
+      <mesh position={[-9.95, 5.4, -3.65]} material={metalFrameMat}>
+        <boxGeometry args={[0.1, 0.08, 4.7]} />
+      </mesh>
+      <mesh position={[-9.95, 2.1, 3.65]} material={metalFrameMat}>
+        <boxGeometry args={[0.1, 0.08, 4.7]} />
+      </mesh>
+      <mesh position={[-9.95, 5.4, 3.65]} material={metalFrameMat}>
+        <boxGeometry args={[0.1, 0.08, 4.7]} />
       </mesh>
 
-      {/* 4 White Floor Radiators/Convectors along bottom of window */}
+      {/* 4 White Floor Radiators/Convectors along bottom of side windows */}
       {spec.west.radiators.at.map((ry) => (
         <mesh key={`rad-${ry}`} position={[-9.78, (1.35 + 1.9) / 2, -ry]} material={whiteColMat}>
           <boxGeometry args={[0.18, 0.55, spec.west.radiators.width]} />
         </mesh>
       ))}
 
-      {/* West Corner Bookshelf Towers (Y: -8.5..-6.0 and 6.0..8.5, Z: 1.35..7.20) */}
-      {[-7.2, 7.2].map((by) => (
-        <mesh key={`bk-w-${by}`} position={[-9.7, (1.35 + 7.2) / 2, -by]} material={bookshelfMat}>
-          <boxGeometry args={[0.4, 5.85, 2.5]} />
+      {/* =========================================================================
+          WALKABLE WEST ENTRANCE PORTAL FOR FIRST-PERSON GAME MODE & 3D MAP
+          Double glazed doors at localZ: -1.3..+1.3m, connecting to the exterior plaza
+          ========================================================================= */}
+      {/* Entrance Door Frame Border (W=2.6m, H=2.8m) */}
+      <group position={[-9.95, 0, 0]}>
+        {/* Top Header Lintel at Y = 2.80m */}
+        <mesh position={[0, 2.8, 0]} material={metalFrameMat}>
+          <boxGeometry args={[0.16, 0.1, 2.6]} />
         </mesh>
-      ))}
+        {/* Left Side Jamb at localZ = -1.3m */}
+        <mesh position={[0, 1.4, -1.3]} material={metalFrameMat}>
+          <boxGeometry args={[0.16, 2.8, 0.1]} />
+        </mesh>
+        {/* Right Side Jamb at localZ = +1.3m */}
+        <mesh position={[0, 1.4, 1.3]} material={metalFrameMat}>
+          <boxGeometry args={[0.16, 2.8, 0.1]} />
+        </mesh>
+        {/* Center Meeting Stile at localZ = 0 */}
+        <mesh position={[0, 1.4, 0]} material={metalFrameMat}>
+          <boxGeometry args={[0.14, 2.8, 0.06]} />
+        </mesh>
+
+        {/* Double Glass Doors */}
+        <mesh position={[0, 1.4, -0.65]} material={glassMat}>
+          <boxGeometry args={[0.04, 2.7, 1.22]} />
+        </mesh>
+        <mesh position={[0, 1.4, 0.65]} material={glassMat}>
+          <boxGeometry args={[0.04, 2.7, 1.22]} />
+        </mesh>
+
+        {/* Architectural Pull Handles */}
+        <mesh position={[-0.08, 1.2, -0.1]} material={goldAccentMat}>
+          <boxGeometry args={[0.04, 0.7, 0.04]} />
+        </mesh>
+        <mesh position={[-0.08, 1.2, 0.1]} material={goldAccentMat}>
+          <boxGeometry args={[0.04, 0.7, 0.04]} />
+        </mesh>
+        <mesh position={[0.08, 1.2, -0.1]} material={goldAccentMat}>
+          <boxGeometry args={[0.04, 0.7, 0.04]} />
+        </mesh>
+        <mesh position={[0.08, 1.2, 0.1]} material={goldAccentMat}>
+          <boxGeometry args={[0.04, 0.7, 0.04]} />
+        </mesh>
+      </group>
+
+      {/* Exterior Modern Canopy Overhead at Y = 2.90m */}
+      <mesh position={[-10.7, 2.88, 0]} material={metalFrameMat}>
+        <boxGeometry args={[1.5, 0.06, 3.2]} />
+      </mesh>
+      <mesh position={[-10.7, 2.92, 0]} material={glassMat}>
+        <boxGeometry args={[1.4, 0.02, 3.1]} />
+      </mesh>
+
+      {/* Exterior Concrete Entry Porch Step (Y: 0..0.20m, connects exterior plaza to doors) */}
+      <mesh position={[-10.5, 0.1, 0]} material={plinthMat} receiveShadow>
+        <boxGeometry args={[1.2, 0.2, 2.8]} />
+      </mesh>
+
+      {/* Interior Door Landing Tier (connects doors to top tier and staircase flight) */}
+      <mesh position={[-9.4, 1.35 / 2, 0]} material={tierMat} receiveShadow>
+        <boxGeometry args={[1.0, 1.35, 2.8]} />
+      </mesh>
 
       {/* =========================================================================
           8. SOUTH WALL (WALL 4 — OPEN COLONNADE, STEEL TRUSS & LOUNGE)

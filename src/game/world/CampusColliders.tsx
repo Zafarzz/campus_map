@@ -387,11 +387,35 @@ export function buildCampusColliderSpecs(
     position: [amphX, 3.6, amphZ - 8.35],
     halfExtents: [10.0, 3.6, 0.15],
   });
-  // West panoramic curtain wall
+  // West panoramic curtain wall & double door entrance portal (2.6m wide opening at center)
   list.push({
-    id: 'amph-wall-west',
-    position: [amphX - 9.95, 3.6, amphZ],
-    halfExtents: [0.15, 3.6, 8.5],
+    id: 'amph-wall-west-north',
+    position: [amphX - 9.95, 3.6, amphZ - 4.9],
+    halfExtents: [0.15, 3.6, 3.6],
+  });
+  list.push({
+    id: 'amph-wall-west-south',
+    position: [amphX - 9.95, 3.6, amphZ + 4.9],
+    halfExtents: [0.15, 3.6, 3.6],
+  });
+  list.push({
+    id: 'amph-wall-west-lintel',
+    position: [amphX - 9.95, (2.8 + 7.2) / 2, amphZ],
+    halfExtents: [0.15, (7.2 - 2.8) / 2, 1.3],
+  });
+  // Walkable exterior entrance step (Y: 0..0.2m)
+  list.push({
+    id: 'amph-entrance-step-west',
+    position: [amphX - 10.5, 0.1, amphZ],
+    halfExtents: [0.6, 0.1, 1.4],
+    friction: 0.3,
+  });
+  // Walkable interior entrance landing (Y: 0..1.35m)
+  list.push({
+    id: 'amph-tier3-west-landing',
+    position: [amphX - 9.4, 1.35 / 2, amphZ],
+    halfExtents: [0.6, 1.35 / 2, 1.4],
+    friction: 0.2,
   });
   // East wall gallery (leaving 2.6m center entrance portal open)
   list.push({

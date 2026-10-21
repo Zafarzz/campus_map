@@ -80,12 +80,12 @@ export function computeTreePlacements(geometry: CampusGeometry): TreePlacement[]
     }
   }
 
-  // Exclude Amphitheater Hall area (ADR-029)
+  // Exclude Amphitheater Hall area and surrounding plaza (ADR-029)
   buildingBoxes.push({
-    minX: AMPHITHEATER_HALL.center[0] - AMPHITHEATER_HALL.size[0] / 2 - 1.5,
-    maxX: AMPHITHEATER_HALL.center[0] + AMPHITHEATER_HALL.size[0] / 2 + 3.0,
-    minZ: AMPHITHEATER_HALL.center[1] - AMPHITHEATER_HALL.size[1] / 2 - 1.5,
-    maxZ: AMPHITHEATER_HALL.center[1] + AMPHITHEATER_HALL.size[1] / 2 + 1.5,
+    minX: AMPHITHEATER_HALL.center[0] - AMPHITHEATER_HALL.size[0] / 2 - 12.0, // Clear 12m plaza on West
+    maxX: AMPHITHEATER_HALL.center[0] + AMPHITHEATER_HALL.size[0] / 2 + 6.0,  // East gallery & walkway
+    minZ: AMPHITHEATER_HALL.center[1] - AMPHITHEATER_HALL.size[1] / 2 - 4.0,  // North
+    maxZ: AMPHITHEATER_HALL.center[1] + AMPHITHEATER_HALL.size[1] / 2 + 5.0,  // South
   });
 
   const isInsideBuilding = (x: number, z: number) => {

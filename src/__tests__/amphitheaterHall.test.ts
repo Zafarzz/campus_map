@@ -116,4 +116,14 @@ describe('Amphitheater Hall Architectural Specification (ADR-029)', () => {
       getSlateRoofTexture();
     }).not.toThrow();
   });
+
+  it('provides an open West entrance portal for Game Mode and clears nearby trees', () => {
+    const flightWest = AMPHITHEATER_HALL.stairs.flights.find((f) => f.id === 'west');
+    const flightEast = AMPHITHEATER_HALL.stairs.flights.find((f) => f.id === 'east');
+    const flightSouth = AMPHITHEATER_HALL.stairs.flights.find((f) => f.id === 'south');
+    expect(flightWest?.up).toEqual([-1, 0]); // Ascends west towards -X
+    expect(flightEast?.up).toEqual([1, 0]);  // Ascends east towards +X
+    expect(flightSouth?.up).toEqual([0, -1]); // Ascends south (in plan frame -Y = world +Z)
+  });
 });
+
