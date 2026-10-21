@@ -34,10 +34,10 @@ export const buildingFootprintsPx: Record<string, PxRect[]> = {
   // Positions of bld-g / bld-h / bld-i updated from the 2D-editor package
   // `campus-edit-2026-10-21-20-05-05` (ADR-029). Sizes are calibrated to CAD drawings.
   // Top horizontal block (Block B - Academic Building No. 2, 55m x 15m calibrated to CAD elevation)
-  // Editor export: [490, 685, 673, 735] -> center (69.0, 59.4), south face z=66.9m.
-  // Leaves 1.2m clear passage north of the Amphitheater Hall (north face z=68.1m).
+  // Shifted north to [490, 660, 673, 710] -> center (69.0, 51.9), south face z=59.4m.
+  // Creates an 8.7m open plaza north of the Amphitheater Hall (north face z=68.1m), completely eliminating collisions.
   'bld-g': [
-    [490, 685, 673, 735] // 183px × 50px (54.9m × 15.0m ≈ 55.0m × 15.0m), center (69.0, 59.4)
+    [490, 660, 673, 710] // 183px × 50px (54.9m × 15.0m ≈ 55.0m × 15.0m), center (69.0, 51.9)
   ],
   // Middle horizontal block (Block A - Main academic building, 66m x 18m)
   // Editor export: [288, 795, 508, 855] -> center (13.95, 93.9), north face z=84.9m.
@@ -72,9 +72,9 @@ export type ConnectorPx = {
 
 export const connectorsPx: ConnectorPx[] = [
   // Block B (bld-g) ↔ Block C Hall (bld-i). Two storeys (editor instruction "dvux etjaniy").
-  // Spans from Block B south face (px 735 / z=66.9m) to Block C north face (px 794 / z=84.6m).
-  // Width 7.5m (25px), length 17.7m (59px) (ADR-029).
-  { id: 'conn-bld-g-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-g', 'bld-i'], rect: [557, 735, 582, 794], floorCount: 2 },
+  // Spans from Block B south face (px 710 / z=59.4m) to Block C north face (px 794 / z=84.6m).
+  // Width 7.5m (25px), length 25.2m (84px) (ADR-029).
+  { id: 'conn-bld-g-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-g', 'bld-i'], rect: [557, 710, 582, 794], floorCount: 2 },
   // Block A (bld-h) ↔ Block C Hall (bld-i). Two storeys, length 14.1m (47px, instruction "14 metrov dlina, dvux etjaniy"),
   // width 6.9m (23px) (ADR-029).
   { id: 'conn-bld-h-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-h', 'bld-i'], rect: [505, 809, 552, 832], floorCount: 2 },
