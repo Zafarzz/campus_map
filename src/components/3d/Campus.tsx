@@ -4,6 +4,7 @@ import { useMap } from '../../state/MapProvider';
 import { Building, type BuildingMode } from './Building';
 import { BuildingLabel } from './BuildingLabel';
 import { CampusConnectors } from './CampusConnectors';
+import { AmphitheaterHall } from './amphitheater/AmphitheaterHall';
 
 /** All buildings + their labels + inter-building connectors. Pulls state from the map context and passes plain props down. */
 export function Campus({ tuning }: { tuning?: TuningMaterialOverrides }) {
@@ -22,6 +23,7 @@ export function Campus({ tuning }: { tuning?: TuningMaterialOverrides }) {
   return (
     <group>
       <CampusConnectors connectors={geometry.connectors} selectedBuildingId={selection.buildingId} />
+      <AmphitheaterHall selected={selection.buildingId === 'amph-hall'} />
       {campus.buildings.map((building) => {
         const g = geometry.buildings[building.id];
         if (!g) return null; // No geometry yet → building only appears in the UI list.

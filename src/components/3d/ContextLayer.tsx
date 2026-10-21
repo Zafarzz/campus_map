@@ -271,6 +271,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       {geometry.context.map((f) => {
         if (f.id === 'kpp-e') return null;
         if (f.id === 'pitch') return null; // Replaced by CampusFountain
+        if (f.id === 'out-plaza-mvijfubr') return null; // Rendered as full 3D architectural AmphitheaterHall in Campus.tsx
         return f.kind === 'structure' ? (
           <ExtrudedFootprint
             key={f.id}

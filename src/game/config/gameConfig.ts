@@ -115,7 +115,7 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'bld-g',
     label: '🏢 Block B (Academic Building No. 2)',
-    position: [74.4, 2.2, 50.0],
+    position: [74.4, 2.2, 45.0],
     yaw: Math.PI,
   },
   {

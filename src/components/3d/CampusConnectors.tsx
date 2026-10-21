@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { mapConfig } from '../../config/mapConfig';
 import type { ConnectorGeometry } from '../../domain/geometry/types';
+
+const FLOOR_HEIGHT = mapConfig.building.floorHeight;
 
 type Props = {
   connectors?: ConnectorGeometry[];
@@ -114,6 +117,39 @@ function GlazedConnectorMesh({
     ];
   }, [w, d]);
 
+  // Storeys: derived from the volume height (floorCount × FLOOR_HEIGHT, ADR-029).
+  const storeyCount = Math.max(1, Math.round(height / FLOOR_HEIGHT));
+  const storeyH = windowH / storeyCount;
+  const length = isXLong ? w : d;
+
+  // Vertical mullions roughly every 1.5m along the passage length.
+  const mullionOffsets = useMemo(() => {
+    const bays = Math.max(2, Math.round((length - 0.2) / 1.5));
+    const step = (length - 0.2) / bays;
+    const offsets: number[] = [];
+    for (let i = 1; i < bays; i++) offsets.push(-(length - 0.2) / 2 + i * step);
+    return offsets;
+  }, [length]);
+
+  // Local Y (relative to window centre) of each intermediate floor slab band.
+  const slabOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    for (let i = 1; i < storeyCount; i++) offsets.push(-windowH / 2 + i * storeyH);
+    return offsets;
+  }, [storeyCount, storeyH, windowH]);
+
+  // Handrail transom 0.85m above each storey floor.
+  const transomOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    for (let i = 0; i < storeyCount; i++) offsets.push(-windowH / 2 + i * storeyH + 0.85);
+    return offsets;
+  }, [storeyCount, storeyH, windowH]);
+
+  // Pane / bar dimensions oriented along the passage side.
+  const along = length - 0.15;
+  const bar = (thickAlong: number, h: number, thickAcross: number): [number, number, number] =>
+    isXLong ? [thickAlong, h, thickAcross] : [thickAcross, h, thickAlong];
+
   return (
     <group position={[cx, connector.elevation, cz]}>
       {/* 1. Floor Base Plinth */}
@@ -137,6 +173,13 @@ function GlazedConnectorMesh({
         />
       </mesh>
 
+      {/* 2b. Intermediate floor slabs for multi-storey passages (visible as opaque bands) */}
+      {slabOffsets.map((oy) => (
+        <mesh key={`slab-${oy}`} position={[0, plinthH + windowH / 2 + oy, 0]} material={plinthMat} castShadow receiveShadow>
+          <boxGeometry args={[w + (isXLong ? 0 : 0.12), 0.3, d + (isXLong ? 0.12 : 0)]} />
+        </mesh>
+      ))}
+
       {/* 3. Corner Structural Support Columns */}
       {cornerPosts.map(([px, pz], idx) => (
         <mesh
@@ -150,61 +193,36 @@ function GlazedConnectorMesh({
       ))}
 
       {/* 4. Glazed Side Windows with Mullions (по бокам окна, а не сплошные стены) */}
-      {isXLong ? (
-        // East-West passage: side windows on North (Z = -d/2) and South (Z = +d/2)
-        [-d / 2, d / 2].map((sideZ, sIdx) => (
-          <group key={`side-z-${sIdx}`} position={[0, plinthH + windowH / 2, sideZ]}>
-            {/* Continuous Architectural Glazing Pane */}
-            <mesh material={glassMat}>
-              <boxGeometry args={[w - 0.2, windowH, 0.05]} />
+      {(isXLong ? [-d / 2, d / 2] : [-w / 2, w / 2]).map((side, sIdx) => (
+        <group
+          key={`side-${sIdx}`}
+          position={isXLong ? [0, plinthH + windowH / 2, side] : [side, plinthH + windowH / 2, 0]}
+        >
+          {/* Continuous Architectural Glazing Pane */}
+          <mesh material={glassMat}>
+            <boxGeometry args={bar(length - 0.2, windowH, 0.05)} />
+          </mesh>
+          {/* Top & Bottom Window Framing */}
+          <mesh position={[0, windowH / 2 - 0.03, 0]} material={frameMat}>
+            <boxGeometry args={bar(along, 0.06, 0.08)} />
+          </mesh>
+          <mesh position={[0, -windowH / 2 + 0.03, 0]} material={frameMat}>
+            <boxGeometry args={bar(along, 0.06, 0.08)} />
+          </mesh>
+          {/* Mid-height Transom Bars (Handrail level of every storey) */}
+          {transomOffsets.map((oy) => (
+            <mesh key={`tr-${oy}`} position={[0, oy, 0]} material={frameMat}>
+              <boxGeometry args={bar(along, 0.05, 0.06)} />
             </mesh>
-            {/* Top & Bottom Window Framing */}
-            <mesh position={[0, windowH / 2 - 0.03, 0]} material={frameMat}>
-              <boxGeometry args={[w - 0.15, 0.06, 0.08]} />
+          ))}
+          {/* Vertical Mullion Posts (every ~1.5m along the passage) */}
+          {mullionOffsets.map((m) => (
+            <mesh key={`mull-${m}`} position={isXLong ? [m, 0, 0] : [0, 0, m]} material={frameMat} castShadow>
+              <boxGeometry args={[0.08, windowH, 0.08]} />
             </mesh>
-            <mesh position={[0, -windowH / 2 + 0.03, 0]} material={frameMat}>
-              <boxGeometry args={[w - 0.15, 0.06, 0.08]} />
-            </mesh>
-            {/* Mid-height Transom Bar (Handrail level) */}
-            <mesh position={[0, -windowH / 2 + 0.85, 0]} material={frameMat}>
-              <boxGeometry args={[w - 0.15, 0.05, 0.06]} />
-            </mesh>
-            {/* Vertical Mullion Posts (every 1.5m across the 6m length) */}
-            {[-1.5, 0, 1.5].map((mx) => (
-              <mesh key={`mull-x-${mx}`} position={[mx, 0, 0]} material={frameMat} castShadow>
-                <boxGeometry args={[0.08, windowH, 0.08]} />
-              </mesh>
-            ))}
-          </group>
-        ))
-      ) : (
-        // North-South passage: side windows on West (X = -w/2) and East (X = +w/2)
-        [-w / 2, w / 2].map((sideX, sIdx) => (
-          <group key={`side-x-${sIdx}`} position={[sideX, plinthH + windowH / 2, 0]}>
-            {/* Continuous Architectural Glazing Pane */}
-            <mesh material={glassMat}>
-              <boxGeometry args={[0.05, windowH, d - 0.2]} />
-            </mesh>
-            {/* Top & Bottom Window Framing */}
-            <mesh position={[0, windowH / 2 - 0.03, 0]} material={frameMat}>
-              <boxGeometry args={[0.08, 0.06, d - 0.15]} />
-            </mesh>
-            <mesh position={[0, -windowH / 2 + 0.03, 0]} material={frameMat}>
-              <boxGeometry args={[0.08, 0.06, d - 0.15]} />
-            </mesh>
-            {/* Mid-height Transom Bar (Handrail level) */}
-            <mesh position={[0, -windowH / 2 + 0.85, 0]} material={frameMat}>
-              <boxGeometry args={[0.06, 0.05, d - 0.15]} />
-            </mesh>
-            {/* Vertical Mullion Posts (every 1.5m across the 6m length) */}
-            {[-1.5, 0, 1.5].map((mz) => (
-              <mesh key={`mull-z-${mz}`} position={[0, 0, mz]} material={frameMat} castShadow>
-                <boxGeometry args={[0.08, windowH, 0.08]} />
-              </mesh>
-            ))}
-          </group>
-        ))
-      )}
+          ))}
+        </group>
+      ))}
     </group>
   );
 }
