@@ -31,8 +31,8 @@ describe('Amphitheater Hall Architectural Specification (ADR-029)', () => {
     const hallNorthEdge = hall.center[1] - hall.size[1] / 2; // 76.5 - 8.5 = 68.0m
     const hallSouthEdge = hall.center[1] + hall.size[1] / 2; // 76.5 + 8.5 = 85.0m
 
-    // Hall North edge must be strictly south of Block B's south face (>= 1.0m clearance)
-    expect(hallNorthEdge).toBeGreaterThan(bldGSouthEdge + 0.5);
+    // Hall North edge meets Block B's south face flush with zero gap (ADR-029)
+    expect(hallNorthEdge).toBeCloseTo(bldGSouthEdge, 1);
     // Hall South edge must meet Block A's north face
     expect(hallSouthEdge).toBeCloseTo(bldHNorthEdge, 0);
   });

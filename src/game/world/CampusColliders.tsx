@@ -384,7 +384,7 @@ export function buildCampusColliderSpecs(
   // North solid wall
   list.push({
     id: 'amph-wall-north',
-    position: [amphX, 3.6, amphZ - 8.4],
+    position: [amphX, 3.6, amphZ - 8.35],
     halfExtents: [10.0, 3.6, 0.15],
   });
   // West panoramic curtain wall

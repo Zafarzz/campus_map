@@ -367,7 +367,7 @@ export function AmphitheaterHall({
   );
 
   const hipRoofGeo = useMemo(() => {
-    return createAmphitheaterHipRoofGeometry(20.4, 17.4, 3.4);
+    return createAmphitheaterHipRoofGeometry(20.4, 17.0, 3.4);
   }, []);
 
   // Octagonal Sunken Floor Bowl (elevation 0.00m)
@@ -431,8 +431,8 @@ export function AmphitheaterHall({
           1. FOUNDATION, SUNKEN BOWL & FLOOR LOGO
           ========================================================================= */}
       {/* Base subterranean slab */}
-      <mesh position={[0, -0.15, 0]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[22, 0.3, 19]} />
+      <mesh position={[0, -0.15, 0.25]} material={plinthMat} receiveShadow>
+        <boxGeometry args={[20.5, 0.3, 17.5]} />
       </mesh>
 
       {/* Sunken Octagonal Parquet Laminate Floor (elevation 0.001 to prevent z-fighting) */}
@@ -852,8 +852,8 @@ export function AmphitheaterHall({
           ========================================================================= */}
       {/* Perimeter Parapet & Roof Slab (+8.90..+9.70m) */}
       {/* North parapet */}
-      <mesh position={[0, (8.9 + 9.7) / 2, -8.55]} material={wallMat} castShadow>
-        <boxGeometry args={[20.5, 0.8, 0.35]} />
+      <mesh position={[0, (8.9 + 9.7) / 2, -8.375]} material={wallMat} castShadow>
+        <boxGeometry args={[20.5, 0.8, 0.25]} />
       </mesh>
       {/* South parapet */}
       <mesh position={[0, (8.9 + 9.7) / 2, 8.55]} material={wallMat} castShadow>
@@ -872,8 +872,8 @@ export function AmphitheaterHall({
       {!selected && (
         <group position={[0, 8.9, 0]}>
           {/* Overhanging Fascia & Eaves board */}
-          <mesh position={[0, 0.15, 0]} material={fasciaMat} castShadow receiveShadow>
-            <boxGeometry args={[20.6, 0.3, 17.6]} />
+          <mesh position={[0, 0.15, 0.15]} material={fasciaMat} castShadow receiveShadow>
+            <boxGeometry args={[20.5, 0.3, 17.3]} />
           </mesh>
 
           {/* 4-Pitched Hip Roof with Slate ("Шифер") Texture */}

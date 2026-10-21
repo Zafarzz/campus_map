@@ -27,11 +27,16 @@ export async function loadCampus(): Promise<Campus> {
     if (draft && draft.buildings && draft.buildings.length > 0) {
       const cCount = draft.buildings.filter((b) => b.shortName === 'C').length;
       if (cCount <= 1) {
-        // Ensure Block B (bld-g) in saved draft clears the amphitheater hall (ADR-029)
+        // Ensure Block B (bld-g) in saved draft is flush with the amphitheater hall without gap (ADR-029)
         const bldG = draft.buildings.find((b) => b.id === 'bld-g');
-        if (bldG && bldG.footprint.center[1] > 55.0) {
-          bldG.footprint.center = [69.0, 51.9];
-          if (bldG.parts?.[0]) bldG.parts[0].center = [69.0, 51.9];
+        if (bldG) {
+          bldG.footprint.center = [69.0, 60.5];
+          if (bldG.parts?.[0]) bldG.parts[0].center = [69.0, 60.5];
+        }
+        const connG = draft.outdoorElements?.find((e: any) => e.id === 'out-conn-bld-g-bld-i');
+        if (connG) {
+          connG.center = [65.25, 76.25];
+          connG.size = [7.5, 16.5];
         }
         const { campus, buildingFootprintsPx, roomOverrides, contextFeaturesPx } =
           editorDocToCampusAndGeom(draft);
