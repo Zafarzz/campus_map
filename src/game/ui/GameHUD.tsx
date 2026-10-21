@@ -1,6 +1,7 @@
 import { useEffect, useState, type MutableRefObject } from 'react';
 import { sortedFloors } from '../../domain/campus/campusIndex';
 import type { Building, Campus } from '../../domain/campus/types';
+import { AMPHITHEATER_BUILDING } from '../../data/amphitheater-hall';
 import type { CampusGeometry } from '../../domain/geometry/types';
 import {
   TIME_OF_DAY_PRESETS,
@@ -77,7 +78,9 @@ export function GameHUD({
   }, [wayfindingTarget, playerTransformRef]);
 
   const enteredBuilding = enteredBuildingId
-    ? campus.buildings.find((b) => b.id === enteredBuildingId) ?? null
+    ? enteredBuildingId === 'amph-hall'
+      ? AMPHITHEATER_BUILDING
+      : campus.buildings.find((b) => b.id === enteredBuildingId) ?? null
     : null;
   const activeBuilding = enteredBuilding ?? nearbyBuilding;
 

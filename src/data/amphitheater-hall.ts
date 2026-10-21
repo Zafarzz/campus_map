@@ -1,3 +1,4 @@
+import type { Building } from '../domain/campus/types';
 import type { Vec2 } from '../domain/geometry/types';
 
 /**
@@ -146,3 +147,28 @@ export const AMPHITHEATER_HALL = {
 } as const;
 
 export type AmphitheaterHallSpec = typeof AMPHITHEATER_HALL;
+
+export const AMPHITHEATER_BUILDING: Building = {
+  id: 'amph-hall',
+  name: 'Зал амфитеатра',
+  shortName: 'Амфитеатр',
+  description: 'Многофункциональный зал амфитеатра с большим экраном и сценой',
+  provenance: 'confirmed',
+  floors: [
+    {
+      id: 'amph-floor-1',
+      level: 1,
+      name: '1 этаж',
+      rooms: [
+        {
+          id: 'amph-room-main',
+          number: 'Зал',
+          name: 'Главный зал амфитеатра',
+          kind: 'hall',
+          capacity: 150,
+          provenance: 'confirmed',
+        },
+      ],
+    },
+  ],
+};

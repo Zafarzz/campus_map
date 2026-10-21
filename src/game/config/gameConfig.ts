@@ -1,3 +1,4 @@
+import { AMPHITHEATER_HALL } from '../../data/amphitheater-hall';
 import type { BuildingGeometry, CampusGeometry, Vec3 } from '../../domain/geometry/types';
 
 export type TimeOfDayPresetId = 'day' | 'sunset' | 'night';
@@ -109,8 +110,9 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'amph-hall',
     label: '🏛️ Amphitheater Hall & Grand Screen',
-    position: [50.5, 2.2, 82.0],
+    position: [50.5, 1.8, 77.0],
     yaw: 0,
+    enterBuildingId: 'amph-hall',
   },
   {
     id: 'bld-i',
@@ -259,6 +261,23 @@ export function findNearestBuildingInRange(
       bestId = bld.buildingId;
     }
   }
+
+  // Amphitheater Hall (out-plaza-mvijfubr / amph-hall, ADR-029)
+  const [amphX, amphZ] = AMPHITHEATER_HALL.center;
+  const [amphW, amphD] = AMPHITHEATER_HALL.size;
+  // Exterior entrance flight extends west to X = amphX - 14.5
+  const amphMinX = amphX - amphW / 2 - 4.5;
+  const amphMaxX = amphX + amphW / 2 + 1.5;
+  const amphMinZ = amphZ - amphD / 2;
+  const amphMaxZ = amphZ + amphD / 2;
+  const dx = Math.max(amphMinX - px, 0, px - amphMaxX);
+  const dz = Math.max(amphMinZ - pz, 0, pz - amphMaxZ);
+  const amphDist = Math.hypot(dx, dz);
+  if (amphDist <= bestDist) {
+    bestDist = amphDist;
+    bestId = 'amph-hall';
+  }
+
   return bestId ? { buildingId: bestId, distance: bestDist } : null;
 }
 

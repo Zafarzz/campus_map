@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Building, type BuildingMode } from '../components/3d/Building';
 import { CampusConnectors } from '../components/3d/CampusConnectors';
 import { AmphitheaterHall } from '../components/3d/amphitheater/AmphitheaterHall';
+import { AMPHITHEATER_BUILDING } from '../data/amphitheater-hall';
 import { ContextLayer } from '../components/3d/ContextLayer';
 import { Vegetation } from '../components/3d/Vegetation';
 import { useVisualTuning } from '../components/3d/tuning/useVisualTuning';
@@ -124,6 +125,10 @@ export function GameScene() {
           setActiveFloorId(undefined);
           return null;
         }
+        if (buildingId === 'amph-hall') {
+          setActiveFloorId('amph-floor-1');
+          return 'amph-hall';
+        }
         const bld = index.buildings.get(buildingId);
         setActiveFloorId(bld ? defaultFloor(bld)?.id : undefined);
         return buildingId;
@@ -173,9 +178,14 @@ export function GameScene() {
     (dest: TeleportDestination) => {
       resetInputState(inputRef.current);
       if (dest.enterBuildingId) {
-        const bld = index.buildings.get(dest.enterBuildingId);
-        setEnteredBuildingId(dest.enterBuildingId);
-        setActiveFloorId(bld ? defaultFloor(bld)?.id : undefined);
+        if (dest.enterBuildingId === 'amph-hall') {
+          setEnteredBuildingId('amph-hall');
+          setActiveFloorId('amph-floor-1');
+        } else {
+          const bld = index.buildings.get(dest.enterBuildingId);
+          setEnteredBuildingId(dest.enterBuildingId);
+          setActiveFloorId(bld ? defaultFloor(bld)?.id : undefined);
+        }
       } else {
         setEnteredBuildingId(null);
         setActiveFloorId(undefined);
@@ -219,9 +229,30 @@ export function GameScene() {
     });
   }, [handlePause, handleInteractKey]);
 
+  const handleNearestBuildingChange = useCallback((id: string | null) => {
+    setNearbyBuildingId(id);
+    if (id === 'amph-hall') {
+      const px = playerTransformRef.current.x;
+      const pz = playerTransformRef.current.z;
+      // Auto-enter when player physically walks inside the hall [41.0, 60.0] x [69.0, 84.0]
+      if (px >= 41.0 && px <= 60.0 && pz >= 69.0 && pz <= 84.0) {
+        if (enteredBuildingIdRef.current !== 'amph-hall') {
+          setEnteredBuildingId('amph-hall');
+          setActiveFloorId('amph-floor-1');
+        }
+      }
+    } else if (enteredBuildingIdRef.current === 'amph-hall' && id !== 'amph-hall') {
+      // Auto-exit when player walks outside away from the hall
+      setEnteredBuildingId(null);
+      setActiveFloorId(undefined);
+    }
+  }, []);
+
   const atmosphere = TIME_OF_DAY_PRESETS[timeOfDay];
   const nearbyBuilding = nearbyBuildingId
-    ? index.buildings.get(nearbyBuildingId) ?? null
+    ? nearbyBuildingId === 'amph-hall'
+      ? AMPHITHEATER_BUILDING
+      : index.buildings.get(nearbyBuildingId) ?? null
     : null;
   const activeCountBuildingId = enteredBuildingId ?? nearbyBuildingId;
   const nearbyBuildingLiveCount = activeCountBuildingId
@@ -370,7 +401,7 @@ export function GameScene() {
               geometry={geometry}
               isPlaying={status === 'playing'}
               teleportRequest={teleportRequest}
-              onNearestBuildingChange={setNearbyBuildingId}
+              onNearestBuildingChange={handleNearestBuildingChange}
             />
           </Physics>
         </Suspense>

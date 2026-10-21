@@ -381,42 +381,104 @@ export function buildCampusColliderSpecs(
 
   // 8. Amphitheater Hall (out-plaza-mvijfubr, ADR-029)
   const [amphX, amphZ] = AMPHITHEATER_HALL.center;
+  const extRampRun = 3.0;
+  const extRampRise = 1.35;
+  const extRampAngle = Math.atan2(extRampRise, extRampRun);
+  const extRampLength = Math.hypot(extRampRun, extRampRise);
+
+  const intStairsRun = 2.4;
+  const intStairsRise = 1.35;
+  const intStairsAngle = Math.atan2(intStairsRise, intStairsRun);
+  const intStairsLength = Math.hypot(intStairsRun, intStairsRise);
+
   // North solid wall
   list.push({
     id: 'amph-wall-north',
     position: [amphX, 3.6, amphZ - 8.35],
     halfExtents: [10.0, 3.6, 0.15],
   });
-  // West panoramic curtain wall & double door entrance portal (2.6m wide opening at center)
+
+  // West panoramic curtain wall & double door entrance portal (2.8m wide opening at center)
   list.push({
     id: 'amph-wall-west-north',
-    position: [amphX - 9.95, 3.6, amphZ - 4.9],
-    halfExtents: [0.15, 3.6, 3.6],
+    position: [amphX - 9.95, 3.6, amphZ - 4.95],
+    halfExtents: [0.15, 3.6, 3.55],
   });
   list.push({
     id: 'amph-wall-west-south',
-    position: [amphX - 9.95, 3.6, amphZ + 4.9],
-    halfExtents: [0.15, 3.6, 3.6],
+    position: [amphX - 9.95, 3.6, amphZ + 4.95],
+    halfExtents: [0.15, 3.6, 3.55],
   });
+  // West entrance portal lintel (clearance below from Y=1.35m to Y=4.20m = 2.85m open headroom)
   list.push({
     id: 'amph-wall-west-lintel',
-    position: [amphX - 9.95, (2.8 + 7.2) / 2, amphZ],
-    halfExtents: [0.15, (7.2 - 2.8) / 2, 1.3],
+    position: [amphX - 9.95, (4.2 + 7.2) / 2, amphZ],
+    halfExtents: [0.15, (7.2 - 4.2) / 2, 1.4],
   });
-  // Walkable exterior entrance step (Y: 0..0.2m)
+
+  // Walkable exterior entrance ramp (slopes up from ground Y=0 at X=amphX-14.2 to landing Y=1.35 at X=amphX-11.2)
   list.push({
-    id: 'amph-entrance-step-west',
-    position: [amphX - 10.5, 0.1, amphZ],
-    halfExtents: [0.6, 0.1, 1.4],
+    id: 'amph-ramp-west-exterior',
+    position: [amphX - 12.7, 0.635, amphZ],
+    halfExtents: [extRampLength / 2, 0.1, 2.2],
+    rotation: [0, 0, extRampAngle],
     friction: 0.3,
   });
-  // Walkable interior entrance landing (Y: 0..1.35m)
+
+  // Walkable exterior entrance landing (elevation Y=1.35m, X: amphX-11.2..amphX-9.9)
   list.push({
-    id: 'amph-tier3-west-landing',
-    position: [amphX - 9.4, 1.35 / 2, amphZ],
-    halfExtents: [0.6, 1.35 / 2, 1.4],
+    id: 'amph-landing-west-exterior',
+    position: [amphX - 10.55, 1.35 / 2, amphZ],
+    halfExtents: [0.65, 1.35 / 2, 2.2],
     friction: 0.2,
   });
+
+  // Flanking parapet cheek walls along the exterior entrance flight
+  list.push({
+    id: 'amph-parapet-west-north',
+    position: [amphX - 12.7, 1.35 / 2 + 0.45, amphZ - 2.3],
+    halfExtents: [1.5, 1.35 / 2 + 0.45, 0.1],
+  });
+  list.push({
+    id: 'amph-parapet-west-south',
+    position: [amphX - 12.7, 1.35 / 2 + 0.45, amphZ + 2.3],
+    halfExtents: [1.5, 1.35 / 2 + 0.45, 0.1],
+  });
+
+  // Walkable interior West staircase ramp (slopes down from doorway Y=1.35 at X=amphX-10.0 to bowl Y=0 at X=amphX-7.6)
+  list.push({
+    id: 'amph-ramp-west-interior',
+    position: [amphX - 8.8, 0.635, amphZ],
+    halfExtents: [intStairsLength / 2, 0.1, 1.4],
+    rotation: [0, 0, -intStairsAngle],
+    friction: 0.2,
+  });
+
+  // Sunken octagonal floor bowl at Y=0 (±0.00m)
+  list.push({
+    id: 'amph-floor-bowl',
+    position: [amphX, -0.05, amphZ],
+    halfExtents: [7.6, 0.05, 6.1],
+    friction: 0.2,
+  });
+
+  // Walkable interior East staircase ramp (slopes down from gallery Y=1.35 at X=amphX+10.0 to bowl Y=0 at X=amphX+7.6)
+  list.push({
+    id: 'amph-ramp-east-interior',
+    position: [amphX + 8.8, 0.635, amphZ],
+    halfExtents: [intStairsLength / 2, 0.1, 1.4],
+    rotation: [0, 0, intStairsAngle],
+    friction: 0.2,
+  });
+
+  // Walkable East gallery floor (elevation Y=1.35m, X: amphX+10.0..amphX+11.2)
+  list.push({
+    id: 'amph-floor-east-gallery',
+    position: [amphX + 10.6, 1.35 / 2, amphZ],
+    halfExtents: [0.6, 1.35 / 2, 4.0],
+    friction: 0.2,
+  });
+
   // East wall gallery (leaving 2.6m center entrance portal open)
   list.push({
     id: 'amph-wall-east-north',
@@ -428,6 +490,29 @@ export function buildCampusColliderSpecs(
     position: [amphX + 11.15, 3.6, amphZ + 3.65],
     halfExtents: [0.15, 3.6, 2.35],
   });
+  list.push({
+    id: 'amph-wall-east-lintel',
+    position: [amphX + 11.15, (4.2 + 7.2) / 2, amphZ],
+    halfExtents: [0.15, (7.2 - 4.2) / 2, 1.3],
+  });
+
+  // Walkable interior South staircase ramp (slopes down from colonnade Y=1.35 at Z=amphZ+8.5 to bowl Y=0 at Z=amphZ+6.1)
+  list.push({
+    id: 'amph-ramp-south-interior',
+    position: [amphX, 0.635, amphZ + 7.3],
+    halfExtents: [1.4, 0.1, intStairsLength / 2],
+    rotation: [-intStairsAngle, 0, 0],
+    friction: 0.2,
+  });
+
+  // South colonnade floor landing at Y=1.35m
+  list.push({
+    id: 'amph-floor-south-landing',
+    position: [amphX, 1.35 / 2, amphZ + 8.2],
+    halfExtents: [6.0, 1.35 / 2, 0.3],
+    friction: 0.2,
+  });
+
   // South colonnade corner walls
   list.push({
     id: 'amph-wall-south-sw',
@@ -445,12 +530,83 @@ export function buildCampusColliderSpecs(
     position: [amphX, 1.8, amphZ + 8.1],
     halfExtents: [7.0, 0.45, 0.05],
   });
+
   // Stage podium
   list.push({
     id: 'amph-stage-podium',
     position: [amphX, 1.35 / 2, amphZ - 7.3],
     halfExtents: [3.2, 1.35 / 2, 1.2],
     friction: 0.2,
+  });
+
+  // Walkable amphitheater seating tiers
+  // West Tiers (North & South flanks)
+  [-3.75, 3.75].forEach((offsetZ, sIdx) => {
+    const sideKey = sIdx === 0 ? 'n' : 's';
+    list.push({
+      id: `amph-tier-w1-${sideKey}`,
+      position: [amphX - 8.0, 0.45 / 2, amphZ + offsetZ],
+      halfExtents: [0.4, 0.45 / 2, 2.35],
+      friction: 0.2,
+    });
+    list.push({
+      id: `amph-tier-w2-${sideKey}`,
+      position: [amphX - 8.8, 0.90 / 2, amphZ + offsetZ],
+      halfExtents: [0.4, 0.90 / 2, 2.35],
+      friction: 0.2,
+    });
+    list.push({
+      id: `amph-tier-w3-${sideKey}`,
+      position: [amphX - 9.6, 1.35 / 2, amphZ + offsetZ],
+      halfExtents: [0.4, 1.35 / 2, 2.35],
+      friction: 0.2,
+    });
+  });
+
+  // East Tiers (North & South flanks)
+  [-3.75, 3.75].forEach((offsetZ, sIdx) => {
+    const sideKey = sIdx === 0 ? 'n' : 's';
+    list.push({
+      id: `amph-tier-e1-${sideKey}`,
+      position: [amphX + 8.0, 0.45 / 2, amphZ + offsetZ],
+      halfExtents: [0.4, 0.45 / 2, 2.35],
+      friction: 0.2,
+    });
+    list.push({
+      id: `amph-tier-e2-${sideKey}`,
+      position: [amphX + 8.8, 0.90 / 2, amphZ + offsetZ],
+      halfExtents: [0.4, 0.90 / 2, 2.35],
+      friction: 0.2,
+    });
+    list.push({
+      id: `amph-tier-e3-${sideKey}`,
+      position: [amphX + 9.6, 1.35 / 2, amphZ + offsetZ],
+      halfExtents: [0.4, 1.35 / 2, 2.35],
+      friction: 0.2,
+    });
+  });
+
+  // South Tiers (West & East flanks)
+  [-4.5, 4.5].forEach((offsetX, sIdx) => {
+    const sideKey = sIdx === 0 ? 'w' : 'e';
+    list.push({
+      id: `amph-tier-s1-${sideKey}`,
+      position: [amphX + offsetX, 0.45 / 2, amphZ + 6.5],
+      halfExtents: [3.1, 0.45 / 2, 0.4],
+      friction: 0.2,
+    });
+    list.push({
+      id: `amph-tier-s2-${sideKey}`,
+      position: [amphX + offsetX, 0.90 / 2, amphZ + 7.3],
+      halfExtents: [3.1, 0.90 / 2, 0.4],
+      friction: 0.2,
+    });
+    list.push({
+      id: `amph-tier-s3-${sideKey}`,
+      position: [amphX + offsetX, 1.35 / 2, amphZ + 8.1],
+      halfExtents: [3.1, 1.35 / 2, 0.4],
+      friction: 0.2,
+    });
   });
 
   return list;

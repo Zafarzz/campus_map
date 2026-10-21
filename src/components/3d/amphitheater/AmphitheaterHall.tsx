@@ -736,13 +736,13 @@ export function AmphitheaterHall({
         <boxGeometry args={[0.06, 5.85, 4.7]} />
       </mesh>
 
-      {/* Upper Transom Glazing Pane above Entrance Doors (Y: 2.80..7.20m, W=2.6m) */}
-      <mesh position={[-9.95, (2.8 + 7.2) / 2, 0]} material={glassMat}>
-        <boxGeometry args={[0.06, 4.4, 2.6]} />
+      {/* Upper Transom Glazing Pane above Entrance Doors (Y: 4.20..7.20m, W=2.8m) */}
+      <mesh position={[-9.95, (4.2 + 7.2) / 2, 0]} material={glassMat}>
+        <boxGeometry args={[0.06, 7.2 - 4.2, 2.8]} />
       </mesh>
 
       {/* Vertical Metal Mullions */}
-      {[-6.0, -4.0, -2.0, -1.3, 1.3, 2.0, 4.0, 6.0].map((wy) => (
+      {[-6.0, -4.0, -2.0, -1.4, 1.4, 2.0, 4.0, 6.0].map((wy) => (
         <mesh key={`mull-w-${wy}`} position={[-9.95, (1.35 + 7.2) / 2, -wy]} material={metalFrameMat}>
           <boxGeometry args={[0.12, 5.85, 0.08]} />
         </mesh>
@@ -771,67 +771,104 @@ export function AmphitheaterHall({
 
       {/* =========================================================================
           WALKABLE WEST ENTRANCE PORTAL FOR FIRST-PERSON GAME MODE & 3D MAP
-          Double glazed doors at localZ: -1.3..+1.3m, connecting to the exterior plaza
+          Grand entrance with exterior flight of steps, landing at Y=1.35m,
+          open double glass doors (H=2.85m), overhead canopy at Y=4.28m,
+          and direct descent into the sunken floor bowl.
           ========================================================================= */}
-      {/* Entrance Door Frame Border (W=2.6m, H=2.8m) */}
+      {/* Entrance Door Frame Border (W=2.8m, H=2.85m, Y: 1.35..4.20m) */}
       <group position={[-9.95, 0, 0]}>
-        {/* Top Header Lintel at Y = 2.80m */}
-        <mesh position={[0, 2.8, 0]} material={metalFrameMat}>
-          <boxGeometry args={[0.16, 0.1, 2.6]} />
+        {/* Top Header Lintel at Y = 4.20m */}
+        <mesh position={[0, 4.2, 0]} material={metalFrameMat}>
+          <boxGeometry args={[0.16, 0.1, 2.8]} />
         </mesh>
-        {/* Left Side Jamb at localZ = -1.3m */}
-        <mesh position={[0, 1.4, -1.3]} material={metalFrameMat}>
-          <boxGeometry args={[0.16, 2.8, 0.1]} />
+        {/* Left Side Jamb at localZ = -1.4m */}
+        <mesh position={[0, (1.35 + 4.2) / 2, -1.4]} material={metalFrameMat}>
+          <boxGeometry args={[0.16, 2.85, 0.1]} />
         </mesh>
-        {/* Right Side Jamb at localZ = +1.3m */}
-        <mesh position={[0, 1.4, 1.3]} material={metalFrameMat}>
-          <boxGeometry args={[0.16, 2.8, 0.1]} />
-        </mesh>
-        {/* Center Meeting Stile at localZ = 0 */}
-        <mesh position={[0, 1.4, 0]} material={metalFrameMat}>
-          <boxGeometry args={[0.14, 2.8, 0.06]} />
+        {/* Right Side Jamb at localZ = +1.4m */}
+        <mesh position={[0, (1.35 + 4.2) / 2, 1.4]} material={metalFrameMat}>
+          <boxGeometry args={[0.16, 2.85, 0.1]} />
         </mesh>
 
-        {/* Double Glass Doors */}
-        <mesh position={[0, 1.4, -0.65]} material={glassMat}>
-          <boxGeometry args={[0.04, 2.7, 1.22]} />
-        </mesh>
-        <mesh position={[0, 1.4, 0.65]} material={glassMat}>
-          <boxGeometry args={[0.04, 2.7, 1.22]} />
-        </mesh>
-
-        {/* Architectural Pull Handles */}
-        <mesh position={[-0.08, 1.2, -0.1]} material={goldAccentMat}>
-          <boxGeometry args={[0.04, 0.7, 0.04]} />
-        </mesh>
-        <mesh position={[-0.08, 1.2, 0.1]} material={goldAccentMat}>
-          <boxGeometry args={[0.04, 0.7, 0.04]} />
-        </mesh>
-        <mesh position={[0.08, 1.2, -0.1]} material={goldAccentMat}>
-          <boxGeometry args={[0.04, 0.7, 0.04]} />
-        </mesh>
-        <mesh position={[0.08, 1.2, 0.1]} material={goldAccentMat}>
-          <boxGeometry args={[0.04, 0.7, 0.04]} />
-        </mesh>
+        {/* Double Glass Doors Swung Open (leaving clear 2.6m center walkway) */}
+        {/* Left Door Leaf (swung open outward against jamb) */}
+        <group position={[0.2, (1.35 + 4.15) / 2, -1.35]} rotation={[0, 1.35, 0]}>
+          <mesh position={[0, 0, 0.6]} material={glassMat}>
+            <boxGeometry args={[0.04, 2.7, 1.2]} />
+          </mesh>
+          <mesh position={[0.06, -0.2, 1.15]} material={goldAccentMat}>
+            <boxGeometry args={[0.04, 0.7, 0.04]} />
+          </mesh>
+        </group>
+        {/* Right Door Leaf (swung open outward against jamb) */}
+        <group position={[0.2, (1.35 + 4.15) / 2, 1.35]} rotation={[0, -1.35, 0]}>
+          <mesh position={[0, 0, -0.6]} material={glassMat}>
+            <boxGeometry args={[0.04, 2.7, 1.2]} />
+          </mesh>
+          <mesh position={[0.06, -0.2, -1.15]} material={goldAccentMat}>
+            <boxGeometry args={[0.04, 0.7, 0.04]} />
+          </mesh>
+        </group>
       </group>
 
-      {/* Exterior Modern Canopy Overhead at Y = 2.90m */}
-      <mesh position={[-10.7, 2.88, 0]} material={metalFrameMat}>
-        <boxGeometry args={[1.5, 0.06, 3.2]} />
+      {/* Exterior Modern Canopy Overhead at Y = 4.28m */}
+      <mesh position={[-11.2, 4.28, 0]} material={metalFrameMat}>
+        <boxGeometry args={[2.2, 0.08, 4.0]} />
       </mesh>
-      <mesh position={[-10.7, 2.92, 0]} material={glassMat}>
-        <boxGeometry args={[1.4, 0.02, 3.1]} />
+      <mesh position={[-11.2, 4.32, 0]} material={glassMat}>
+        <boxGeometry args={[2.1, 0.02, 3.9]} />
       </mesh>
 
-      {/* Exterior Concrete Entry Porch Step (Y: 0..0.20m, connects exterior plaza to doors) */}
-      <mesh position={[-10.5, 0.1, 0]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[1.2, 0.2, 2.8]} />
+      {/* Exterior Grand Entrance Porch & Flight of Steps (connects plaza ground Y=0 to landing Y=1.35m) */}
+      {/* Landing right outside doors (X: -11.2..-9.9m, Y: 0..1.35m, W=4.4m) */}
+      <mesh position={[-10.55, 1.35 / 2, 0]} material={plinthMat} receiveShadow>
+        <boxGeometry args={[1.3, 1.35, 4.4]} />
       </mesh>
+      {/* 6 Exterior Steps descending from X = -11.2 to -14.2m (3.0m run, 1.35m rise) */}
+      {Array.from({ length: 6 }, (_, i) => {
+        const stepRise = 1.35 / 6; // 0.225m
+        const stepTread = 3.0 / 6; // 0.50m
+        const stepH = (6 - i) * stepRise;
+        const stepX = -11.2 - (i + 0.5) * stepTread;
+        return (
+          <group key={`ext-step-${i}`}>
+            <mesh position={[stepX, stepH / 2, 0]} material={plinthMat} receiveShadow>
+              <boxGeometry args={[stepTread, stepH, 4.4]} />
+            </mesh>
+            <mesh position={[stepX - stepTread / 2 + 0.04, stepH - 0.015, 0]} material={whiteColMat}>
+              <boxGeometry args={[0.08, 0.03, 4.36]} />
+            </mesh>
+          </group>
+        );
+      })}
+      {/* Flanking Stone Parapet Cheek Walls (North & South of exterior flight) */}
+      {[-2.25, 2.25].map((sideZ) => (
+        <group key={`parapet-${sideZ}`}>
+          {/* Landing side parapet */}
+          <mesh position={[-10.55, (1.35 + 2.25) / 2, sideZ]} material={wallMat} castShadow receiveShadow>
+            <boxGeometry args={[1.3, 2.25 - 1.35, 0.25]} />
+          </mesh>
+          {/* Sloping side cheek wall over steps */}
+          <mesh
+            position={[-12.7, (1.35 + 0.9) / 2, sideZ]}
+            rotation={[0, 0, Math.atan2(1.35, 3.0)]}
+            material={wallMat}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[3.3, 0.9, 0.25]} />
+          </mesh>
+        </group>
+      ))}
 
       {/* Interior Door Landing Tier (connects doors to top tier and staircase flight) */}
       <mesh position={[-9.4, 1.35 / 2, 0]} material={tierMat} receiveShadow>
         <boxGeometry args={[1.0, 1.35, 2.8]} />
       </mesh>
+
+      {/* Interior Atmospheric Lighting */}
+      <pointLight position={[0, 6.8, 0]} intensity={18} distance={25} color="#fef08a" />
+      <pointLight position={[0, 5.8, -6.0]} intensity={15} distance={20} color="#e0f2fe" />
 
       {/* =========================================================================
           8. SOUTH WALL (WALL 4 — OPEN COLONNADE, STEEL TRUSS & LOUNGE)

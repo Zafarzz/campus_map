@@ -52,9 +52,12 @@ describe('First-Person Game Prototype & Enhancements', () => {
     expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-n-0')).toBe(true);
     expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-s-0')).toBe(true);
 
-    // Amphitheater Hall walls and stage
+    // Amphitheater Hall walls, stage, floor bowl, and walkable ramps
     expect(colliders.some((c) => c.id === 'amph-wall-north')).toBe(true);
     expect(colliders.some((c) => c.id === 'amph-stage-podium')).toBe(true);
+    expect(colliders.some((c) => c.id === 'amph-ramp-west-exterior')).toBe(true);
+    expect(colliders.some((c) => c.id === 'amph-ramp-west-interior')).toBe(true);
+    expect(colliders.some((c) => c.id === 'amph-floor-bowl')).toBe(true);
   });
 
   it('generates deterministic tree trunk cylinder colliders outside building footprints', () => {
@@ -79,7 +82,11 @@ describe('First-Person Game Prototype & Enhancements', () => {
           c.id !== 'ground-terrain' &&
           c.id !== 'lib-floor-slab' &&
           !c.id.startsWith('fountain-bridge-deck-') &&
-          !c.id.startsWith('fountain-bridge-ramp-'),
+          !c.id.startsWith('fountain-bridge-ramp-') &&
+          !c.id.startsWith('amph-floor-') &&
+          !c.id.startsWith('amph-ramp-') &&
+          !c.id.startsWith('amph-landing-') &&
+          !c.id.startsWith('amph-tier-'),
       );
 
       for (const obs of solidObstacles) {
@@ -122,6 +129,10 @@ describe('First-Person Game Prototype & Enhancements', () => {
     // Teleport point in front of Block C (bld-i is at X: 59.55..83.55, Z: 83.4..123.0)
     const nearBlockC = findNearestBuildingInRange(92.0, 103.2, geometry, 14.0);
     expect(nearBlockC?.buildingId).toBe('bld-i');
+
+    // Near Amphitheater Hall entrance (X: 38.0, Z: 76.5)
+    const nearAmph = findNearestBuildingInRange(38.0, 76.5, geometry, 14.0);
+    expect(nearAmph?.buildingId).toBe('amph-hall');
 
     // Far away at main entrance
     const atEntrance = findNearestBuildingInRange(85.0, 15.9, geometry, 14.0);
