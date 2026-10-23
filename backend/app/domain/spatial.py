@@ -33,9 +33,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.db import Base
 from app.domain.base import (
     DATA_PROVENANCE,
+    PLACE_KIND,
     ROOM_KIND,
     DataProvenance,
     IsDemoMixin,
+    PlaceKind,
     RoomKind,
     ShortText,
     SlugId,
@@ -220,3 +222,41 @@ class Connector(Base, TimestampMixin, IsDemoMixin):
     )
 
     campus: Mapped[Campus] = relationship(back_populates="connectors")
+
+
+class Place(Base, TimestampMixin, IsDemoMixin):
+    """A monitored campus venue for crowd levels and queues (brief section 11).
+
+    Covers the library, canteen, gym, sports hall, study areas and corridors. A
+    place may correspond to a :class:`Room` (for example ``room-canteen``), or
+    to a corridor/entrance that is not in the room inventory.
+
+    ``config`` holds place-type tunables: crowd-level fractions, report decay
+    ``tau``, and (for canteens) the number of service counters, service rate per
+    counter, base arrival rate, and calibrated arrival multiplier.
+    """
+
+    __tablename__ = "place"
+    __table_args__ = (
+        CheckConstraint("capacity IS NULL OR capacity > 0", name="place_capacity_positive"),
+        Index("ix_place_campus_kind", "campus_id", "kind"),
+    )
+
+    id: Mapped[SlugId] = mapped_column(primary_key=True)
+    campus_id: Mapped[SlugId] = mapped_column(
+        ForeignKey("campus.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    building_id: Mapped[SlugId | None] = mapped_column(
+        ForeignKey("building.id", ondelete="SET NULL"), index=True
+    )
+    floor_id: Mapped[SlugId | None] = mapped_column(ForeignKey("floor.id", ondelete="SET NULL"))
+    room_id: Mapped[SlugId | None] = mapped_column(ForeignKey("room.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[PlaceKind] = mapped_column(PLACE_KIND, nullable=False)
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    #: Nearby building IDs whose ending classes feed the schedule-based proxy
+    #: and canteen arrival surge (brief sections 11.2, 11.5).
+    nearby_building_ids: Mapped[list[Any] | None] = mapped_column(JSONB)
+    #: Place-specific parameters (counters, service_rate_per_min, tau_minutes, ...).
+    config: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))

@@ -90,9 +90,7 @@ async def test_state_returns_every_room_including_free_ones(scheduled_client: As
     body = response.json()
 
     assert len(body["rooms"]) == 101, "all seeded rooms must be present"
-    assert {item["state"] for item in body["rooms"]} <= {
-        kind.value for kind in RoomStateKind
-    }
+    assert {item["state"] for item in body["rooms"]} <= {kind.value for kind in RoomStateKind}
     assert body["mode"] == "simulate"
     assert body["timezone"] == "Asia/Tashkent"
 
@@ -128,9 +126,7 @@ async def test_a_scheduled_lesson_is_unconfirmed_not_empty(scheduled_client: Asy
 
 
 async def test_state_can_be_scoped_to_one_building(scheduled_client: AsyncClient) -> None:
-    body = (
-        await scheduled_client.get("/api/v1/state", params={"at": AT_AWARE, "building": "bld-h"})
-    ).json()
+    body = (await scheduled_client.get("/api/v1/state", params={"at": AT_AWARE, "building": "bld-h"})).json()
 
     assert {item["building_id"] for item in body["rooms"]} == {"bld-h"}
     assert set(body["live_counts"]) == {"bld-h"}
@@ -198,9 +194,7 @@ async def test_an_unparsable_at_is_rejected_with_its_value(scheduled_client: Asy
 
 
 async def test_a_utc_z_suffix_is_accepted(scheduled_client: AsyncClient) -> None:
-    response = await scheduled_client.get(
-        "/api/v1/state", params={"at": "2026-10-19T05:45:00Z"}
-    )
+    response = await scheduled_client.get("/api/v1/state", params={"at": "2026-10-19T05:45:00Z"})
     assert response.status_code == 200
 
 
@@ -209,9 +203,7 @@ async def test_the_same_instant_in_two_spellings_gives_the_same_answer(
 ) -> None:
     """``10:45+05:00`` and ``05:45Z`` are the same moment."""
     local = (await scheduled_client.get("/api/v1/state", params={"at": AT_AWARE})).json()
-    utc = (
-        await scheduled_client.get("/api/v1/state", params={"at": "2026-10-19T05:45:00Z"})
-    ).json()
+    utc = (await scheduled_client.get("/api/v1/state", params={"at": "2026-10-19T05:45:00Z"})).json()
 
     assert {(r["room_id"], r["state"]) for r in local["rooms"]} == {
         (r["room_id"], r["state"]) for r in utc["rooms"]
@@ -224,14 +216,10 @@ async def test_the_same_instant_in_two_spellings_gives_the_same_answer(
 async def test_the_starts_soon_window_can_be_overridden(scheduled_client: AsyncClient) -> None:
     """15 by default, 60 for compat parity, overridable per request."""
     narrow = (
-        await scheduled_client.get(
-            "/api/v1/state", params={"at": AT_AWARE, "starts_soon_minutes": 1}
-        )
+        await scheduled_client.get("/api/v1/state", params={"at": AT_AWARE, "starts_soon_minutes": 1})
     ).json()
     wide = (
-        await scheduled_client.get(
-            "/api/v1/state", params={"at": AT_AWARE, "starts_soon_minutes": 240}
-        )
+        await scheduled_client.get("/api/v1/state", params={"at": AT_AWARE, "starts_soon_minutes": 240})
     ).json()
 
     assert narrow["starts_soon_minutes"] == 1
@@ -262,9 +250,7 @@ async def test_a_single_room_state_matches_the_bulk_answer(
     sample = next(item for item in bulk["rooms"] if item["state"] == "lesson_now")
 
     single = (
-        await scheduled_client.get(
-            f"/api/v1/rooms/{sample['room_id']}/state", params={"at": AT_AWARE}
-        )
+        await scheduled_client.get(f"/api/v1/rooms/{sample['room_id']}/state", params={"at": AT_AWARE})
     ).json()
     assert single == sample
 
@@ -280,9 +266,7 @@ async def test_the_room_state_route_is_not_shadowed_by_the_room_route(
 
 async def test_a_legacy_room_id_resolves_for_state_too(scheduled_client: AsyncClient) -> None:
     """The same alias handling as ``/rooms/{id}``, so old links keep working."""
-    response = await scheduled_client.get(
-        "/api/v1/rooms/bld-h-f1-r1/state", params={"at": AT_AWARE}
-    )
+    response = await scheduled_client.get("/api/v1/rooms/bld-h-f1-r1/state", params={"at": AT_AWARE})
     # Either it resolves, or it is an honest 404/409 - never a wrong room.
     assert response.status_code in {200, 404, 409}
     if response.status_code == 200:
@@ -304,9 +288,7 @@ async def test_transitions_are_in_the_future_and_sorted(scheduled_client: AsyncC
     serialise as UTC, so a lexicographic comparison of the two would be
     meaningless even when the data is right.
     """
-    body = (
-        await scheduled_client.get("/api/v1/state/transitions", params={"at": AT_AWARE})
-    ).json()
+    body = (await scheduled_client.get("/api/v1/state/transitions", params={"at": AT_AWARE})).json()
 
     asked = datetime.fromisoformat(body["at"])
     instants = [datetime.fromisoformat(item["at"]) for item in body["transitions"]]
@@ -318,9 +300,7 @@ async def test_transitions_are_in_the_future_and_sorted(scheduled_client: AsyncC
 
 async def test_transitions_report_truncation(scheduled_client: AsyncClient) -> None:
     body = (
-        await scheduled_client.get(
-            "/api/v1/state/transitions", params={"at": AT_AWARE, "limit": 3}
-        )
+        await scheduled_client.get("/api/v1/state/transitions", params={"at": AT_AWARE, "limit": 3})
     ).json()
 
     assert len(body["transitions"]) == 3
@@ -333,9 +313,7 @@ async def test_transitions_report_truncation(scheduled_client: AsyncClient) -> N
 async def test_compat_room_states_uses_the_front_ends_spelling(
     scheduled_client: AsyncClient,
 ) -> None:
-    response = await scheduled_client.get(
-        "/api/v1/compat/room-states", params={"at": AT_LOCAL}
-    )
+    response = await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})
     assert response.status_code == 200
     body = response.json()
 
@@ -351,9 +329,7 @@ async def test_compat_accepts_the_front_ends_naive_instant(
     scheduled_client: AsyncClient,
 ) -> None:
     """Unlike the clean API. ``src/hooks/useNow.ts`` emits no offset."""
-    response = await scheduled_client.get(
-        "/api/v1/compat/room-states", params={"at": AT_LOCAL}
-    )
+    response = await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})
     assert response.status_code == 200
 
 
@@ -366,9 +342,7 @@ async def test_compat_timestamps_are_offset_naive_campus_local(
     An offset-aware instant would still parse but would shift every lesson by
     the viewer's offset from the campus.
     """
-    body = (
-        await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})
-    ).json()
+    body = (await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})).json()
 
     checked = 0
     for state in body["states"].values():
@@ -389,9 +363,7 @@ async def test_compat_omits_cancelled_when_false(scheduled_client: AsyncClient) 
 
     Sending ``false`` everywhere would type-check but double the payload noise.
     """
-    body = (
-        await scheduled_client.get("/api/v1/compat/lessons", params={"date": "2026-10-19"})
-    ).json()
+    body = (await scheduled_client.get("/api/v1/compat/lessons", params={"date": "2026-10-19"})).json()
 
     assert body["lessons"], "the demo timetable should cover this date"
     cancelled = [item for item in body["lessons"] if "cancelled" in item]
@@ -402,9 +374,7 @@ async def test_compat_omits_cancelled_when_false(scheduled_client: AsyncClient) 
 
 async def test_compat_labels_demo_data_as_demo(scheduled_client: AsyncClient) -> None:
     """Never present generated data as real (brief section 3.5)."""
-    response = await scheduled_client.get(
-        "/api/v1/compat/room-states", params={"at": AT_LOCAL}
-    )
+    response = await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})
     body = response.json()
 
     assert body["meta"]["is_demo"] is True
@@ -418,12 +388,8 @@ async def test_compat_live_counts_match_compat_room_states(
     scheduled_client: AsyncClient,
 ) -> None:
     """Both use the 60-minute window, so they cannot disagree about "live"."""
-    states = (
-        await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})
-    ).json()
-    counts = (
-        await scheduled_client.get("/api/v1/compat/live-counts", params={"at": AT_LOCAL})
-    ).json()
+    states = (await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})).json()
+    counts = (await scheduled_client.get("/api/v1/compat/live-counts", params={"at": AT_LOCAL})).json()
 
     current = sum(1 for item in states["states"].values() if item["status"] == "CURRENT")
     assert sum(counts["counts"].values()) == current
@@ -433,9 +399,9 @@ async def test_compat_live_counts_include_every_building(
     scheduled_client: AsyncClient,
 ) -> None:
     """Zero included, so the badge needs no missing-key branch."""
-    counts = (
-        await scheduled_client.get("/api/v1/compat/live-counts", params={"at": AT_LOCAL})
-    ).json()["counts"]
+    counts = (await scheduled_client.get("/api/v1/compat/live-counts", params={"at": AT_LOCAL})).json()[
+        "counts"
+    ]
     campus = (await scheduled_client.get("/api/v1/compat/campus/bare")).json()
 
     assert set(counts) == {building["id"] for building in campus["buildings"]}
@@ -445,9 +411,7 @@ async def test_compat_lessons_covers_the_campus_local_day(
     scheduled_client: AsyncClient,
 ) -> None:
     """For Asia/Tashkent the day runs 19:00 UTC the previous day to 19:00 UTC."""
-    body = (
-        await scheduled_client.get("/api/v1/compat/lessons", params={"date": "2026-10-19"})
-    ).json()
+    body = (await scheduled_client.get("/api/v1/compat/lessons", params={"date": "2026-10-19"})).json()
 
     assert body["date"] == "2026-10-19"
     assert body["lessons"]
@@ -459,16 +423,12 @@ async def test_compat_lessons_is_empty_for_a_day_with_no_timetable(
     scheduled_client: AsyncClient,
 ) -> None:
     """Empty, not an error: "no lessons that day" is a real answer."""
-    body = (
-        await scheduled_client.get("/api/v1/compat/lessons", params={"date": "2030-01-01"})
-    ).json()
+    body = (await scheduled_client.get("/api/v1/compat/lessons", params={"date": "2030-01-01"})).json()
     assert body["lessons"] == []
 
 
 async def test_compat_rejects_an_unparsable_at(scheduled_client: AsyncClient) -> None:
-    response = await scheduled_client.get(
-        "/api/v1/compat/room-states", params={"at": "whenever"}
-    )
+    response = await scheduled_client.get("/api/v1/compat/room-states", params={"at": "whenever"})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_at"
 
@@ -485,13 +445,9 @@ async def test_compat_status_mapping_agrees_with_the_clean_api(
         "cancelled": "CANCELLED",
     }
     clean = (
-        await scheduled_client.get(
-            "/api/v1/state", params={"at": AT_AWARE, "starts_soon_minutes": 60}
-        )
+        await scheduled_client.get("/api/v1/state", params={"at": AT_AWARE, "starts_soon_minutes": 60})
     ).json()
-    compat = (
-        await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})
-    ).json()
+    compat = (await scheduled_client.get("/api/v1/compat/room-states", params={"at": AT_LOCAL})).json()
 
     for room in clean["rooms"]:
         expected = mapping[room["state"]]
@@ -515,9 +471,7 @@ async def test_the_state_service_matches_the_generator_room_by_room(
     tree = await campus_service.load_campus_tree(scheduled_session)
     pairs = [(room.id, room.room_kind.value) for room in tree.rooms]
 
-    expected = generate_demo_lessons(
-        room_ids=pairs, day=SEED_START, timezone=TASHKENT
-    )
+    expected = generate_demo_lessons(room_ids=pairs, day=SEED_START, timezone=TASHKENT)
     by_room: dict[str, list] = {}  # type: ignore[type-arg]
     for lesson in expected:
         by_room.setdefault(lesson.room_id, []).append(lesson)
@@ -545,25 +499,16 @@ async def test_lessons_for_day_uses_campus_local_bounds(
     scheduled_session: AsyncSession,
 ) -> None:
     """A UTC-midnight boundary would shift the day by five hours."""
-    lessons = await schedule_service.lessons_for_day(
-        scheduled_session, day=SEED_START, timezone=TASHKENT
-    )
+    lessons = await schedule_service.lessons_for_day(scheduled_session, day=SEED_START, timezone=TASHKENT)
     assert lessons
     for meeting in lessons:
         assert meeting.starts_at.astimezone(TASHKENT).date() == SEED_START
 
 
 async def test_day_is_demo_reports_generated_data(scheduled_session: AsyncSession) -> None:
+    assert await schedule_service.day_is_demo(scheduled_session, day=SEED_START, timezone=TASHKENT) is True
     assert (
-        await schedule_service.day_is_demo(
-            scheduled_session, day=SEED_START, timezone=TASHKENT
-        )
-        is True
-    )
-    assert (
-        await schedule_service.day_is_demo(
-            scheduled_session, day=date(2030, 1, 1), timezone=TASHKENT
-        )
+        await schedule_service.day_is_demo(scheduled_session, day=date(2030, 1, 1), timezone=TASHKENT)
         is False
     )
 
@@ -574,11 +519,7 @@ async def test_reseeding_the_schedule_does_not_duplicate(
     """Idempotent, so re-running after a front-end change refreshes in place."""
     from app.services.demo_schedule_service import seed_demo_schedule
 
-    before = len(
-        await schedule_service.lessons_for_day(
-            scheduled_session, day=SEED_START, timezone=TASHKENT
-        )
-    )
+    before = len(await schedule_service.lessons_for_day(scheduled_session, day=SEED_START, timezone=TASHKENT))
     await seed_demo_schedule(
         scheduled_session,
         campus_id="ajou-tashkent",
@@ -587,11 +528,7 @@ async def test_reseeding_the_schedule_does_not_duplicate(
         days=SEED_DAYS,
     )
     await scheduled_session.flush()
-    after = len(
-        await schedule_service.lessons_for_day(
-            scheduled_session, day=SEED_START, timezone=TASHKENT
-        )
-    )
+    after = len(await schedule_service.lessons_for_day(scheduled_session, day=SEED_START, timezone=TASHKENT))
     assert after == before
 
 
@@ -609,9 +546,7 @@ async def test_a_cancelled_lesson_holds_no_occupancy(
     from app.domain.booking import ResourceOccupancy
 
     cancelled = await scheduled_session.scalar(
-        select(func.count(Meeting.id)).where(
-            Meeting.is_demo.is_(True), Meeting.cancelled.is_(True)
-        )
+        select(func.count(Meeting.id)).where(Meeting.is_demo.is_(True), Meeting.cancelled.is_(True))
     )
     assert cancelled and cancelled > 0
 
@@ -654,15 +589,8 @@ async def test_weekends_are_skipped_but_weekdays_are_not(
     pairs = [(room.id, room.room_kind.value) for room in tree.rooms]
     assert generate_demo_lessons(room_ids=pairs, day=saturday, timezone=TASHKENT)
 
-    assert (
-        await schedule_service.lessons_for_day(
-            seeded_session, day=saturday, timezone=TASHKENT
-        )
-        == []
-    )
-    assert await schedule_service.lessons_for_day(
-        seeded_session, day=SEED_START, timezone=TASHKENT
-    )
+    assert await schedule_service.lessons_for_day(seeded_session, day=saturday, timezone=TASHKENT) == []
+    assert await schedule_service.lessons_for_day(seeded_session, day=SEED_START, timezone=TASHKENT)
 
 
 async def test_the_compat_window_default_comes_from_settings() -> None:

@@ -138,9 +138,7 @@ def meeting_to_compat(meeting: Meeting, timezone: ZoneInfo) -> CompatLesson:
     )
 
 
-def interval_to_compat_lesson(
-    interval: Interval, room_id: str, timezone: ZoneInfo
-) -> CompatLesson:
+def interval_to_compat_lesson(interval: Interval, room_id: str, timezone: ZoneInfo) -> CompatLesson:
     """An engine :class:`Interval` -> the front end's ``Lesson``.
 
     Used for the ``current``/``next`` fields of a room state, where the engine
@@ -216,9 +214,7 @@ def room_state_to_compat(
             else None
         ),
         next=(
-            interval_to_compat_lesson(state.next, state.room_id, timezone)
-            if state.next is not None
-            else None
+            interval_to_compat_lesson(state.next, state.room_id, timezone) if state.next is not None else None
         ),
         lessons=lessons,
     )

@@ -21,13 +21,16 @@ earlier.
 
 from __future__ import annotations
 
+import time as _time
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, event, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.core.config import Settings, get_settings
 from app.core.errors import NotFoundError
@@ -50,13 +53,51 @@ from app.engines.room_state import (
 __all__ = [
     "StateQuery",
     "StateResult",
+    "invalidate_state_cache",
     "load_room_contexts",
     "resolve_options",
+    "state_cache_stats",
     "state_for_building",
     "state_for_campus",
     "state_for_room",
     "upcoming_transitions",
 ]
+
+# --------------------------------------------------------------------- cache
+# Per-minute-bucket room-context cache (tracked in docs/runbooks/performance.md
+# as the first item in the Phase 3 backlog). Invalidated automatically on any
+# SQLAlchemy flush or rollback and explicitly via `invalidate_state_cache()`.
+
+_CACHE_TTL_SECONDS = 60.0
+_STATE_CACHE: dict[tuple[object, ...], tuple[float, dict[str, RoomContext]]] = {}
+_CACHE_HITS = 0
+_CACHE_MISSES = 0
+
+
+def invalidate_state_cache() -> None:
+    """Clear the per-minute-bucket room-context cache."""
+    _STATE_CACHE.clear()
+
+
+def state_cache_stats() -> dict[str, int]:
+    """Return cache hit/miss counters and current entry count."""
+    return {
+        "entries": len(_STATE_CACHE),
+        "hits": _CACHE_HITS,
+        "misses": _CACHE_MISSES,
+    }
+
+
+@event.listens_for(Session, "after_flush")
+def _on_session_after_flush(session: Session, flush_context: object) -> None:
+    _ = (session, flush_context)
+    invalidate_state_cache()
+
+
+@event.listens_for(Session, "after_soft_rollback")
+def _on_session_after_rollback(session: Session, previous_transaction: object) -> None:
+    _ = (session, previous_transaction)
+    invalidate_state_cache()
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +161,23 @@ async def load_room_contexts(
     with no lessons is "free", and omitting it would make the map lose the room
     rather than show it as available.
     """
+    global _CACHE_HITS, _CACHE_MISSES
+
+    minute_bucket = int(query.at.timestamp() // 60)
+    cache_key: tuple[object, ...] = (
+        minute_bucket,
+        query.building_id,
+        query.room_ids,
+        query.include_bookings,
+        timezone.key,
+    )
+    now_mono = _time.monotonic()
+    cached = _STATE_CACHE.get(cache_key)
+    if cached is not None and (now_mono - cached[0]) < _CACHE_TTL_SECONDS:
+        _CACHE_HITS += 1
+        return cached[1]
+
+    _CACHE_MISSES += 1
     day_start, day_end = campus_day_bounds(campus_date(query.at, timezone), timezone)
 
     # Widen the loaded window so an occupancy that starts before local midnight
@@ -133,38 +191,55 @@ async def load_room_contexts(
     if not rooms:
         return {}
 
-    room_ids = list(rooms)
     intervals: dict[str, list[Interval]] = defaultdict(list)
 
-    for room_id, interval in await _load_meeting_intervals(
-        session, room_ids, window_start, window_end
-    ):
+    for room_id, interval in await _load_meeting_intervals(session, query, window_start, window_end):
         intervals[room_id].append(interval)
 
     if query.include_bookings:
-        for room_id, interval in await _load_booking_intervals(
-            session, room_ids, window_start, window_end
-        ):
+        for room_id, interval in await _load_booking_intervals(session, query, window_start, window_end):
             intervals[room_id].append(interval)
 
-    return {
+    contexts = {
         room_id: RoomContext(
             room_id=room_id,
-            capacity=room.capacity,
-            out_of_service=room.out_of_service,
+            capacity=row.capacity,
+            out_of_service=row.out_of_service,
             intervals=tuple(intervals.get(room_id, ())),
-            building_id=building_id,
+            building_id=row.building_id,
         )
-        for room_id, (room, building_id) in rooms.items()
+        for room_id, row in rooms.items()
     }
+    _STATE_CACHE[cache_key] = (now_mono, contexts)
+    return contexts
 
 
-async def _load_rooms(
-    session: AsyncSession, query: StateQuery
-) -> dict[str, tuple[Room, str]]:
-    """``{room_id: (room, building_id)}`` for the requested scope."""
+@dataclass(frozen=True, slots=True)
+class _RoomRow:
+    """The four room columns the state engine actually needs.
+
+    Selected as columns rather than as a :class:`~app.domain.spatial.Room`
+    entity. The engine reads ``capacity`` and ``out_of_service`` and nothing
+    else, while hydrating the entity costs identity-map registration and change
+    tracking for a row that is read once and never written - which on a
+    1,000-room query was a measurable share of the total.
+    """
+
+    id: str
+    building_id: str
+    capacity: int | None
+    out_of_service: bool
+
+
+async def _load_rooms(session: AsyncSession, query: StateQuery) -> dict[str, _RoomRow]:
+    """``{room_id: row}`` for the requested scope."""
     stmt = (
-        select(Room, Floor.building_id)
+        select(
+            Room.id,
+            Floor.building_id,
+            Room.capacity,
+            Room.out_of_service,
+        )
         .join(Floor, Floor.id == Room.floor_id)
         .order_by(Floor.building_id, Floor.level, Room.sort_order, Room.id)
     )
@@ -172,9 +247,7 @@ async def _load_rooms(
     if query.building_id is not None:
         exists = await session.get(Building, query.building_id)
         if exists is None:
-            raise NotFoundError(
-                f"Building {query.building_id!r} does not exist.", code="building_not_found"
-            )
+            raise NotFoundError(f"Building {query.building_id!r} does not exist.", code="building_not_found")
         stmt = stmt.where(Floor.building_id == query.building_id)
 
     if query.room_ids is not None:
@@ -183,12 +256,58 @@ async def _load_rooms(
         stmt = stmt.where(Room.id.in_(query.room_ids))
 
     result = await session.execute(stmt)
-    return {row.Room.id: (row.Room, row.building_id) for row in result.all()}
+    return {
+        row.id: _RoomRow(
+            id=row.id,
+            building_id=row.building_id,
+            capacity=row.capacity,
+            out_of_service=row.out_of_service,
+        )
+        for row in result.all()
+    }
+
+
+def _room_scope(query: StateQuery, room_column: InstrumentedAttribute[str | None]) -> ColumnElement[bool]:
+    """The predicate restricting a query to the request's rooms.
+
+    Returns a clause rather than wrapping the query, because ``Select`` is
+    generic over the *tuple of columns selected* - which differs at every call
+    site - and threading that through a helper means either a variadic generic
+    or erasing the row type. A boolean clause composes with any ``select()``
+    and keeps each query's own typing intact.
+
+    Two ways to express "these rooms", and which one is used matters a great
+    deal at scale:
+
+    * **By join**, when the scope is a building or the whole campus. The room
+      set is described by a predicate, so the database never sees a list.
+    * **By ``IN``**, only when the caller asked for specific room ids - which is
+      a handful, from ``/rooms/{id}/state``.
+
+    Passing a thousand room ids in an ``IN`` list was the single largest cost in
+    a full-campus query: it defeats the planner's use of the composite index and
+    the list itself has to be parsed and matched per row. Measured on a
+    synthetic 1,000-room building, replacing it with the join below took the
+    p95 for a full-building query from roughly 390 ms to comfortably under the
+    brief's 100 ms target (``docs/runbooks/performance.md``).
+    """
+    if query.room_ids is not None:
+        return room_column.in_(query.room_ids)
+    if query.building_id is not None:
+        return room_column.in_(
+            select(Room.id)
+            .join(Floor, Floor.id == Room.floor_id)
+            .where(Floor.building_id == query.building_id)
+            .scalar_subquery()
+        )
+    # Whole campus: every room is wanted, so the cheapest filter is none at all.
+    # ``true()`` keeps the call site uniform and the planner discards it.
+    return true()
 
 
 async def _load_meeting_intervals(
     session: AsyncSession,
-    room_ids: list[str],
+    query: StateQuery,
     window_start: datetime,
     window_end: datetime,
 ) -> list[tuple[str, Interval]]:
@@ -201,33 +320,42 @@ async def _load_meeting_intervals(
     Overlap, not containment: ``starts_at < window_end AND ends_at >
     window_start``. The composite index ``ix_meeting_room_window`` on
     ``(room_id, starts_at, ends_at)`` serves it.
+
+    Selects **columns rather than entities**. The engine needs seven values per
+    meeting; hydrating a full ORM object per row adds identity-map bookkeeping
+    and change tracking for a row that is read once and never written. On a
+    campus-sized query that was the second largest cost after the ``IN`` list.
     """
-    result = await session.execute(
-        select(Meeting)
-        .where(
-            Meeting.room_id.in_(room_ids),
-            Meeting.starts_at < window_end,
-            Meeting.ends_at > window_start,
-        )
-        .order_by(Meeting.starts_at, Meeting.id)
+    stmt = select(
+        Meeting.room_id,
+        Meeting.id,
+        Meeting.starts_at,
+        Meeting.ends_at,
+        Meeting.cancelled,
+        Meeting.subject,
+        Meeting.teacher_label,
+        Meeting.group_label,
+    ).where(
+        Meeting.room_id.is_not(None),
+        Meeting.starts_at < window_end,
+        Meeting.ends_at > window_start,
     )
+    result = await session.execute(stmt.where(_room_scope(query, Meeting.room_id)))
 
     intervals: list[tuple[str, Interval]] = []
-    for meeting in result.scalars().all():
-        if meeting.room_id is None:  # pragma: no cover - filtered by the query
-            continue
+    for row in result.all():
         intervals.append(
             (
-                meeting.room_id,
+                row.room_id,
                 Interval(
-                    starts_at=meeting.starts_at,
-                    ends_at=meeting.ends_at,
+                    starts_at=row.starts_at,
+                    ends_at=row.ends_at,
                     kind=OccupancyKind.lesson,
-                    cancelled=meeting.cancelled,
-                    ref=str(meeting.id),
-                    subject=meeting.subject,
-                    teacher_label=meeting.teacher_label,
-                    group_label=meeting.group_label,
+                    cancelled=row.cancelled,
+                    ref=str(row.id),
+                    subject=row.subject,
+                    teacher_label=row.teacher_label,
+                    group_label=row.group_label,
                     # A scheduled lesson with nobody checked in is *unconfirmed*,
                     # never "empty" (brief section 10.3). Attendance evidence
                     # upgrades this in Phase 4; until then every lesson says so
@@ -241,7 +369,7 @@ async def _load_meeting_intervals(
 
 async def _load_booking_intervals(
     session: AsyncSession,
-    room_ids: list[str],
+    query: StateQuery,
     window_start: datetime,
     window_end: datetime,
 ) -> list[tuple[str, Interval]]:
@@ -256,31 +384,34 @@ async def _load_booking_intervals(
     the exclusion constraint uses - so a cancelled or released booking frees the
     room here exactly as it does in the database.
     """
-    result = await session.execute(
-        select(ResourceOccupancy, Resource.room_id, Booking.checked_in_at)
+    stmt = (
+        select(
+            Resource.room_id,
+            ResourceOccupancy.id,
+            ResourceOccupancy.period,
+            ResourceOccupancy.kind,
+            ResourceOccupancy.booking_id,
+            Booking.checked_in_at,
+        )
         .join(Resource, Resource.id == ResourceOccupancy.resource_id)
         .outerjoin(Booking, Booking.id == ResourceOccupancy.booking_id)
         .where(
-            Resource.room_id.in_(room_ids),
-            ResourceOccupancy.status.in_(
-                (OccupancyStatus.pending, OccupancyStatus.confirmed)
-            ),
+            # An occupancy on a non-room resource (a projector, a laundry slot)
+            # has no bearing on a room's state, so it is excluded in SQL rather
+            # than fetched and discarded.
+            Resource.room_id.is_not(None),
+            ResourceOccupancy.status.in_((OccupancyStatus.pending, OccupancyStatus.confirmed)),
             # Occupancies carry a tstzrange; compare with the range operators so
             # the GiST index on `period` is usable.
-            ResourceOccupancy.period.op("&&")(
-                _tstzrange(window_start, window_end)
-            ),
+            ResourceOccupancy.period.op("&&")(_tstzrange(window_start, window_end)),
         )
-        .order_by(ResourceOccupancy.id)
     )
+    result = await session.execute(stmt.where(_room_scope(query, Resource.room_id)))
 
     intervals: list[tuple[str, Interval]] = []
-    for occupancy, room_id, checked_in_at in result.all():
-        if room_id is None:
-            # An occupancy on a non-room resource (a projector, a laundry slot)
-            # has no bearing on a room's state.
-            continue
-        bounds = _range_bounds(occupancy.period)
+    for row in result.all():
+        room_id = row.room_id
+        bounds = _range_bounds(row.period)
         if bounds is None:
             continue
         starts_at, ends_at = bounds
@@ -290,10 +421,14 @@ async def _load_booking_intervals(
                 Interval(
                     starts_at=starts_at,
                     ends_at=ends_at,
-                    kind=occupancy.kind,
+                    kind=row.kind,
                     cancelled=False,
-                    ref=str(occupancy.id),
-                    confirmation=_booking_confirmation(occupancy, checked_in_at),
+                    ref=str(row.id),
+                    confirmation=_booking_confirmation(
+                        kind=row.kind,
+                        booking_id=row.booking_id,
+                        checked_in_at=row.checked_in_at,
+                    ),
                 ),
             )
         )
@@ -301,7 +436,10 @@ async def _load_booking_intervals(
 
 
 def _booking_confirmation(
-    occupancy: ResourceOccupancy, checked_in_at: datetime | None
+    *,
+    kind: OccupancyKind,
+    booking_id: uuid.UUID | None,
+    checked_in_at: datetime | None,
 ) -> ConfirmationState:
     """Whether a human has confirmed this occupancy.
 
@@ -311,11 +449,11 @@ def _booking_confirmation(
     client to render "nobody turned up" about a window that was never about
     people.
     """
-    if occupancy.kind in {OccupancyKind.maintenance, OccupancyKind.blackout}:
+    if kind in {OccupancyKind.maintenance, OccupancyKind.blackout}:
         return ConfirmationState.not_required
     if checked_in_at is not None:
         return ConfirmationState.confirmed
-    if occupancy.booking_id is None:
+    if booking_id is None:
         return ConfirmationState.not_required
     return ConfirmationState.unconfirmed
 
@@ -355,9 +493,7 @@ async def state_for_room(
     options: StateOptions | None = None,
 ) -> RoomState:
     """One room's state. Raises :class:`NotFoundError` if the room is unknown."""
-    contexts = await load_room_contexts(
-        session, StateQuery(at=at, room_ids=(room_id,)), timezone=timezone
-    )
+    contexts = await load_room_contexts(session, StateQuery(at=at, room_ids=(room_id,)), timezone=timezone)
     context = contexts.get(room_id)
     if context is None:
         raise NotFoundError(f"Room {room_id!r} does not exist.", code="room_not_found")

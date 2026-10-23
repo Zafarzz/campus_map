@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "campus-backend"
-version = "0.1.0"
+version = "0.3.0"
 description = "Campus Digital Twin backend for the Ajou University in Tashkent 3D campus map"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
@@ -32,6 +32,14 @@ dependencies = [
   "openpyxl==3.1.5",              # read XLSX timetable exports
   "redis==8.1.0",                 # pub/sub fan-out; in-process fallback if unset
   "apscheduler==3.11.3",          # transition scheduler (ADR-0011)
+  "python-multipart==0.0.32",     # required by FastAPI for the timetable upload
+  # --- Phase 3 (Layers 1 and 2). Versions verified against PyPI on 2026-10-20.
+  "numpy==2.5.4",                 # numerical arrays for TF-IDF and linear assignment
+  "scipy==1.18.1",                # linear_sum_assignment for study-group matching
+  "scikit-learn==1.9.1",          # TfidfVectorizer / cosine similarity for lost & found
+  "rapidfuzz==3.14.6",            # fuzzy string matching for lost & found
+  "pillow==13.0.0",               # photo validation and EXIF metadata stripping
+  "pywebpush==2.5.0",             # Web Push VAPID notifications
 ]
 
 [project.optional-dependencies]
@@ -45,6 +53,7 @@ dev = [
   "ruff==0.17.1",
   "mypy==2.4.0",
   "types-python-dateutil==2.9.0.20251008",
+  "types-openpyxl==3.1.5.20261017",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -95,7 +104,15 @@ plugins = ["pydantic.mypy"]
 exclude = ["^alembic/versions/"]
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*"]
+module = [
+  "asyncpg.*",
+  "apscheduler.*",
+  "scipy.*",
+  "sklearn.*",
+  "rapidfuzz.*",
+  "PIL.*",
+  "pywebpush.*",
+]
 ignore_missing_imports = true
 
 # ----------------------------------------------------------------------------- pytest

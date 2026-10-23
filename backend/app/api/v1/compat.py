@@ -169,9 +169,7 @@ async def compat_room_states(
             examples=["2026-10-19T10:45:00"],
         ),
     ] = None,
-    building: Annotated[
-        str | None, Query(description="Limit to one building id, e.g. `bld-h`.")
-    ] = None,
+    building: Annotated[str | None, Query(description="Limit to one building id, e.g. `bld-h`.")] = None,
 ) -> CompatRoomStatesResponse:
     campus = await campus_service.get_default_campus(session)
     timezone = ZoneInfo(campus.timezone)
@@ -183,9 +181,7 @@ async def compat_room_states(
             session, building, instant, timezone=timezone, options=options
         )
     else:
-        result = await state_service.state_for_campus(
-            session, instant, timezone=timezone, options=options
-        )
+        result = await state_service.state_for_campus(session, instant, timezone=timezone, options=options)
 
     lessons_by_room = await schedule_service.lessons_by_room_for_day(
         session,
@@ -246,9 +242,7 @@ async def compat_live_counts(
     instant = _parse_compat_at(at, timezone)
     options = state_service.resolve_options(settings, timezone, compat=True)
 
-    result = await state_service.state_for_campus(
-        session, instant, timezone=timezone, options=options
-    )
+    result = await state_service.state_for_campus(session, instant, timezone=timezone, options=options)
     any_demo = await schedule_service.day_is_demo(
         session, day=campus_date(instant, timezone), timezone=timezone
     )

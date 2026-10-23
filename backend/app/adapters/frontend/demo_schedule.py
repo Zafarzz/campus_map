@@ -196,9 +196,7 @@ def generate_demo_lessons(
             if fnv1a_unit(seed) > _OCCUPANCY_THRESHOLD:
                 continue
 
-            subject = (
-                "Physical Education" if room_kind == "hall" else _pick(_SUBJECTS, f"{seed}|s")
-            )
+            subject = "Physical Education" if room_kind == "hall" else _pick(_SUBJECTS, f"{seed}|s")
             starts_at, ends_at = _slot_instants(day, start_text, end_text, timezone)
             lessons.append(
                 DemoLesson(

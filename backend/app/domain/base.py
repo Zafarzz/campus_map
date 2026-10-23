@@ -255,6 +255,96 @@ class ImportStatus(StrEnum):
     failed = "failed"
 
 
+class PlaceKind(StrEnum):
+    """Kinds of non-classroom venues monitored by Layer 1 (brief section 11)."""
+
+    library = "library"
+    canteen = "canteen"
+    gym = "gym"
+    sports_hall = "sports_hall"
+    study_area = "study_area"
+    corridor = "corridor"
+    entrance = "entrance"
+    dorm_common = "dorm_common"
+    other = "other"
+
+
+class TicketStatus(StrEnum):
+    """Ticket state machine (brief sections 12.3 and 14.1)."""
+
+    new = "new"
+    triaged = "triaged"
+    assigned = "assigned"
+    in_progress = "in_progress"
+    resolved = "resolved"
+    closed = "closed"
+    reopened = "reopened"
+
+
+class TicketPriority(StrEnum):
+    """Severity of a reported maintenance or service issue."""
+
+    low = "low"
+    normal = "normal"
+    high = "high"
+    urgent = "urgent"
+
+
+class NotificationChannel(StrEnum):
+    """Delivery channels supported by the notification service (brief section 6.2)."""
+
+    in_app = "in_app"
+    web_push = "web_push"
+    telegram = "telegram"
+    email = "email"
+    sms = "sms"
+
+
+class NotificationStatus(StrEnum):
+    """Delivery lifecycle of a notification."""
+
+    queued = "queued"
+    sent = "sent"
+    delivered = "delivered"
+    acknowledged = "acknowledged"
+    failed = "failed"
+
+
+class LostFoundKind(StrEnum):
+    """Whether an item was lost by someone or found by someone."""
+
+    lost = "lost"
+    found = "found"
+
+
+class LostFoundStatus(StrEnum):
+    """Lifecycle of a lost-or-found report (brief section 12.2)."""
+
+    open = "open"
+    matched = "matched"
+    claimed = "claimed"
+    returned = "returned"
+    expired = "expired"
+
+
+class StudyGroupStatus(StrEnum):
+    """Lifecycle of an opt-in study-group request or session (brief section 12.1)."""
+
+    open = "open"
+    matched = "matched"
+    dissolved = "dissolved"
+    cancelled = "cancelled"
+
+
+class TeacherVisibilityMode(StrEnum):
+    """What a teacher allows students to see (brief section 12.4). Default ``off``."""
+
+    off = "off"
+    office_hours_only = "office_hours_only"
+    timetable_status = "timetable_status"
+    manual_status = "manual_status"
+
+
 # --------------------------------------------------------------------- SQL enums
 
 
@@ -289,3 +379,12 @@ CONFIRMATION_STATE = pg_enum(ConfirmationState, "confirmation_state")
 SIGNAL_TYPE = pg_enum(SignalType, "signal_type")
 CROWD_LEVEL = pg_enum(CrowdLevel, "crowd_level")
 IMPORT_STATUS = pg_enum(ImportStatus, "import_status")
+PLACE_KIND = pg_enum(PlaceKind, "place_kind")
+TICKET_STATUS = pg_enum(TicketStatus, "ticket_status")
+TICKET_PRIORITY = pg_enum(TicketPriority, "ticket_priority")
+NOTIFICATION_CHANNEL = pg_enum(NotificationChannel, "notification_channel")
+NOTIFICATION_STATUS = pg_enum(NotificationStatus, "notification_status")
+LOST_FOUND_KIND = pg_enum(LostFoundKind, "lost_found_kind")
+LOST_FOUND_STATUS = pg_enum(LostFoundStatus, "lost_found_status")
+STUDY_GROUP_STATUS = pg_enum(StudyGroupStatus, "study_group_status")
+TEACHER_VISIBILITY_MODE = pg_enum(TeacherVisibilityMode, "teacher_visibility_mode")

@@ -9,30 +9,60 @@ Importing this package imports every model module, which is what Alembic's
 autogenerate and ``Base.metadata`` rely on.
 """
 
-from app.domain import academic, booking, evidence, history, people, platform, spatial
+from app.domain import (
+    academic,
+    booking,
+    evidence,
+    history,
+    operations,
+    people,
+    platform,
+    spatial,
+    studentlife,
+)
 from app.domain.base import (
     IsDemoMixin,
+    LostFoundKind,
+    LostFoundStatus,
+    NotificationChannel,
+    NotificationStatus,
+    PlaceKind,
     Provenance,
     RoomKind,
     RoomStateKind,
     RoomStatusCompat,
+    StudyGroupStatus,
+    TeacherVisibilityMode,
+    TicketPriority,
+    TicketStatus,
     TimestampMixin,
     UuidPkMixin,
 )
 
 __all__ = [
     "IsDemoMixin",
+    "LostFoundKind",
+    "LostFoundStatus",
+    "NotificationChannel",
+    "NotificationStatus",
+    "PlaceKind",
     "Provenance",
     "RoomKind",
     "RoomStateKind",
     "RoomStatusCompat",
+    "StudyGroupStatus",
+    "TeacherVisibilityMode",
+    "TicketPriority",
+    "TicketStatus",
     "TimestampMixin",
     "UuidPkMixin",
     "academic",
     "booking",
     "evidence",
     "history",
+    "operations",
     "people",
     "platform",
     "spatial",
+    "studentlife",
 ]

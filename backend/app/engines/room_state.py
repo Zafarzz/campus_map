@@ -211,9 +211,7 @@ def state_at(
     # Rules 3 to 5 are about *today*: an occurrence tomorrow morning must not
     # make a room read "starts soon" tonight.
     todays = [
-        item
-        for item in context.intervals
-        if not item.cancelled and day_start <= item.starts_at < day_end
+        item for item in context.intervals if not item.cancelled and day_start <= item.starts_at < day_end
     ]
     upcoming_today = sorted(
         (item for item in todays if item.starts_at > at),

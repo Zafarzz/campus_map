@@ -185,9 +185,7 @@ async def test_provenance_headers_are_present_on_the_bare_response(
         f"{PREFIX}/compat/live-counts",
     ],
 )
-async def test_the_schedule_compat_endpoints_are_implemented(
-    seeded_client: AsyncClient, path: str
-) -> None:
+async def test_the_schedule_compat_endpoints_are_implemented(seeded_client: AsyncClient, path: str) -> None:
     """Built in Phase 2 (Layer 0). These returned 501 in Phase 1.
 
     Kept as a route-level smoke test rather than deleted: it runs against a

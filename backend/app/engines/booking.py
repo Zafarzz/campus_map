@@ -159,9 +159,7 @@ class BookingPolicy:
             try:
                 return time.fromisoformat(str(value))
             except ValueError as exc:
-                raise ValueError(
-                    f"policy field {key!r} must be an HH:MM time, got {value!r}"
-                ) from exc
+                raise ValueError(f"policy field {key!r} must be an HH:MM time, got {value!r}") from exc
 
         prerequisites = raw.get("prerequisites") or ()
         if isinstance(prerequisites, str):
@@ -277,18 +275,11 @@ def validate_request(
     if policy.slot_granularity_minutes > 0:
         local = slot.starts_at.astimezone(timezone)
         minutes_into_day = local.hour * 60 + local.minute
-        if (
-            minutes_into_day % policy.slot_granularity_minutes
-            or local.second
-            or local.microsecond
-        ):
+        if minutes_into_day % policy.slot_granularity_minutes or local.second or local.microsecond:
             violations.append(
                 PolicyViolation(
                     code=ViolationCode.not_aligned,
-                    message=(
-                        f"Bookings must start on a {policy.slot_granularity_minutes}-minute "
-                        "boundary."
-                    ),
+                    message=(f"Bookings must start on a {policy.slot_granularity_minutes}-minute boundary."),
                     details={"granularity_minutes": policy.slot_granularity_minutes},
                 )
             )
@@ -312,9 +303,7 @@ def validate_request(
         violations.append(
             PolicyViolation(
                 code=ViolationCode.missing_prerequisite,
-                message=(
-                    "This resource requires " + ", ".join(missing) + " before it can be booked."
-                ),
+                message=("This resource requires " + ", ".join(missing) + " before it can be booked."),
                 details={"missing": missing},
             )
         )
@@ -337,9 +326,7 @@ def validate_request(
     return violations
 
 
-def _opening_hours_violations(
-    slot: Slot, policy: BookingPolicy, timezone: ZoneInfo
-) -> list[PolicyViolation]:
+def _opening_hours_violations(slot: Slot, policy: BookingPolicy, timezone: ZoneInfo) -> list[PolicyViolation]:
     """Check the slot against the resource's campus-local opening hours.
 
     Compared in **campus-local** wall clock, because "the lab closes at 18:00"
@@ -528,10 +515,7 @@ def _reason_for(candidate: RoomCandidate, min_capacity: int | None) -> str:
     if candidate.capacity is not None:
         if min_capacity:
             spare = candidate.capacity - min_capacity
-            parts.append(
-                f"seats {candidate.capacity}"
-                + (f" ({spare} spare)" if spare else " (exact fit)")
-            )
+            parts.append(f"seats {candidate.capacity}" + (f" ({spare} spare)" if spare else " (exact fit)"))
         else:
             parts.append(f"seats {candidate.capacity}")
     else:

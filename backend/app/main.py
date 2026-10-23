@@ -23,12 +23,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
+from app.api.v1.stream import ws_router
 from app.core.config import AppEnv, Settings, get_settings
 from app.core.db import dispose_database, get_database
 from app.core.errors import register_exception_handlers
 from app.core.i18n import SUPPORTED_LOCALES
 from app.core.logging import RequestContextMiddleware, configure_logging, get_logger
 from app.core.metrics import BUILD_INFO, DB_UP, MetricsMiddleware
+from app.jobs.scheduler import JobScheduler, get_scheduler, reset_scheduler
+from app.realtime.broker import reset_broker
+from app.realtime.hub import get_hub, reset_hub
 
 log = get_logger(__name__)
 
@@ -82,9 +86,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             hint="PostgreSQL is unreachable; /readyz will return 503 until it is back.",
         )
 
+    # Real-time delivery and the job runner are started only when the database
+    # is reachable: both of them query it on their first pass, and starting a
+    # scheduler that can only fail would fill the log with noise while /readyz
+    # already reports the real problem.
+    hub = get_hub()
+    scheduler: JobScheduler | None = None
+    if reachable and settings.app_env is not AppEnv.test:
+        await hub.start()
+        scheduler = get_scheduler(settings)
+        await scheduler.start()
+    elif settings.app_env is AppEnv.test:
+        # Tests drive the jobs directly. A live scheduler would race the
+        # per-test truncation and make failures depend on timing.
+        log.info("jobs_disabled_in_tests")
+
     try:
         yield
     finally:
+        if scheduler is not None:
+            await reset_scheduler()
+        await reset_hub()
+        await reset_broker()
         await dispose_database()
         log.info("shutdown")
 
@@ -148,6 +171,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(api_router, prefix=cfg.api_prefix)
+    # At the root, not under the API prefix: the brief specifies the path as
+    # `WS /ws/v1/stream` (section 8), and it carries its own version segment.
+    app.include_router(ws_router)
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, Any]:

@@ -159,6 +159,17 @@ class MeetingRule(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
     #: iCalendar UID, so a moved or cancelled single occurrence can be linked
     #: back to its parent by UID + RECURRENCE-ID.
     uid: Mapped[str | None] = mapped_column(String(256), index=True)
+    #: The identity of the import row that produced this rule, verbatim.
+    #:
+    #: Needed because the mapping from a source row to a rule is **lossy**: the
+    #: declared date window ends up inside ``DTSTART``/``UNTIL`` with weekday
+    #: anchoring applied, and a week parity becomes an ``INTERVAL``. Trying to
+    #: reconstruct the original row from the rule therefore produces a key that
+    #: never matches, and every re-import would diff as "replace everything"
+    #: instead of "unchanged" - which is exactly what the brief's idempotence
+    #: requirement forbids (section 10.1). Storing the key makes the comparison
+    #: exact rather than approximate.
+    source_identity: Mapped[str | None] = mapped_column(String(512), index=True)
     import_batch_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("import_batch.id", ondelete="SET NULL")
     )

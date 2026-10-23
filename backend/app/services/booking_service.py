@@ -107,9 +107,7 @@ async def create_booking(
     instant = now or utc_now()
     resource = await session.get(Resource, request.resource_id)
     if resource is None:
-        raise NotFoundError(
-            f"Resource {request.resource_id} does not exist.", code="resource_not_found"
-        )
+        raise NotFoundError(f"Resource {request.resource_id} does not exist.", code="resource_not_found")
 
     policy = _policy_for(resource)
     blackouts = await _load_blackouts(session, resource.id, request.slot, policy)
@@ -191,9 +189,7 @@ async def create_booking(
         for orphan in (occupancy, booking):
             if orphan in session:
                 session.expunge(orphan)
-        raise await _conflict_error(
-            session, resource.id, request.slot, stored, timezone
-        ) from exc
+        raise await _conflict_error(session, resource.id, request.slot, stored, timezone) from exc
 
     log.info(
         "booking_created",
@@ -329,9 +325,7 @@ async def release_expired(
     released: list[Booking] = []
     for booking, resource in result.all():
         policy = _policy_for(resource)
-        deadline = policy.release_deadline(
-            Slot(starts_at=booking.starts_at, ends_at=booking.ends_at)
-        )
+        deadline = policy.release_deadline(Slot(starts_at=booking.starts_at, ends_at=booking.ends_at))
         if instant < deadline:
             continue
 
@@ -369,9 +363,7 @@ async def list_bookings(
     if resource_id is not None:
         stmt = stmt.where(Booking.resource_id == resource_id)
     if room_id is not None:
-        stmt = stmt.join(Resource, Resource.id == Booking.resource_id).where(
-            Resource.room_id == room_id
-        )
+        stmt = stmt.join(Resource, Resource.id == Booking.resource_id).where(Resource.room_id == room_id)
     if starts_after is not None:
         stmt = stmt.where(Booking.starts_at >= starts_after)
     if starts_before is not None:
@@ -419,9 +411,7 @@ async def _find_conflicts(
     result = await session.execute(
         select(ResourceOccupancy).where(
             ResourceOccupancy.resource_id == resource_id,
-            ResourceOccupancy.status.in_(
-                (OccupancyStatus.pending, OccupancyStatus.confirmed)
-            ),
+            ResourceOccupancy.status.in_((OccupancyStatus.pending, OccupancyStatus.confirmed)),
             ResourceOccupancy.period.op("&&")(_range(slot)),
         )
     )
@@ -439,14 +429,10 @@ async def _load_blackouts(
             Blackout.ends_at > stored.starts_at,
         )
     )
-    return tuple(
-        Slot(starts_at=row.starts_at, ends_at=row.ends_at) for row in result.scalars().all()
-    )
+    return tuple(Slot(starts_at=row.starts_at, ends_at=row.ends_at) for row in result.scalars().all())
 
 
-async def _count_active_bookings(
-    session: AsyncSession, user_id: uuid.UUID | None, now: datetime
-) -> int:
+async def _count_active_bookings(session: AsyncSession, user_id: uuid.UUID | None, now: datetime) -> int:
     """Future bookings the user already holds, for the quota rule."""
     if user_id is None:
         return 0
@@ -483,8 +469,7 @@ def _policy_error(violations: list[PolicyViolation]) -> ValidationError:
         code="booking_policy_violation",
         details={
             "violations": [
-                {"code": item.code.value, "message": item.message, **item.details}
-                for item in violations
+                {"code": item.code.value, "message": item.message, **item.details} for item in violations
             ]
         },
     )
@@ -505,9 +490,7 @@ async def _conflict_error(
     occupied = await session.execute(
         select(ResourceOccupancy).where(
             ResourceOccupancy.resource_id == resource_id,
-            ResourceOccupancy.status.in_(
-                (OccupancyStatus.pending, OccupancyStatus.confirmed)
-            ),
+            ResourceOccupancy.status.in_((OccupancyStatus.pending, OccupancyStatus.confirmed)),
             ResourceOccupancy.period.op("&&")(_range(search)),
         )
     )
@@ -518,9 +501,7 @@ async def _conflict_error(
         if isinstance(lower, datetime) and isinstance(upper, datetime) and upper > lower:
             busy.append(Slot(starts_at=lower, ends_at=upper))
 
-    alternatives = propose_alternatives(
-        busy, requested=requested, search_within=search, limit=3
-    )
+    alternatives = propose_alternatives(busy, requested=requested, search_within=search, limit=3)
 
     return ConflictError(
         "That slot is already taken.",

@@ -119,9 +119,7 @@ JS_PICKS: dict[str, dict[str, object]] = {
 
 
 def _generate_one(room_id: str, day: date, kind: str = "classroom") -> dict[int, object]:
-    lessons = generate_demo_lessons(
-        room_ids=[(room_id, kind)], day=day, timezone=TASHKENT, slots=DEMO_SLOTS
-    )
+    lessons = generate_demo_lessons(room_ids=[(room_id, kind)], day=day, timezone=TASHKENT, slots=DEMO_SLOTS)
     return {lesson.slot_index: lesson for lesson in lessons}
 
 

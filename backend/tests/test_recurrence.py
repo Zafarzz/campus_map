@@ -265,7 +265,7 @@ def test_an_exdate_with_a_time_removes_exactly_that_occurrence() -> None:
 
 
 def test_a_date_only_exdate_removes_the_whole_local_day() -> None:
-    """"No classes on 8 September" must not require knowing the start time."""
+    """ "No classes on 8 September" must not require knowing the start time."""
     spec = RecurrenceSpec(
         rrule="FREQ=WEEKLY;BYDAY=TU",
         dtstart_local="2026-09-01T09:00:00",

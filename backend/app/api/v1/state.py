@@ -100,9 +100,7 @@ async def get_state(
     session: SessionDep,
     settings: SettingsDep,
     at: AtQuery = None,
-    building: Annotated[
-        str | None, Query(description="Limit to one building id, e.g. `bld-h`.")
-    ] = None,
+    building: Annotated[str | None, Query(description="Limit to one building id, e.g. `bld-h`.")] = None,
     starts_soon_minutes: Annotated[
         int | None,
         Query(
@@ -118,18 +116,14 @@ async def get_state(
     instant, simulated = parse_at(at)
     campus = await campus_service.get_default_campus(session)
     timezone = ZoneInfo(campus.timezone)
-    options = state_service.resolve_options(
-        settings, timezone, starts_soon_minutes=starts_soon_minutes
-    )
+    options = state_service.resolve_options(settings, timezone, starts_soon_minutes=starts_soon_minutes)
 
     if building is not None:
         result = await state_service.state_for_building(
             session, building, instant, timezone=timezone, options=options
         )
     else:
-        result = await state_service.state_for_campus(
-            session, instant, timezone=timezone, options=options
-        )
+        result = await state_service.state_for_campus(session, instant, timezone=timezone, options=options)
 
     return StateResponse(
         at=instant,
@@ -198,16 +192,12 @@ async def get_room_state(
     instant, _ = parse_at(at)
     campus = await campus_service.get_default_campus(session)
     timezone = ZoneInfo(campus.timezone)
-    options = state_service.resolve_options(
-        settings, timezone, starts_soon_minutes=starts_soon_minutes
-    )
+    options = state_service.resolve_options(settings, timezone, starts_soon_minutes=starts_soon_minutes)
 
     # Resolve legacy aliases the same way /rooms/{id} does, so a caller holding
     # an old identifier gets the same answer from both endpoints.
     room = await campus_service.get_room(session, room_id)
-    state = await state_service.state_for_room(
-        session, room.id, instant, timezone=timezone, options=options
-    )
+    state = await state_service.state_for_room(session, room.id, instant, timezone=timezone, options=options)
     return _room_out(state)
 
 

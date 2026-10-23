@@ -5,4 +5,4 @@ See ``backend/docs/MASTER_PROMPT.md`` for the brief and ``backend/docs/adr/``
 for the decisions behind this layout.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"

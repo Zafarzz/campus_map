@@ -92,6 +92,9 @@ class PermissionDeniedError(AppError):
     message_id = "error.permission_denied"
 
 
+ForbiddenError = PermissionDeniedError
+
+
 class AmbiguousAliasError(AppError):
     """A legacy identifier maps to more than one current entity.
 

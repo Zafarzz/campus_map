@@ -288,7 +288,7 @@ def test_utc_midnight_does_not_roll_the_campus_day() -> None:
 
 
 def test_a_lesson_tomorrow_morning_does_not_make_tonight_starts_soon() -> None:
-    """"Today" bounds rules 3 to 5. A 09:00 class tomorrow is not imminent now."""
+    """ "Today" bounds rules 3 to 5. A 09:00 class tomorrow is not imminent now."""
     context = _context(_lesson(9, 11, day=date(2026, 10, 20)))
     state = state_at(context, _local(23, 55), OPTIONS)
     assert state.state is RoomStateKind.free
@@ -305,10 +305,7 @@ def test_an_overnight_event_spanning_midnight_is_active_on_both_sides() -> None:
     )
     context = _context(overnight)
     assert state_at(context, _local(23, 30), OPTIONS).state is RoomStateKind.lesson_now
-    assert (
-        state_at(context, _local(1, 0, day=date(2026, 10, 20)), OPTIONS).state
-        is RoomStateKind.lesson_now
-    )
+    assert state_at(context, _local(1, 0, day=date(2026, 10, 20)), OPTIONS).state is RoomStateKind.lesson_now
 
 
 # --------------------------------------------------------------------- overlay
@@ -467,9 +464,7 @@ def test_the_next_transition_after_the_last_lesson_is_local_midnight() -> None:
 
 
 def test_an_empty_room_still_transitions_at_midnight() -> None:
-    assert next_transition_at(_context(), _local(12, 0), OPTIONS) == _local(
-        0, 0, day=date(2026, 10, 20)
-    )
+    assert next_transition_at(_context(), _local(12, 0), OPTIONS) == _local(0, 0, day=date(2026, 10, 20))
 
 
 def test_every_reported_transition_actually_changes_something() -> None:
@@ -542,8 +537,7 @@ def test_the_summary_reports_zero_for_absent_states() -> None:
 def test_live_count_matches_the_number_of_is_live_rooms() -> None:
     at = _local(10, 0)
     states = [
-        state_at(RoomContext(room_id=f"r{i}", intervals=(_lesson(9, 11),)), at, OPTIONS)
-        for i in range(7)
+        state_at(RoomContext(room_id=f"r{i}", intervals=(_lesson(9, 11),)), at, OPTIONS) for i in range(7)
     ] + [state_at(RoomContext(room_id="free"), at, OPTIONS)]
     summary = summarise(states, building_id="bld-h", at=at)
     assert summary.live_count == sum(1 for item in states if item.is_live) == 7
@@ -553,9 +547,7 @@ def test_live_count_matches_the_number_of_is_live_rooms() -> None:
 
 
 def test_a_days_walk_covers_the_day_in_fixed_steps() -> None:
-    results = states_for_day(
-        _context(_lesson(9, 11)), date(2026, 10, 19), step_minutes=60, options=OPTIONS
-    )
+    results = states_for_day(_context(_lesson(9, 11)), date(2026, 10, 19), step_minutes=60, options=OPTIONS)
     assert len(results) == 24
     assert results[0].at == _local(0, 0)
     assert results[10].state is RoomStateKind.lesson_now  # 10:00
@@ -564,18 +556,14 @@ def test_a_days_walk_covers_the_day_in_fixed_steps() -> None:
 def test_a_days_walk_handles_a_short_dst_day() -> None:
     """Europe/Berlin's 29 March 2026 is 23 hours long."""
     options = StateOptions(starts_soon_minutes=15, timezone=BERLIN)
-    results = states_for_day(
-        RoomContext(room_id=ROOM), date(2026, 3, 29), step_minutes=60, options=options
-    )
+    results = states_for_day(RoomContext(room_id=ROOM), date(2026, 3, 29), step_minutes=60, options=options)
     assert len(results) == 23
 
 
 def test_a_days_walk_handles_a_long_dst_day() -> None:
     """Europe/Berlin's 25 October 2026 is 25 hours long."""
     options = StateOptions(starts_soon_minutes=15, timezone=BERLIN)
-    results = states_for_day(
-        RoomContext(room_id=ROOM), date(2026, 10, 25), step_minutes=60, options=options
-    )
+    results = states_for_day(RoomContext(room_id=ROOM), date(2026, 10, 25), step_minutes=60, options=options)
     assert len(results) == 25
 
 
@@ -585,6 +573,7 @@ def test_a_non_positive_step_is_rejected() -> None:
 
 
 # --------------------------------------------------------------------- properties
+
 
 #: Non-overlapping lessons on a single day, as a timetable would really be.
 @st.composite
@@ -657,9 +646,7 @@ def test_a_room_has_exactly_one_state_and_free_until_never_lies(
 
 @hyp_settings(max_examples=150, deadline=None)
 @given(intervals=_timetable(), minute_of_day=st.integers(min_value=0, max_value=24 * 60 - 1))
-def test_the_overlay_only_ever_sets_the_flag(
-    intervals: tuple[Interval, ...], minute_of_day: int
-) -> None:
+def test_the_overlay_only_ever_sets_the_flag(intervals: tuple[Interval, ...], minute_of_day: int) -> None:
     """Taking a room out of service changes ``out_of_service`` and nothing else."""
     at = _local(0, 0) + timedelta(minutes=minute_of_day)
     working = state_at(_context(*intervals), at, OPTIONS)

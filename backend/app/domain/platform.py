@@ -17,7 +17,17 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
-from app.domain.base import ShortText, TimestampMixin, Utc, UuidPkMixin
+from app.domain.base import (
+    NOTIFICATION_CHANNEL,
+    NOTIFICATION_STATUS,
+    IsDemoMixin,
+    NotificationChannel,
+    NotificationStatus,
+    ShortText,
+    TimestampMixin,
+    Utc,
+    UuidPkMixin,
+)
 
 
 class AuditLog(Base, UuidPkMixin):
@@ -90,3 +100,54 @@ class SeedRun(Base, UuidPkMixin):
     random_seed: Mapped[int] = mapped_column(Integer, nullable=False)
     counts: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     warnings: Mapped[list[Any] | None] = mapped_column(JSONB)
+
+
+class Notification(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
+    """A notification delivered or queued for a recipient (brief section 6.2).
+
+    All user-facing text goes through the i18n message catalogues via
+    ``template_id`` and ``template_params``; ``subject`` and ``body`` hold the
+    rendered text in the recipient's locale at the time of dispatch.
+    """
+
+    __tablename__ = "notification"
+    __table_args__ = (
+        Index("ix_notification_recipient_created", "recipient_id", "created_at"),
+        Index("ix_notification_status", "status"),
+    )
+
+    recipient_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="CASCADE")
+    )
+    #: Audience tag when targeting a role, building, or group.
+    audience: Mapped[str | None] = mapped_column(String(120))
+    channel: Mapped[NotificationChannel] = mapped_column(NOTIFICATION_CHANNEL, nullable=False)
+    status: Mapped[NotificationStatus] = mapped_column(
+        NOTIFICATION_STATUS, nullable=False, server_default=text("'queued'")
+    )
+    template_id: Mapped[ShortText] = mapped_column(nullable=False)
+    locale: Mapped[str] = mapped_column(String(8), nullable=False, server_default=text("'en'"))
+    subject: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    sent_at: Mapped[Utc | None] = mapped_column()
+    acknowledged_at: Mapped[Utc | None] = mapped_column()
+    error_detail: Mapped[str | None] = mapped_column(Text)
+
+
+class PushSubscription(Base, UuidPkMixin, TimestampMixin):
+    """Web Push VAPID subscription endpoint registered by a user's browser."""
+
+    __tablename__ = "push_subscription"
+    __table_args__ = (
+        Index("ix_push_subscription_user", "user_id"),
+        Index("ix_push_subscription_endpoint", "endpoint", unique=True),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    p256dh: Mapped[str] = mapped_column(String(256), nullable=False)
+    auth: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default=text("true"))

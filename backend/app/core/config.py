@@ -155,6 +155,57 @@ class Settings(BaseSettings):
             raise ValueError("API_PREFIX must start with '/'")
         return value
 
+    @field_validator(
+        "redis_url",
+        "edupage_timetable_number",
+        "oidc_issuer",
+        "oidc_client_id",
+        "cors_allow_origins",
+        "oidc_allowed_email_domains",
+        mode="before",
+    )
+    @classmethod
+    def _blank_out_inline_comments(cls, value: object) -> object:
+        """Treat a value that is only a dotenv comment as blank.
+
+        ``python-dotenv`` strips a trailing ``# comment`` only when the value
+        before it is non-empty. For a deliberately blank setting written as::
+
+            REDIS_URL=                  # blank = in-process fallback
+
+        the *comment* becomes the value. ``LOG_JSON=false  # ...`` is unaffected,
+        which is why this went unnoticed: it only bites the settings whose
+        normal value is empty - and those are exactly the optional ones, so the
+        result was a Redis URL of ``'# blank = ...'`` and a crash on startup
+        rather than the intended fallback.
+
+        The comments have been moved onto their own lines in ``.env.example``,
+        but this guard stays: a hand-edited ``.env`` will reintroduce the
+        pattern sooner or later, and the failure it causes is far from obvious.
+        """
+        if isinstance(value, str) and value.strip().startswith("#"):
+            return ""
+        return value
+
+    @field_validator("redis_url")
+    @classmethod
+    def _validate_redis_url(cls, value: str) -> str:
+        """Blank, or a URL Redis will actually accept.
+
+        Checked here so a typo fails at startup with a clear message, rather
+        than deep inside the broker where the traceback says nothing about which
+        setting was wrong.
+        """
+        url = value.strip()
+        if not url:
+            return ""
+        if not url.startswith(("redis://", "rediss://", "unix://")):
+            raise ValueError(
+                f"REDIS_URL must start with redis://, rediss:// or unix://, got {url!r}. "
+                "Leave it empty to use the in-process fallback (single worker only)."
+            )
+        return url
+
     @field_validator("log_level")
     @classmethod
     def _validate_log_level(cls, value: str) -> str:

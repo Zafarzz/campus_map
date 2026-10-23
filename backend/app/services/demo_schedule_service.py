@@ -133,9 +133,7 @@ async def seed_demo_schedule(
         if not include_weekends and day.weekday() >= 5:
             continue
 
-        lessons = generate_demo_lessons(
-            room_ids=room_pairs, day=day, timezone=timezone, slots=DEMO_SLOTS
-        )
+        lessons = generate_demo_lessons(room_ids=room_pairs, day=day, timezone=timezone, slots=DEMO_SLOTS)
         for lesson in lessons:
             # Called for its side effect: the section must exist before the
             # meeting, so attendance rates and analytics have something to key
@@ -275,9 +273,7 @@ async def _load_rooms(session: AsyncSession, campus_id: str) -> dict[str, Room]:
     return {room.id: room for room in result.scalars().all()}
 
 
-async def _upsert_demo_term(
-    session: AsyncSession, *, campus_id: str, starts_on: date, ends_on: date
-) -> Term:
+async def _upsert_demo_term(session: AsyncSession, *, campus_id: str, starts_on: date, ends_on: date) -> Term:
     existing = await session.execute(
         select(Term).where(Term.campus_id == campus_id, Term.code == DEMO_TERM_CODE)
     )
@@ -359,9 +355,7 @@ async def _ensure_section(
         )
         course = found.scalar_one_or_none()
         if course is None:
-            course = Course(
-                campus_id=campus_id, code=course_code, title=subject, is_demo=True
-            )
+            course = Course(campus_id=campus_id, code=course_code, title=subject, is_demo=True)
             session.add(course)
             await session.flush()
             _bump(result.created, "courses")

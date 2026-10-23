@@ -132,9 +132,7 @@ class TestPolicyParsing:
         assert policy.closes_at == time(18, 30)
 
     def test_a_single_prerequisite_may_be_a_bare_string(self) -> None:
-        assert BookingPolicy.from_json({"prerequisites": "laser-safety"}).prerequisites == (
-            "laser-safety",
-        )
+        assert BookingPolicy.from_json({"prerequisites": "laser-safety"}).prerequisites == ("laser-safety",)
 
     def test_a_boolean_is_not_accepted_as_an_integer(self) -> None:
         """``True`` is an ``int`` in Python; accepting it would be a silent bug."""
@@ -144,16 +142,12 @@ class TestPolicyParsing:
 
 class TestValidation:
     def test_a_reasonable_request_passes(self) -> None:
-        assert (
-            validate_request(_slot(12, 13), BookingPolicy(), now=NOW, timezone=TASHKENT) == []
-        )
+        assert validate_request(_slot(12, 13), BookingPolicy(), now=NOW, timezone=TASHKENT) == []
 
     def test_every_violation_is_reported_not_just_the_first(self) -> None:
         """One round trip should tell the user everything that is wrong."""
         policy = BookingPolicy(max_duration_minutes=60, max_days_ahead=1)
-        violations = validate_request(
-            _slot(9, 15, day=25), policy, now=NOW, timezone=TASHKENT
-        )
+        violations = validate_request(_slot(9, 15, day=25), policy, now=NOW, timezone=TASHKENT)
         codes = {item.code for item in violations}
         assert ViolationCode.too_long in codes
         assert ViolationCode.too_far_ahead in codes
@@ -180,16 +174,12 @@ class TestValidation:
 
     def test_the_quota_is_enforced(self) -> None:
         policy = BookingPolicy(max_active_per_user=2)
-        violations = validate_request(
-            _slot(12, 13), policy, now=NOW, timezone=TASHKENT, active_bookings=2
-        )
+        violations = validate_request(_slot(12, 13), policy, now=NOW, timezone=TASHKENT, active_bookings=2)
         assert ViolationCode.quota_exceeded in {item.code for item in violations}
 
     def test_a_zero_quota_means_unlimited(self) -> None:
         policy = BookingPolicy(max_active_per_user=0)
-        violations = validate_request(
-            _slot(12, 13), policy, now=NOW, timezone=TASHKENT, active_bookings=99
-        )
+        violations = validate_request(_slot(12, 13), policy, now=NOW, timezone=TASHKENT, active_bookings=99)
         assert ViolationCode.quota_exceeded not in {item.code for item in violations}
 
     def test_a_missing_prerequisite_is_explained(self) -> None:
@@ -207,7 +197,7 @@ class TestValidation:
         assert "biosafety" in breach.message
 
     def test_opening_hours_are_compared_in_campus_local_time(self) -> None:
-        """"The lab closes at 18:00" is a claim about local time.
+        """ "The lab closes at 18:00" is a claim about local time.
 
         06:00-07:00 UTC is 11:00-12:00 in Tashkent, comfortably inside hours; the
         same instants would look like early morning if compared in UTC.
@@ -296,9 +286,7 @@ class TestFreeWindows:
         assert windows[0].minutes == 600
 
     def test_short_gaps_are_filtered_out(self) -> None:
-        windows = free_windows(
-            [_slot(9, 11), _slot(14, 16)], within=_slot(8, 18), min_minutes=120
-        )
+        windows = free_windows([_slot(9, 11), _slot(14, 16)], within=_slot(8, 18), min_minutes=120)
         assert [(w.starts_at.hour, w.ends_at.hour) for w in windows] == [(11, 14), (16, 18)]
 
     def test_occupancies_outside_the_window_are_ignored(self) -> None:
@@ -309,32 +297,24 @@ class TestFreeWindows:
 class TestAlternatives:
     def test_alternatives_keep_the_requested_duration(self) -> None:
         requested = _slot(10, 12)
-        options = propose_alternatives(
-            [_slot(10, 12)], requested=requested, search_within=_slot(8, 18)
-        )
+        options = propose_alternatives([_slot(10, 12)], requested=requested, search_within=_slot(8, 18))
         assert options
         assert all(item.duration == requested.duration for item in options)
 
     def test_an_earlier_alternative_is_offered_when_it_is_nearest(self) -> None:
         """Only offering later slots would hide the nearest option."""
         requested = _slot(12, 13)
-        options = propose_alternatives(
-            [_slot(12, 17)], requested=requested, search_within=_slot(8, 18)
-        )
+        options = propose_alternatives([_slot(12, 17)], requested=requested, search_within=_slot(8, 18))
         assert options[0].ends_at <= requested.starts_at
 
     def test_alternatives_never_overlap_what_is_booked(self) -> None:
         busy = [_slot(9, 11), _slot(12, 14)]
-        options = propose_alternatives(
-            busy, requested=_slot(12, 13), search_within=_slot(8, 18)
-        )
+        options = propose_alternatives(busy, requested=_slot(12, 13), search_within=_slot(8, 18))
         for option in options:
             assert not any(option.overlaps(item) for item in busy)
 
     def test_a_fully_booked_day_offers_nothing(self) -> None:
-        options = propose_alternatives(
-            [_slot(0, 23)], requested=_slot(10, 11), search_within=_slot(8, 18)
-        )
+        options = propose_alternatives([_slot(0, 23)], requested=_slot(10, 11), search_within=_slot(8, 18))
         assert options == []
 
 
@@ -352,15 +332,11 @@ class TestRanking:
         assert [item.room_id for item in ranked] == ["small", "medium", "hall"]
 
     def test_rooms_that_are_too_small_are_excluded(self) -> None:
-        ranked = rank_candidates(
-            [RoomCandidate("tiny", "bld-h", 5, None, 120)], min_capacity=30
-        )
+        ranked = rank_candidates([RoomCandidate("tiny", "bld-h", 5, None, 120)], min_capacity=30)
         assert ranked == []
 
     def test_rooms_free_for_too_short_a_time_are_excluded(self) -> None:
-        ranked = rank_candidates(
-            [RoomCandidate("busy", "bld-h", 40, None, 20)], free_for_minutes=60
-        )
+        ranked = rank_candidates([RoomCandidate("busy", "bld-h", 40, None, 20)], free_for_minutes=60)
         assert ranked == []
 
     def test_distance_breaks_a_capacity_tie(self) -> None:
@@ -442,9 +418,7 @@ def test_free_windows_never_overlap_each_other_or_the_busy_blocks(
 @pytest.fixture
 async def resource(seeded_session: AsyncSession) -> Resource:
     """A bookable room resource with a permissive policy."""
-    found = await seeded_session.execute(
-        select(Resource).where(Resource.room_id == "bld-h-f1-a101")
-    )
+    found = await seeded_session.execute(select(Resource).where(Resource.room_id == "bld-h-f1-a101"))
     existing = found.scalar_one_or_none()
     if existing is not None:
         return existing
@@ -464,9 +438,7 @@ async def resource(seeded_session: AsyncSession) -> Resource:
     return created
 
 
-async def test_a_booking_is_created_and_confirmed(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_a_booking_is_created_and_confirmed(seeded_session: AsyncSession, resource: Resource) -> None:
     result = await booking_service.create_booking(
         seeded_session,
         BookingRequest(resource_id=resource.id, slot=_slot(12, 13)),
@@ -609,9 +581,7 @@ async def test_a_cancelled_booking_frees_its_slot_immediately(
 
     # The cancelled row is kept, not deleted: history must stay intact.
     kept = await seeded_session.scalar(
-        select(func.count(ResourceOccupancy.id)).where(
-            ResourceOccupancy.status == OccupancyStatus.cancelled
-        )
+        select(func.count(ResourceOccupancy.id)).where(ResourceOccupancy.status == OccupancyStatus.cancelled)
     )
     assert kept == 1
 
@@ -700,9 +670,7 @@ async def test_an_unknown_resource_is_404(seeded_session: AsyncSession) -> None:
         )
 
 
-async def test_a_blackout_blocks_a_booking(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_a_blackout_blocks_a_booking(seeded_session: AsyncSession, resource: Resource) -> None:
     seeded_session.add(
         Blackout(
             resource_id=resource.id,
@@ -727,9 +695,7 @@ async def test_a_blackout_blocks_a_booking(
 # --------------------------------------------------------------------- check-in
 
 
-async def test_check_in_inside_the_window_succeeds(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_check_in_inside_the_window_succeeds(seeded_session: AsyncSession, resource: Resource) -> None:
     result = await booking_service.create_booking(
         seeded_session,
         BookingRequest(resource_id=resource.id, slot=_slot(12, 13)),
@@ -741,9 +707,7 @@ async def test_check_in_inside_the_window_succeeds(
     assert booking.checked_in_at == at
 
 
-async def test_check_in_is_idempotent(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_check_in_is_idempotent(seeded_session: AsyncSession, resource: Resource) -> None:
     """A second tap is not an error."""
     result = await booking_service.create_booking(
         seeded_session,
@@ -759,9 +723,7 @@ async def test_check_in_is_idempotent(
     assert again.checked_in_at == first_at
 
 
-async def test_check_in_too_early_is_refused(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_check_in_too_early_is_refused(seeded_session: AsyncSession, resource: Resource) -> None:
     """Checking in an hour early is not claiming the room."""
     result = await booking_service.create_booking(
         seeded_session,
@@ -829,9 +791,7 @@ async def test_an_unclaimed_booking_is_auto_released(
     assert result.booking.status is OccupancyStatus.released
 
 
-async def test_a_released_slot_can_be_rebooked(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_a_released_slot_can_be_rebooked(seeded_session: AsyncSession, resource: Resource) -> None:
     await booking_service.create_booking(
         seeded_session,
         BookingRequest(resource_id=resource.id, slot=_slot(12, 14)),
@@ -850,9 +810,7 @@ async def test_a_released_slot_can_be_rebooked(
     assert again.booking.status is OccupancyStatus.confirmed
 
 
-async def test_a_checked_in_booking_is_not_released(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_a_checked_in_booking_is_not_released(seeded_session: AsyncSession, resource: Resource) -> None:
     result = await booking_service.create_booking(
         seeded_session,
         BookingRequest(resource_id=resource.id, slot=_slot(12, 14)),
@@ -883,9 +841,7 @@ async def test_a_booking_inside_its_grace_period_is_not_released(
     assert released == []
 
 
-async def test_a_lesson_is_never_auto_released(
-    seeded_session: AsyncSession, resource: Resource
-) -> None:
+async def test_a_lesson_is_never_auto_released(seeded_session: AsyncSession, resource: Resource) -> None:
     """The brief: official lessons are never auto-cancelled by default.
 
     Guaranteed structurally rather than by a flag - the sweeper queries the
@@ -991,9 +947,7 @@ async def test_fifty_concurrent_requests_for_one_slot_produce_exactly_one_winner
         held = await check.scalar(
             select(func.count(ResourceOccupancy.id)).where(
                 ResourceOccupancy.resource_id == resource_id,
-                ResourceOccupancy.status.in_(
-                    (OccupancyStatus.pending, OccupancyStatus.confirmed)
-                ),
+                ResourceOccupancy.status.in_((OccupancyStatus.pending, OccupancyStatus.confirmed)),
             )
         )
         bookings = await check.scalar(
