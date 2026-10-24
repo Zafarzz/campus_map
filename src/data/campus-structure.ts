@@ -16,6 +16,8 @@ export const knownBuildings: BuildingStructure[] = [
   { id: 'bld-b', shortName: 'E', name: 'Block E', floorCount: 4, description: 'North-east long building' },
   { id: 'bld-c', shortName: 'D', name: 'Block D', floorCount: 2, description: 'Central-north building (2 floors)' },
   { id: 'bld-d', shortName: 'F', name: 'Block F', floorCount: 2, description: 'East grey-roof building' },
+  { id: 'bld-e', shortName: 'SC', name: 'Sports Complex', floorCount: 1, description: 'Vaulted sports hall' },
+  { id: 'bld-f', shortName: 'FA', name: 'Block F Annexes', floorCount: 2, description: 'Academic annexes' },
   { id: 'bld-g', shortName: 'B', name: 'Block B', floorCount: 4, description: 'Long red-roof building north of the main building' },
   { id: 'bld-h', shortName: 'A', name: 'Block A', floorCount: 2, description: 'Main building (map pin location, 2 floors)' },
   { id: 'bld-i', shortName: 'C', name: 'Block C', floorCount: 2, description: 'Block C (Conference hall, canteen, classrooms)' },

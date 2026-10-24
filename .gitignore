@@ -29,3 +29,4 @@ pnpm-debug.log*
 
 # Temporary and scratch files
 *.tmp
+*.zip

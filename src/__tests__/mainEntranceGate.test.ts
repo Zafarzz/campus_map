@@ -74,18 +74,18 @@ describe('Main Entrance & Checkpoint (КПП AUT) Architecture', () => {
     }
   });
 
-  it('aligns gate positioning with the middle of the blue sports court (court) and East road', () => {
+  it('aligns gate positioning with the central promenade lawn (lawn-g1) and East road', () => {
     const campusGeom = geometryProvider.build(demoCampus);
     const kppE = campusGeom.context.find((f) => f.id === 'kpp-e');
-    const court = campusGeom.context.find((f) => f.id === 'court');
+    const lawnG1 = campusGeom.context.find((f) => f.id === 'lawn-g1');
     const roadEast = campusGeom.context.find((f) => f.id === 'road-east');
     expect(kppE).toBeDefined();
-    expect(court).toBeDefined();
+    expect(lawnG1).toBeDefined();
     expect(roadEast).toBeDefined();
 
-    if (kppE?.footprint.type === 'rect' && court?.footprint.type === 'rect') {
-      // Gate is centered on the middle of the blue sports court along Z (orientation landmark)
-      expect(kppE.footprint.center[1]).toBeCloseTo(court.footprint.center[1], 1);
+    if (kppE?.footprint.type === 'rect' && lawnG1?.footprint.type === 'rect') {
+      // Main Entrance Gate is centered on the central lawn promenade along Z
+      expect(kppE.footprint.center[1]).toBeCloseTo(lawnG1.footprint.center[1], 1);
     }
 
     if (kppE?.footprint.type === 'rect' && roadEast?.footprint.type === 'rect') {

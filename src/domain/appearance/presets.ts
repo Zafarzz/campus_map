@@ -67,17 +67,18 @@ export const ACADEMIC_MODERN: BuildingAppearance = {
 export const DORMITORY: BuildingAppearance = {
   ...DEFAULT_APPEARANCE,
   preset: 'dormitory',
-  wallColor: '#fdfbf7',
-  wallRoughness: 0.85,
+  wallColor: '#f8fafc',
+  wallRoughness: 0.8,
   roofType: 'hip',
-  roofColor: '#b91c1c',
-  roofHeight: 3.5,
-  hasCornice: false,
+  roofColor: '#8a99a8', // Silver-grey standing seam metal roof matching CAD reference
+  roofHeight: 3.2,
+  roofOverhang: 0.8,
+  hasCornice: true,
+  corniceColor: '#e2e8f0',
   hasPlinth: true,
-  plinthColor: '#334155',
+  plinthColor: '#475569',
   hasWindows: true,
-  accentStripe: true,
-  accentStripeColor: '#991b1b',
+  accentStripe: false,
 };
 
 export const ADMINISTRATION: BuildingAppearance = {
@@ -102,8 +103,9 @@ export const SPORTS_COMPLEX: BuildingAppearance = {
   wallColor: '#f1f5f9',
   wallRoughness: 0.7,
   wallMetalness: 0.15,
-  roofType: 'flat',
+  roofType: 'barrel',
   roofColor: '#334155',
+  roofHeight: 4.5,
   hasCornice: true,
   corniceColor: '#cbd5e1',
   hasPlinth: true,
@@ -188,7 +190,7 @@ export const BUILDING_APPEARANCE_REGISTRY: Record<string, BuildingAppearance> = 
   'bld-d': UTILITY,          // Building F
   'bld-f': ACADEMIC_CLASSIC, // Cluster red
   'bld-i': BLOCK_C_FRONT,    // Block C Front Facade (next to Block A and B)
-  'bld-j': ADMINISTRATION,   // Block J
+  'bld-j': DORMITORY,        // Block J (Dormitory Quadrangle)
 };
 
 export type TuningMaterialOverrides = {
@@ -199,6 +201,7 @@ export type TuningMaterialOverrides = {
   curtainGlassColor?: string;
   windowGlassColor?: string;
   dormitoryStripeColor?: string;
+  dormitoryRoofColor?: string;
   utilityWallColor?: string;
 };
 
@@ -238,8 +241,8 @@ export function getBuildingAppearance(
     } else if (base.preset === 'dormitory') {
       base = {
         ...base,
-        wallColor: tuning.classicWallColor ?? base.wallColor,
-        roofColor: tuning.classicRoofColor ?? base.roofColor,
+        wallColor: tuning.modernWallColor ?? base.wallColor,
+        roofColor: tuning.dormitoryRoofColor ?? base.roofColor,
         accentStripeColor: tuning.dormitoryStripeColor ?? base.accentStripeColor,
       };
     } else if (base.preset === 'utility') {

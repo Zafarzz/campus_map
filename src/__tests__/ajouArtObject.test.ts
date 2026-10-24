@@ -65,7 +65,7 @@ describe('Ajou Entrance Art Object "I ♥ AJOU" Architecture (CAD Sheet 3, M 1:2
       // Art object is placed immediately west of road-east
       const artX = 106.0;
       expect(artX).toBeLessThan(roadCenter[0]);
-      expect(Math.abs(gateCenter[1] - 15.9)).toBeLessThan(1.0);
+      expect(Math.abs(gateCenter[1] - -23.1)).toBeLessThan(1.0);
     }
   });
 

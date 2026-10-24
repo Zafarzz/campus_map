@@ -24,7 +24,12 @@ export function getActiveEditorOverrides(): ActiveEditorOverrides {
 export async function loadCampus(): Promise<Campus> {
   try {
     const draft = await loadDraft();
-    if (draft && draft.buildings && draft.buildings.length > 0) {
+    const hasAllBuildings =
+      draft &&
+      draft.buildings &&
+      demoCampus.buildings.every((db) => draft.buildings.some((b) => b.id === db.id));
+
+    if (hasAllBuildings && draft && draft.buildings && draft.buildings.length >= demoCampus.buildings.length) {
       const cCount = draft.buildings.filter((b) => b.shortName === 'C').length;
       if (cCount <= 1) {
         // Ensure Block B (bld-g) in saved draft is flush with the amphitheater hall without gap (ADR-029)

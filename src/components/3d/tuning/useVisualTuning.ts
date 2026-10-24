@@ -71,6 +71,7 @@ export type VisualTuningParams = {
   curtainGlassColor: string;
   windowGlassColor: string;
   dormitoryStripeColor: string;
+  dormitoryRoofColor: string;
   utilityWallColor: string;
 
   // Performance (Drei)
@@ -126,6 +127,7 @@ export const DEFAULT_TUNING_VALUES: VisualTuningParams = {
   curtainGlassColor: '#0284c7',
   windowGlassColor: '#1e293b',
   dormitoryStripeColor: '#991b1b',
+  dormitoryRoofColor: '#8a99a8',
   utilityWallColor: '#e2e8f0',
 
   // Performance (Drei)
@@ -190,6 +192,7 @@ export function useVisualTuning(): VisualTuningParams {
         curtainGlassColor: { value: '#0284c7', label: 'Curtain Glass' },
         windowGlassColor: { value: '#1e293b', label: 'Window Glass' },
         dormitoryStripeColor: { value: '#991b1b', label: 'Dorm Brick Band' },
+        dormitoryRoofColor: { value: '#8a99a8', label: 'Dorm Metal Roof' },
         utilityWallColor: { value: '#e2e8f0', label: 'Utility Wall' },
       }),
       Performance: folder({

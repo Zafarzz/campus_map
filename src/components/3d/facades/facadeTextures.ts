@@ -382,4 +382,54 @@ export function getFenceTexture(): THREE.CanvasTexture | null {
   return texture;
 }
 
+let cachedSportsMeshTexture: THREE.CanvasTexture | null = null;
+
+/**
+ * Procedural chain-link diamond wire mesh texture for sports court fences (4-6m height).
+ */
+export function getSportsMeshTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  if (cachedSportsMeshTexture) return cachedSportsMeshTexture;
+
+  const width = 256;
+  const height = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Diamond chain-link wire netting
+  ctx.strokeStyle = '#64748b'; // Slate wire
+  ctx.lineWidth = 2.0;
+
+  const step = 24;
+  for (let x = -width; x < width * 2; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + height, height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, height);
+    ctx.lineTo(x + height, 0);
+    ctx.stroke();
+  }
+
+  // Top & bottom steel framing bands
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, 0, width, 6);
+  ctx.fillRect(0, height - 6, width, 6);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  cachedSportsMeshTexture = texture;
+  return texture;
+}
+
 
