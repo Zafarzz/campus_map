@@ -1,4 +1,4 @@
-export type RoofType = 'hip' | 'flat' | 'parapet' | 'gabled';
+export type RoofType = 'hip' | 'flat' | 'parapet' | 'gabled' | 'barrel';
 
 export type BuildingAppearance = {
   /** Identifier or name of the preset */

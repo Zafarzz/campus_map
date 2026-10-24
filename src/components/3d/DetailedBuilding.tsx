@@ -103,6 +103,69 @@ function HipRoof({
 }
 
 /**
+ * Curved Barrel Vault Arch Roof (e.g. for Sports Complex / Arena).
+ */
+function BarrelVaultRoof({
+  width,
+  depth,
+  height,
+  color,
+  opacity,
+  transparent,
+  roughness,
+}: {
+  width: number;
+  depth: number;
+  height: number;
+  color: string;
+  opacity: number;
+  transparent: boolean;
+  roughness: number;
+}) {
+  const numVaults = width > 35 ? 4 : 1;
+  const vaultWidth = width / numVaults;
+  const vaultRadius = vaultWidth / 2;
+  const startX = -width / 2 + vaultRadius;
+
+  return (
+    <group position={[0, 0, 0]}>
+      {/* Multi-vault arched roof (4 corrugated vaults for sports hall) */}
+      {Array.from({ length: numVaults }).map((_, i) => (
+        <mesh
+          key={i}
+          position={[startX + i * vaultWidth, 0, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[vaultRadius, depth, height]}
+          castShadow
+          receiveShadow
+        >
+          <cylinderGeometry args={[1, 1, 1, 24, 1, false, 0, Math.PI]} />
+          <meshStandardMaterial
+            color={color}
+            transparent={transparent}
+            opacity={opacity}
+            depthWrite={!transparent}
+            roughness={roughness}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+      {/* Cornice border trim underneath */}
+      <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+        <boxGeometry args={[width + 0.4, 0.3, depth + 0.4]} />
+        <meshStandardMaterial
+          color="#cbd5e1"
+          transparent={transparent}
+          opacity={opacity}
+          depthWrite={!transparent}
+          roughness={0.8}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/**
  * Procedural instanced windows along all 4 building faces.
  */
 function InstancedWindows({
@@ -548,6 +611,18 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
                   width={width + (appearance.roofOverhang ?? 1.2)}
                   depth={depth + (appearance.roofOverhang ?? 1.2)}
                   height={appearance.roofHeight ?? 4.0}
+                  color={appearance.roofColor}
+                  opacity={opacity}
+                  transparent={transparent}
+                  roughness={appearance.roofRoughness}
+                />
+              </group>
+            ) : appearance.roofType === 'barrel' && depth > 20 ? (
+              <group position={[worldX, wallHeight, worldZ]}>
+                <BarrelVaultRoof
+                  width={width}
+                  depth={depth}
+                  height={appearance.roofHeight ?? 4.5}
                   color={appearance.roofColor}
                   opacity={opacity}
                   transparent={transparent}

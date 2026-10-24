@@ -290,10 +290,12 @@ export function buildCampusColliderSpecs(
     halfExtents: [fenceHalfThick, fenceHeight / 2, gateWidth / 2 + 2],
   });
 
-  // 6. Landmark Art Object "I ♥ AJOU" at [106.5, 0, gateZ]
+  // 6. Landmark Art Object "I ♥ AJOU" on entrance plaza
+  const artX = 78.5;
+  const artZ = gateZ;
   list.push({
     id: 'ajou-art-object',
-    position: [106.5, 1.0, gateZ],
+    position: [artX, 1.0, artZ],
     halfExtents: [
       AJOU_ART_DIMENSIONS.foundationWidth / 2 + 0.1,
       1.0,
@@ -301,19 +303,12 @@ export function buildCampusColliderSpecs(
     ],
   });
 
-  // 7. Grand Campus Fountain with 2 walkable pedestrian bridges!
-  const pitchFeature = geometry.context.find((f) => f.id === 'pitch');
-  const fountainX =
-    pitchFeature && pitchFeature.footprint.type === 'rect'
-      ? pitchFeature.footprint.center[0] - 50.0
-      : -2.45;
-  const fountainZ =
-    pitchFeature && pitchFeature.footprint.type === 'rect'
-      ? pitchFeature.footprint.center[1]
-      : 15.9;
-  const s = FOUNTAIN_DIMENSIONS.defaultScale; // 1.5
-  const outerHalfLen = (FOUNTAIN_DIMENSIONS.outerLength * s) / 2; // 42.75m
-  const outerHalfWid = (FOUNTAIN_DIMENSIONS.outerWidth * s) / 2;  // 14.625m
+  // 7. Grand Campus Fountain: located on the central lawn north of the Sports Complex
+  const fountainX = 0.0;
+  const fountainZ = -23.1;
+  const s = 0.7; // scaled to fit central lawn
+  const outerHalfLen = (FOUNTAIN_DIMENSIONS.outerLength * s) / 2;
+  const outerHalfWid = (FOUNTAIN_DIMENSIONS.outerWidth * s) / 2;
 
   // Bridge centers along X relative to fountainX: ±(7.5 + 1.05) * 1.5 = ±12.825m
   const bridgeOffset =

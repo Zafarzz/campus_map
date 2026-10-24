@@ -1,12 +1,17 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
-import type { CampusGeometry, ContextFeatureKind } from '../../domain/geometry/types';
+import type { CampusGeometry, ContextFeatureKind, Footprint } from '../../domain/geometry/types';
 import { ExtrudedFootprint } from './ExtrudedFootprint';
 import { getFenceTexture } from './facades/facadeTextures';
 import { MainEntranceGate, MAIN_ENTRANCE_WIDTH } from './MainEntranceGate';
 import { CampusFountain, FOUNTAIN_DIMENSIONS } from './CampusFountain';
 import { AjouArtObject } from './AjouArtObject';
+import { TennisCourt } from './TennisCourt';
+import { SolarCanopies } from './SolarCanopies';
+import { CampusWalkways } from './CampusWalkways';
+import { SportsFacilities } from './SportsFacilities';
+import { SiteFurniture } from './SiteFurniture';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.03,
@@ -30,14 +35,16 @@ function FenceSegment({
   length,
   axis,
   position,
+  rotationY = 0,
   plinthHeight,
   metalHeight,
   plinthMaterial,
   fenceTexture,
 }: {
   length: number;
-  axis: 'x' | 'z';
+  axis?: 'x' | 'z';
   position: [number, number, number];
+  rotationY?: number;
   plinthHeight: number;
   metalHeight: number;
   plinthMaterial: THREE.Material;
@@ -68,13 +75,13 @@ function FenceSegment({
     });
   }, [fenceTexture, repeatCount]);
 
-  const plinthW = axis === 'x' ? length : 0.35;
+  const plinthW = axis === 'z' ? 0.35 : length;
   const plinthD = axis === 'z' ? length : 0.35;
-  const metalW = axis === 'x' ? length : 0.05;
+  const metalW = axis === 'z' ? 0.05 : length;
   const metalD = axis === 'z' ? length : 0.05;
 
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, rotationY, 0]}>
       {/* Concrete plinth base (0.35m height) */}
       <mesh position={[0, plinthHeight / 2, 0]} material={plinthMaterial} receiveShadow castShadow>
         <boxGeometry args={[plinthW, plinthHeight, plinthD]} />
@@ -84,6 +91,41 @@ function FenceSegment({
         <boxGeometry args={[metalW, metalHeight, metalD]} />
       </mesh>
     </group>
+  );
+}
+
+function DirectedFence({
+  from,
+  to,
+  plinthHeight,
+  metalHeight,
+  plinthMaterial,
+  fenceTexture,
+}: {
+  from: [number, number];
+  to: [number, number];
+  plinthHeight: number;
+  metalHeight: number;
+  plinthMaterial: THREE.Material;
+  fenceTexture: THREE.CanvasTexture | null;
+}) {
+  const dx = to[0] - from[0];
+  const dz = to[1] - from[1];
+  const len = Math.hypot(dx, dz);
+  const angle = Math.atan2(dx, dz);
+  const cx = (from[0] + to[0]) / 2;
+  const cz = (from[1] + to[1]) / 2;
+
+  return (
+    <FenceSegment
+      length={len}
+      position={[cx, 0, cz]}
+      rotationY={angle - Math.PI / 2}
+      plinthHeight={plinthHeight}
+      metalHeight={metalHeight}
+      plinthMaterial={plinthMaterial}
+      fenceTexture={fenceTexture}
+    />
   );
 }
 
@@ -111,8 +153,12 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
   }, [geometry, min, max]);
 
   const gateWidth = MAIN_ENTRANCE_WIDTH;
-  const plinthHeight = 0.35; // З-2: Бетонный цоколь ограждения 350 мм
-  const metalHeight = 1.85; // З-1: Металлическая решётка + фриз 1850 мм
+
+  // Requirement D:
+  // - Concrete base: 20 centimeters high (0.20m)
+  // - Above-ground fence height: 2.0 meters (0.20m plinth + 1.80m metal grille = 2.0m total)
+  const plinthHeight = 0.20;
+  const metalHeight = 1.80;
 
   const fenceTexture = useMemo(() => getFenceTexture(), []);
   const plinthMaterial = useMemo(
@@ -124,63 +170,210 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
     [],
   );
 
-  // Perimeter bounds
+  // Perimeter boundary lines:
   const left = min[0] - 22;
-  const right = max[0] + 12;
   const top = min[1] - 22;
   const bottom = max[1] + 22;
 
+  // Requirement C:
+  // - Distance from Block B (bld-g East wall at X = +96.45m) to perimeter fence: exactly 5.0 meters -> X = 101.45m
+  // - Distance from Block C (bld-i East wall at X = +84.15m) to perimeter fence: exactly 20.0 meters -> X = 104.15m
+  // - Main Gate at East fence: right = 104.0m
+  const rightGate = 104.0;
+  const rightBlockB = 101.45;
+  const rightBlockC = 104.15;
+
+  const bldBZStart = 50.0;
+  const bldBZEnd = 74.0;
+
+  // "I ♥ AJOU" installation (Requirements E & F)
+  // Installed flush against (впритык) the green lawn edge at X=78.15m
+  const artZ = gateZ; // z ≈ -23.1m
+  const artX = 78.5;
+
   return (
     <group>
-      {/* North fence: length = right - left */}
+      {/* North fence: from left to rightGate */}
       <FenceSegment
         axis="x"
-        length={right - left}
-        position={[(left + right) / 2, 0, top]}
+        length={rightGate - left}
+        position={[(left + rightGate) / 2, 0, top]}
         plinthHeight={plinthHeight}
         metalHeight={metalHeight}
         plinthMaterial={plinthMaterial}
         fenceTexture={fenceTexture}
       />
 
-      {/* South fence: length = right - left */}
-      <FenceSegment
-        axis="x"
-        length={right - left}
-        position={[(left + right) / 2, 0, bottom]}
+      {/* West fence: from top down to Z=160.0m (start of southwest diagonal boundary) */}
+      <DirectedFence
+        from={[left, top]}
+        to={[left, 160.0]}
         plinthHeight={plinthHeight}
         metalHeight={metalHeight}
         plinthMaterial={plinthMaterial}
         fenceTexture={fenceTexture}
       />
 
-      {/* West fence: length = bottom - top */}
-      <FenceSegment
-        axis="z"
-        length={bottom - top}
-        position={[left, 0, (top + bottom) / 2]}
+      {/* South-West Diagonal Fence Segment 1: from [left, 160.0] to Dormitory Gate West post [-32.0, 180.0] */}
+      <DirectedFence
+        from={[left, 160.0]}
+        to={[-32.0, 180.0]}
         plinthHeight={plinthHeight}
         metalHeight={metalHeight}
         plinthMaterial={plinthMaterial}
         fenceTexture={fenceTexture}
       />
 
-      {/* East fence (top segment before gate) */}
+      {/* South-West Diagonal Fence Segment 2: from Dormitory Gate East post [-25.0, 181.8] to [15.0, 190.0] */}
+      <DirectedFence
+        from={[-25.0, 181.8]}
+        to={[15.0, 190.0]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* South fence: from [15.0, 190.0] to [rightBlockC, 190.0] */}
+      <DirectedFence
+        from={[15.0, 190.0]}
+        to={[rightBlockC, 190.0]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* Dormitory Dividing Fence (between parking lot and central campus avenue): from [-17.5, 133.5] to [-17.5, 183.0] */}
+      <DirectedFence
+        from={[-17.5, 133.5]}
+        to={[-17.5, 183.0]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* South-West 2-Lane Diagonal Road (outside diagonal fence, clear of parking lot & garages) */}
+      <group position={[-45.0, 0.02, 184.0]} rotation={[0, -0.25, 0]}>
+        {/* Asphalt road strip */}
+        <mesh receiveShadow>
+          <boxGeometry args={[165.0, 0.02, 9.0]} />
+          <meshStandardMaterial color="#1e293b" roughness={0.9} />
+        </mesh>
+        {/* Outer Sidewalk / Verge alongside fence */}
+        <mesh position={[0, 0.02, -5.7]} receiveShadow>
+          <boxGeometry args={[165.0, 0.025, 2.4]} />
+          <meshStandardMaterial color="#cbd5e1" roughness={0.9} />
+        </mesh>
+        {/* Concrete Road Curb */}
+        <mesh position={[0, 0.035, -4.55]} receiveShadow>
+          <boxGeometry args={[165.0, 0.05, 0.2]} />
+          <meshStandardMaterial color="#94a3b8" roughness={0.85} />
+        </mesh>
+        {/* Dashed white center line */}
+        {Array.from({ length: 24 }).map((_, rIdx) => {
+          const rx = -78.0 + rIdx * 6.8;
+          return (
+            <mesh key={`rd-stripe-${rIdx}`} position={[rx, 0.012, 0]}>
+              <boxGeometry args={[3.4, 0.002, 0.15]} />
+              <meshBasicMaterial color="#ffffff" />
+            </mesh>
+          );
+        })}
+        {/* Pedestrian Zebra Crosswalk at bottom-west road */}
+        <group position={[-42.0, 0.015, 0]}>
+          {Array.from({ length: 9 }).map((_, zIdx) => (
+            <mesh key={`rd-zebra-${zIdx}`} position={[-3.6 + zIdx * 0.9, 0, 0]}>
+              <boxGeometry args={[0.5, 0.003, 8.0]} />
+              <meshBasicMaterial color="#ffffff" />
+            </mesh>
+          ))}
+        </group>
+      </group>
+
+      {/* South-West Gate Checkpoint (КПП Парковки общежития и автоматический шлагбаум) */}
+      <group position={[-25.0, 0, 181.8]} rotation={[0, -0.25, 0]}>
+        {/* Guard booth */}
+        <mesh position={[2.0, 1.4, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.4, 2.8, 2.4]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.8} />
+        </mesh>
+        <mesh position={[2.0, 2.9, 0]} castShadow>
+          <boxGeometry args={[2.8, 0.25, 2.8]} />
+          <meshStandardMaterial color="#78350f" roughness={0.6} />
+        </mesh>
+        {/* Automatic barrier pedestal & boom arm spanning the gate */}
+        <mesh position={[-0.8, 0.5, 0]}>
+          <cylinderGeometry args={[0.08, 0.1, 0.9, 8]} />
+          <meshStandardMaterial color="#ea580c" />
+        </mesh>
+        <mesh position={[-3.7, 0.85, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.04, 0.04, 5.8, 8]} />
+          <meshStandardMaterial color="#ffffff" />
+        </mesh>
+      </group>
+
+      {/* East fence segment 1 (North of gate): from top to gate entrance */}
       <FenceSegment
         axis="z"
         length={Math.max(1, gateZ - gateWidth / 2 - top)}
-        position={[right, 0, (top + gateZ - gateWidth / 2) / 2]}
+        position={[rightGate, 0, (top + gateZ - gateWidth / 2) / 2]}
         plinthHeight={plinthHeight}
         metalHeight={metalHeight}
         plinthMaterial={plinthMaterial}
         fenceTexture={fenceTexture}
       />
 
-      {/* East fence (bottom segment after gate) */}
+      {/* East fence segment 2 (South of gate to Block B start): from gate to Z=50.0m */}
       <FenceSegment
         axis="z"
-        length={Math.max(1, bottom - (gateZ + gateWidth / 2))}
-        position={[right, 0, (bottom + gateZ + gateWidth / 2) / 2]}
+        length={Math.max(1, bldBZStart - (gateZ + gateWidth / 2))}
+        position={[rightGate, 0, (bldBZStart + gateZ + gateWidth / 2) / 2]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* Fence jog transition into Block B setback at Z=50.0m (from X=104.0 to X=101.45) */}
+      <FenceSegment
+        axis="x"
+        length={Math.abs(rightGate - rightBlockB)}
+        position={[(rightGate + rightBlockB) / 2, 0, bldBZStart]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* East fence segment 3 (Opposite Block B): exactly 5.0m from Block B east wall (X=101.45m) */}
+      <FenceSegment
+        axis="z"
+        length={bldBZEnd - bldBZStart}
+        position={[rightBlockB, 0, (bldBZStart + bldBZEnd) / 2]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* Fence jog transition from Block B to Block C at Z=74.0m (from X=101.45 to X=104.15) */}
+      <FenceSegment
+        axis="x"
+        length={Math.abs(rightBlockC - rightBlockB)}
+        position={[(rightBlockC + rightBlockB) / 2, 0, bldBZEnd]}
+        plinthHeight={plinthHeight}
+        metalHeight={metalHeight}
+        plinthMaterial={plinthMaterial}
+        fenceTexture={fenceTexture}
+      />
+
+      {/* East fence segment 4 (Opposite Block C): exactly 20.0m from Block C east wall (X=104.15m) */}
+      <FenceSegment
+        axis="z"
+        length={Math.max(1, bottom - bldBZEnd)}
+        position={[rightBlockC, 0, (bottom + bldBZEnd) / 2]}
         plinthHeight={plinthHeight}
         metalHeight={metalHeight}
         plinthMaterial={plinthMaterial}
@@ -189,13 +382,19 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
 
       {/* Main Campus Entrance & Checkpoint Ensemble (КПП AUT, Стела, Павильон, Баннер) */}
       <MainEntranceGate
-        position={[right, 0, gateZ]}
+        position={[rightGate, 0, gateZ]}
         rotation={[0, Math.PI / 2, 0]}
       />
 
-      {/* Landmark Art-Object "I ♥ AJOU" immediately past the entrance roadway (Лист 3, М 1:25) */}
+      {/* Main Entrance Driveway Threshold at Perimeter Gate */}
+      <mesh position={[101.5, 0.03, gateZ]} receiveShadow>
+        <boxGeometry args={[5.0, 0.02, 12.0]} />
+        <meshStandardMaterial color="#334155" roughness={0.85} />
+      </mesh>
+
+      {/* Landmark Art-Object "I ♥ AJOU" on entrance plaza lawn (Requirements E & F) */}
       <AjouArtObject
-        position={[106.5, 0, gateZ]}
+        position={[artX, 0, artZ]}
         rotation={[0, Math.PI / 2, 0]}
       />
     </group>
@@ -210,6 +409,48 @@ type ContextTuning = {
   pitchColor?: string;
   courtColor?: string;
 };
+
+function SecurityCheckpointBooth({ footprint }: { footprint: Footprint }) {
+  const { center, size } =
+    footprint.type === 'rect'
+      ? footprint
+      : { center: [0, 0] as [number, number], size: [6, 4] as [number, number] };
+  const w = size[0];
+  const d = size[1];
+  return (
+    <group position={[center[0], 0, center[1]]}>
+      {/* Concrete foundation plinth */}
+      <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w, 0.3, d]} />
+        <meshStandardMaterial color="#475569" roughness={0.9} />
+      </mesh>
+      {/* Booth Wall Body */}
+      <mesh position={[0, 1.65, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w - 0.4, 2.7, d - 0.4]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.8} />
+      </mesh>
+      {/* Inspection Ribbon Windows */}
+      <mesh position={[0, 1.8, 0]} castShadow>
+        <boxGeometry args={[w - 0.3, 1.1, d - 0.3]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.1} />
+      </mesh>
+      {/* Overhanging Canopy Roof with Fascia */}
+      <mesh position={[0, 3.15, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w + 1.0, 0.35, d + 1.0]} />
+        <meshStandardMaterial color="#94a3b8" roughness={0.6} metalness={0.2} />
+      </mesh>
+      {/* Security Barrier Boom Arm */}
+      <mesh position={[w / 2 + 0.3, 0.5, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.08, 0.1, 1.0, 8]} />
+        <meshStandardMaterial color="#ea580c" roughness={0.4} />
+      </mesh>
+      <mesh position={[w / 2 + 0.3 + 1.8, 0.9, 0]}>
+        <boxGeometry args={[3.6, 0.08, 0.08]} />
+        <meshStandardMaterial color="#ffffff" roughness={0.3} />
+      </mesh>
+    </group>
+  );
+}
 
 /**
  * Ground terrain base, perimeter enclosures, and landscape surfaces (roads, turf, courts, paths).
@@ -250,28 +491,38 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
         <meshStandardMaterial color={tuning?.groundColor ?? '#cbd5e1'} roughness={0.95} />
       </mesh>
 
-      {/* Perimeter fence and gate */}
+      {/* Perimeter fence, Main Entrance checkpoint, 20m internal road, Art-object, and Fountain */}
       <PerimeterFenceAndGate geometry={geometry} />
 
-      {/* Grand Architectural Campus Fountain replacing the green sports pitch (shifted 50m further from East Main Entrance) */}
+      {/* Photovoltaic Solar Canopies & Dormitory Parking Ensemble */}
+      <SolarCanopies />
+
+      {/* Pedestrian Walkways, Stone Plazas, Curbs, and Zebra Crossings */}
+      <CampusWalkways />
+
+      {/* Real-World Sports Facilities (Soccer pitch lines/goals, basketball court lines/hoops, tennis court, stadium bleachers) */}
+      <SportsFacilities />
+
+      {/* Grand Campus Fountain: calibrated to blue box markup (X in [-23, +34], Z = -23.1) */}
       <CampusFountain
-        scale={FOUNTAIN_DIMENSIONS.defaultScale}
-        position={
-          (() => {
-            const pitchFeature = geometry.context.find((f) => f.id === 'pitch');
-            if (pitchFeature && pitchFeature.footprint.type === 'rect') {
-              return [pitchFeature.footprint.center[0] - 50.0, 0, pitchFeature.footprint.center[1]];
-            }
-            return [-2.45, 0, 15.9];
-          })()
-        }
+        scale={1.0}
+        position={[5.5, 0, -23.1]}
       />
+
+      {/* Campus Outdoor Infrastructure & Site Furniture (LED Street lights, floodlights, benches, bins, bike racks, totem) */}
+      <SiteFurniture />
 
       {/* Context landscape layers (roads, lawns, sports tracks, pitches) */}
       {geometry.context.map((f) => {
-        if (f.id === 'kpp-e') return null;
-        if (f.id === 'pitch') return null; // Replaced by CampusFountain
+        if (f.id === 'kpp-e' || f.id === 'kpp-sw') return null;
+        if (f.id === 'court' || f.id === 'court-tennis' || f.id === 'pitch') return null; // Rendered via dedicated SportsFacilities & TennisCourt
+        if (f.id.startsWith('solar-canopy-') || f.id === 'solar-canopy-1' || f.id === 'solar-canopy-2') return null; // Rendered via dedicated 3D SolarCanopies
+        if (f.id.startsWith('dorm-garage-') || f.id.startsWith('dorm-shed-') || f.id.startsWith('dorm-booth-')) return null; // Rendered via dedicated 3D SolarCanopies
+        if (f.id === 'road-entrance-main') return null; // Rendered via dedicated 20m entrance road in PerimeterFenceAndGate
         if (f.id === 'out-plaza-mvijfubr') return null; // Rendered as full 3D architectural AmphitheaterHall in Campus.tsx
+        if (f.id.startsWith('kpp-')) {
+          return <SecurityCheckpointBooth key={f.id} footprint={f.footprint} />;
+        }
         return f.kind === 'structure' ? (
           <ExtrudedFootprint
             key={f.id}

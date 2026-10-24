@@ -63,17 +63,13 @@ export function Minimap({
       size / 2 + (wz - centerZ) * scale,
     ];
 
-    const pitchFeature = geometry.context.find((f) => f.id === 'pitch');
-    const fountainX =
-      pitchFeature && pitchFeature.footprint.type === 'rect'
-        ? pitchFeature.footprint.center[0] - 50.0
-        : -2.45;
-    const fountainZ =
-      pitchFeature && pitchFeature.footprint.type === 'rect'
-        ? pitchFeature.footprint.center[1]
-        : 15.9;
-    const fLen = FOUNTAIN_DIMENSIONS.outerLength * FOUNTAIN_DIMENSIONS.defaultScale * scale;
-    const fWid = FOUNTAIN_DIMENSIONS.outerWidth * FOUNTAIN_DIMENSIONS.defaultScale * scale;
+    const kppFeature = geometry.context.find((f) => f.id === 'kpp-e');
+    const gateZ = kppFeature && kppFeature.footprint.type === 'rect' ? kppFeature.footprint.center[1] : -23.1;
+    const fountainX = 0.0;
+    const fountainZ = -23.1;
+    const fScale = 0.45;
+    const fLen = FOUNTAIN_DIMENSIONS.outerLength * fScale * scale;
+    const fWid = FOUNTAIN_DIMENSIONS.outerWidth * fScale * scale;
 
     const draw = (now: number) => {
       animId = requestAnimationFrame(draw);

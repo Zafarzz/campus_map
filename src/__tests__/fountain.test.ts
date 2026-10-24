@@ -61,24 +61,33 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
     expect(FOUNTAIN_MATERIALS.plazaPaving.toUpperCase()).toBe('#E2DFD7');
   });
 
-  it('verifies spatial positioning shifted 50m further from the East Main Entrance', () => {
+  it('verifies spatial positioning on central lawn north of Sports Complex and Pitch per 2D reference', () => {
     const campusGeom = geometryProvider.build(demoCampus);
     const pitch = campusGeom.context.find((f) => f.id === 'pitch');
     const court = campusGeom.context.find((f) => f.id === 'court');
+    const lawnG1 = campusGeom.context.find((f) => f.id === 'lawn-g1');
     const kppE = campusGeom.context.find((f) => f.id === 'kpp-e');
 
     expect(pitch).toBeDefined();
     expect(court).toBeDefined();
+    expect(lawnG1).toBeDefined();
     expect(kppE).toBeDefined();
 
-    if (pitch?.footprint.type === 'rect' && kppE?.footprint.type === 'rect') {
+    if (pitch?.footprint.type === 'rect') {
       const [w, d] = pitch.footprint.size;
-      expect(w).toBe(30.0);
+      expect(w).toBe(22.5);
       expect(d).toBe(51.0);
+    }
 
-      const fountainX = pitch.footprint.center[0] - 50.0;
-      expect(fountainX).toBeCloseTo(-2.45, 2);
-      expect(kppE.footprint.center[0] - fountainX).toBeCloseTo(113.0, 1);
+    // Fountain is centered on lawn-g1 at worldX ≈ 0.0m, worldZ = -23.1m
+    const fountainX = 0.0;
+    const fountainZ = -23.1;
+    if (lawnG1?.footprint.type === 'rect') {
+      const [lw, ld] = lawnG1.footprint.size;
+      const [lcx, lcz] = lawnG1.footprint.center;
+      expect(fountainZ).toBeCloseTo(lcz, 1);
+      expect(fountainX).toBeGreaterThan(lcx - lw / 2);
+      expect(fountainX).toBeLessThan(lcx + lw / 2);
     }
   });
 

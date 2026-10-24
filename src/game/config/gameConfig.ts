@@ -91,8 +91,8 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'entrance',
     label: '🏛️ Main Entrance & "I ♥ AJOU"',
-    position: [85, 2.2, 15.9],
-    yaw: Math.PI / 2,
+    position: [92, 2.2, -23.1],
+    yaw: -Math.PI / 2,
   },
   {
     id: 'f101-library',
@@ -103,8 +103,8 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   },
   {
     id: 'fountain-bridge',
-    label: '⛲ Grand Fountain Bridge',
-    position: [10.375, 2.2, 34.5],
+    label: '⛲ Grand Fountain Plaza',
+    position: [0.0, 1.8, -13.5],
     yaw: 0,
   },
   {
@@ -135,14 +135,14 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'bld-a',
     label: '🏢 North Building (Block N)',
-    position: [4.0, 2.2, -90.0],
+    position: [-14.0, 2.2, -104.0],
     yaw: 0,
   },
   {
     id: 'bld-j',
     label: '🏠 Dormitory Courtyard',
-    position: [-48.5, 2.2, 106.0],
-    yaw: Math.PI,
+    position: [-55.5, 2.2, 108.9],
+    yaw: 0,
   },
 ];
 

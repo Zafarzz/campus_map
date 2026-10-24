@@ -49,6 +49,9 @@ export function CameraController({ geometry, selection }: Props) {
   useEffect(() => {
     const c = controls.current;
     if (!c) return;
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __cameraControls?: unknown }).__cameraControls = c;
+    }
     const [pos, target] = framing(geometry, { buildingId, floorId, roomId });
     void c.setLookAt(...pos, ...target, true);
   }, [geometry, buildingId, floorId, roomId]);
