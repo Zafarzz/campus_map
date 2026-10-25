@@ -397,12 +397,21 @@ export function FountainWaterAnimation() {
     elapsedRef.current += dt;
     const time = elapsedRef.current;
 
-    // Проверка дистанции камеры: на больших удалениях снижаем частоту обновления
+    // Проверка дистанции камеры: адаптивное ступенчатое дросселирование симуляции
+    frameCountRef.current++;
     points.getWorldPosition(worldPosRef.current);
     const camDistSq = camera.position.distanceToSquared(worldPosRef.current);
+
     if (camDistSq > WATER_ANIM_CONFIG.distanceThrottlingSq) {
-      frameCountRef.current++;
       if (frameCountRef.current % 4 !== 0) return;
+    } else if (camDistSq > 6400) { // > 80 м
+      if (frameCountRef.current % 3 !== 0) return;
+    } else if (camDistSq > 1600) { // > 40 м
+      if (frameCountRef.current % 2 !== 0) return;
+    } else {
+      // Вблизи (< 40 м): частота обновления 30 Гц (через кадр) визуально неотличима
+      // от 60 Гц для водных брызг, но снижает нагрузку на CPU и шину GPU в 2 раза
+      if (frameCountRef.current % 2 !== 0) return;
     }
 
     const {

@@ -3,13 +3,13 @@ import * as THREE from 'three';
 import { getSportsMeshTexture } from './facades/facadeTextures';
 
 /**
- * 3D Sports Perimeter Mesh Fence Enclosure (сетчатые стены высотой 4.8м)
- * Real-world sports ball-stop chain-link mesh fencing with steel tubular posts and rails.
+ * 3D Sports Perimeter Mesh Fence Enclosure (сетчатые стены высотой 5.8м)
+ * Real-world sports ball-stop chain-link mesh fencing with steel tubular posts and tension rails.
  */
 function SportsMeshEnclosure({
   width,
   depth,
-  height = 4.8,
+  height = 5.8,
 }: {
   width: number;
   depth: number;
@@ -21,7 +21,7 @@ function SportsMeshEnclosure({
       const cloned = tex.clone();
       cloned.wrapS = THREE.RepeatWrapping;
       cloned.wrapT = THREE.RepeatWrapping;
-      cloned.repeat.set(Math.max(1, width / 2.5), Math.max(1, height / 2.0));
+      cloned.repeat.set(Math.max(1, width / 1.4), Math.max(1, height / 1.2));
       return cloned;
     }
     return null;
@@ -68,6 +68,8 @@ function SportsMeshEnclosure({
     return list;
   }, [width, depth]);
 
+  const midY = height / 2;
+
   return (
     <group position={[0, 0, 0]}>
       {/* Vertical tubular posts */}
@@ -77,7 +79,7 @@ function SportsMeshEnclosure({
         </mesh>
       ))}
 
-      {/* Top Rail */}
+      {/* Top Rail at height (5.8m) */}
       <mesh position={[0, height, -depth / 2]} rotation={[0, 0, Math.PI / 2]} material={railMat}>
         <cylinderGeometry args={[0.035, 0.035, width, 8]} />
       </mesh>
@@ -91,17 +93,17 @@ function SportsMeshEnclosure({
         <cylinderGeometry args={[0.035, 0.035, depth, 8]} />
       </mesh>
 
-      {/* Mid Tension Rail at 2.4m */}
-      <mesh position={[0, height / 2, -depth / 2]} rotation={[0, 0, Math.PI / 2]} material={railMat}>
+      {/* Mid Tension Rail at height / 2 (2.9m) */}
+      <mesh position={[0, midY, -depth / 2]} rotation={[0, 0, Math.PI / 2]} material={railMat}>
         <cylinderGeometry args={[0.02, 0.02, width, 8]} />
       </mesh>
-      <mesh position={[0, height / 2, depth / 2]} rotation={[0, 0, Math.PI / 2]} material={railMat}>
+      <mesh position={[0, midY, depth / 2]} rotation={[0, 0, Math.PI / 2]} material={railMat}>
         <cylinderGeometry args={[0.02, 0.02, width, 8]} />
       </mesh>
-      <mesh position={[-width / 2, height / 2, 0]} rotation={[Math.PI / 2, 0, 0]} material={railMat}>
+      <mesh position={[-width / 2, midY, 0]} rotation={[Math.PI / 2, 0, 0]} material={railMat}>
         <cylinderGeometry args={[0.02, 0.02, depth, 8]} />
       </mesh>
-      <mesh position={[width / 2, height / 2, 0]} rotation={[Math.PI / 2, 0, 0]} material={railMat}>
+      <mesh position={[width / 2, midY, 0]} rotation={[Math.PI / 2, 0, 0]} material={railMat}>
         <cylinderGeometry args={[0.02, 0.02, depth, 8]} />
       </mesh>
 
@@ -128,14 +130,16 @@ function SportsMeshEnclosure({
 function SoccerGoal({
   position,
   rotationY,
+  goalWidth = 5.0,
+  goalHeight = 2.1,
+  goalDepth = 1.6,
 }: {
   position: [number, number, number];
   rotationY: number;
+  goalWidth?: number;
+  goalHeight?: number;
+  goalDepth?: number;
 }) {
-  const goalWidth = 5.0;
-  const goalHeight = 2.1;
-  const goalDepth = 1.6;
-
   const postMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -227,6 +231,7 @@ function SoccerGoal({
     </group>
   );
 }
+
 
 /**
  * 3D Regulation Basketball Hoop with steel cantilever post, glass backboard, red rim, and net.
@@ -324,85 +329,6 @@ function BasketballHoop({
   );
 }
 
-/**
- * 3D Tiered Spectator Bleachers for Athletics Stadium.
- */
-function SpectatorBleachers({
-  position,
-  rotationY,
-}: {
-  position: [number, number, number];
-  rotationY: number;
-}) {
-  const steelMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#475569',
-        roughness: 0.5,
-        metalness: 0.7,
-      }),
-    [],
-  );
-
-  const plankMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#cbd5e1', // Anodized aluminum bench planks
-        roughness: 0.35,
-        metalness: 0.8,
-      }),
-    [],
-  );
-
-  const bleacherLength = 32.0;
-  const tiers = [
-    { y: 0.45, z: 0.0 },
-    { y: 0.85, z: -0.7 },
-    { y: 1.25, z: -1.4 },
-    { y: 1.65, z: -2.1 },
-    { y: 2.05, z: -2.8 },
-  ];
-
-  return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      {/* Concrete base pad */}
-      <mesh position={[0, 0.1, -1.4]} material={steelMat} receiveShadow>
-        <boxGeometry args={[bleacherLength + 1.0, 0.2, 3.6]} />
-      </mesh>
-
-      {/* Tiers of aluminum bench seating */}
-      {tiers.map((t, idx) => (
-        <group key={`tier-${idx}`}>
-          {/* Seat plank */}
-          <mesh position={[0, t.y, t.z]} material={plankMat} castShadow receiveShadow>
-            <boxGeometry args={[bleacherLength, 0.06, 0.32]} />
-          </mesh>
-          {/* Footboard */}
-          <mesh position={[0, t.y - 0.22, t.z + 0.32]} material={plankMat} receiveShadow>
-            <boxGeometry args={[bleacherLength, 0.05, 0.36]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Rear Safety Guardrail */}
-      <mesh position={[0, 2.9, -3.1]} material={steelMat}>
-        <boxGeometry args={[bleacherLength, 0.06, 0.06]} />
-      </mesh>
-      <mesh position={[0, 2.45, -3.1]} material={steelMat}>
-        <boxGeometry args={[bleacherLength, 0.05, 0.05]} />
-      </mesh>
-      {/* Stanchions along rear rail */}
-      {Array.from({ length: 9 }).map((_, rIdx) => {
-        const rx = -bleacherLength / 2 + (rIdx * bleacherLength) / 8;
-        return (
-          <mesh key={`rail-post-${rIdx}`} position={[rx, 2.5, -3.1]} material={steelMat}>
-            <cylinderGeometry args={[0.03, 0.03, 0.9, 8]} />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
 
 /**
  * Complete Real-World Sports Facilities Ensembles:
@@ -459,9 +385,16 @@ export function SportsFacilities() {
   const courtW = 31.0; // Playable court width (leaves 2.5m green border on sides)
   const courtD = 42.0; // Playable court length
 
-  // Athletics Stadium: center X = -63.45, Z = -78.6, size = 63.0 x 114.0
-  const stadiumX = -63.45;
+  // Grand Football Stadium: shifted West clear of North Building (Dormitory)
+  // bld-a wall is at X = -45.45. With stadiumX = -77.0 and stadiumW = 54.0,
+  // stadium East edge is at X = -50.0 (4.55m clearance), perfectly aligning
+  // with approach walkway from the central campus avenue.
+  const stadiumX = -77.0;
   const stadiumZ = -78.6;
+  const stadiumW = 54.0;
+  const stadiumD = 104.0;
+  const stadiumPitchW = 48.0;
+  const stadiumPitchD = 96.0;
 
   return (
     <group>
@@ -561,8 +494,8 @@ export function SportsFacilities() {
           </group>
         ))}
 
-        {/* 4.8m High Sports Perimeter Ball-Stop Mesh Fence (Сетчатое ограждение) */}
-        <SportsMeshEnclosure width={pitchW + 0.6} depth={pitchD + 0.6} height={4.8} />
+        {/* 5.8m High Sports Perimeter Ball-Stop Mesh Fence (Сетчатое ограждение +1м) */}
+        <SportsMeshEnclosure width={pitchW + 0.6} depth={pitchD + 0.6} height={5.8} />
       </group>
 
       {/* ========================================================
@@ -667,32 +600,177 @@ export function SportsFacilities() {
         <BasketballHoop position={[0, 0, -courtD / 2 - 0.2]} rotationY={0} />
         <BasketballHoop position={[0, 0, courtD / 2 + 0.2]} rotationY={Math.PI} />
 
-        {/* 4.8m High Sports Perimeter Ball-Stop Mesh Fence (Сетчатое ограждение) */}
-        <SportsMeshEnclosure width={apronW + 0.2} depth={apronD + 0.2} height={4.8} />
+        {/* 5.8m High Sports Perimeter Ball-Stop Mesh Fence (Сетчатое ограждение +1м) */}
+        <SportsMeshEnclosure width={apronW + 0.2} depth={apronD + 0.2} height={5.8} />
       </group>
 
       {/* ========================================================
-          4. ATHLETICS STADIUM (Inner Turf Field & 3D Bleachers)
+          3. REGULATION GRAND FOOTBALL STADIUM (Striped Pitch, FIFA Lines, 3D Goals, Dugouts, Bleachers)
          ======================================================== */}
-      <group position={[stadiumX, 0.075, stadiumZ]}>
-        {/* Inner Natural Grass Pitch */}
-        <mesh position={[0, 0.005, 0]} receiveShadow>
-          <boxGeometry args={[26.0, 0.015, 64.0]} />
-          <meshStandardMaterial color="#16a34a" roughness={0.85} />
+      <group position={[stadiumX, 0.08, stadiumZ]}>
+        {/* Outer Buffer & Safety Runoff Lawn (63m x 114m) */}
+        <mesh position={[0, -0.015, 0]} receiveShadow>
+          <boxGeometry args={[stadiumW, 0.02, stadiumD]} />
+          <meshStandardMaterial color="#166534" roughness={0.88} />
         </mesh>
 
-        {/* Inner Pitch Lines */}
-        <mesh position={[0, 0.015, 0]}>
-          <boxGeometry args={[26.0, 0.002, 0.1]} />
+        {/* 10 Alternating Professional Mower Cut Grass Pitch Stripes */}
+        {Array.from({ length: 10 }).map((_, sIdx) => {
+          const stripeLen = stadiumPitchD / 10;
+          const sz = -stadiumPitchD / 2 + (sIdx + 0.5) * stripeLen;
+          const stripeColor = sIdx % 2 === 0 ? '#15803d' : '#16a34a';
+          return (
+            <mesh key={`stadium-stripe-${sIdx}`} position={[0, -0.005, sz]} receiveShadow>
+              <boxGeometry args={[stadiumPitchW, 0.02, stripeLen]} />
+              <meshStandardMaterial color={stripeColor} roughness={0.82} />
+            </mesh>
+          );
+        })}
+
+        {/* Pitch Perimeter Lines */}
+        {/* Left Touchline */}
+        <mesh position={[-stadiumPitchW / 2 + 0.5, 0.006, 0]}>
+          <boxGeometry args={[0.12, 0.002, stadiumPitchD - 1.0]} />
           <primitive object={lineMat} attach="material" />
         </mesh>
-        <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[3.95, 4.05, 32]} />
+        {/* Right Touchline */}
+        <mesh position={[stadiumPitchW / 2 - 0.5, 0.006, 0]}>
+          <boxGeometry args={[0.12, 0.002, stadiumPitchD - 1.0]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        {/* Top (North) Goal Line */}
+        <mesh position={[0, 0.006, -stadiumPitchD / 2 + 0.5]}>
+          <boxGeometry args={[stadiumPitchW - 1.0, 0.002, 0.12]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        {/* Bottom (South) Goal Line */}
+        <mesh position={[0, 0.006, stadiumPitchD / 2 - 0.5]}>
+          <boxGeometry args={[stadiumPitchW - 1.0, 0.002, 0.12]} />
           <primitive object={lineMat} attach="material" />
         </mesh>
 
-        {/* 3D Spectator Bleachers along the West Straightaway */}
-        <SpectatorBleachers position={[-28.0, 0, 0]} rotationY={Math.PI / 2} />
+        {/* Halfway Line */}
+        <mesh position={[0, 0.006, 0]}>
+          <boxGeometry args={[stadiumPitchW - 1.0, 0.002, 0.12]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        {/* Center Circle (Radius 9.15m) */}
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[9.09, 9.21, 64]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        {/* Center Spot */}
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.22, 16]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* North Penalty Area (34.0m x 15.0m) */}
+        <mesh position={[0, 0.006, -stadiumPitchD / 2 + 15.0]}>
+          <boxGeometry args={[34.0, 0.002, 0.12]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[-17.0, 0.006, -stadiumPitchD / 2 + 7.5]}>
+          <boxGeometry args={[0.12, 0.002, 15.0]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[17.0, 0.006, -stadiumPitchD / 2 + 7.5]}>
+          <boxGeometry args={[0.12, 0.002, 15.0]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* North Goal Area (16.5m x 5.5m) */}
+        <mesh position={[0, 0.006, -stadiumPitchD / 2 + 5.5]}>
+          <boxGeometry args={[16.5, 0.002, 0.12]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[-8.25, 0.006, -stadiumPitchD / 2 + 2.75]}>
+          <boxGeometry args={[0.12, 0.002, 5.5]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[8.25, 0.006, -stadiumPitchD / 2 + 2.75]}>
+          <boxGeometry args={[0.12, 0.002, 5.5]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* North Penalty Spot at 11.0m */}
+        <mesh position={[0, 0.006, -stadiumPitchD / 2 + 11.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.2, 16]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        {/* North Penalty Arc ('D') */}
+        <mesh position={[0, 0.006, -stadiumPitchD / 2 + 11.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[9.09, 9.21, 32, 1, Math.PI * 0.28, Math.PI * 0.44]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* South Penalty Area (34.0m x 15.0m) */}
+        <mesh position={[0, 0.006, stadiumPitchD / 2 - 15.0]}>
+          <boxGeometry args={[34.0, 0.002, 0.12]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[-17.0, 0.006, stadiumPitchD / 2 - 7.5]}>
+          <boxGeometry args={[0.12, 0.002, 15.0]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[17.0, 0.006, stadiumPitchD / 2 - 7.5]}>
+          <boxGeometry args={[0.12, 0.002, 15.0]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* South Goal Area (16.5m x 5.5m) */}
+        <mesh position={[0, 0.006, stadiumPitchD / 2 - 5.5]}>
+          <boxGeometry args={[16.5, 0.002, 0.12]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[-8.25, 0.006, stadiumPitchD / 2 - 2.75]}>
+          <boxGeometry args={[0.12, 0.002, 5.5]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        <mesh position={[8.25, 0.006, stadiumPitchD / 2 - 2.75]}>
+          <boxGeometry args={[0.12, 0.002, 5.5]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* South Penalty Spot at 11.0m */}
+        <mesh position={[0, 0.006, stadiumPitchD / 2 - 11.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.2, 16]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+        {/* South Penalty Arc ('D') */}
+        <mesh position={[0, 0.006, stadiumPitchD / 2 - 11.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[9.09, 9.21, 32, 1, Math.PI * 1.28, Math.PI * 0.44]} />
+          <primitive object={lineMat} attach="material" />
+        </mesh>
+
+        {/* Corner Arcs (Radius 1.0m) */}
+        {[
+          [-stadiumPitchW / 2 + 0.5, -stadiumPitchD / 2 + 0.5, 0],
+          [stadiumPitchW / 2 - 0.5, -stadiumPitchD / 2 + 0.5, Math.PI / 2],
+          [stadiumPitchW / 2 - 0.5, stadiumPitchD / 2 - 0.5, Math.PI],
+          [-stadiumPitchW / 2 + 0.5, stadiumPitchD / 2 - 0.5, -Math.PI / 2],
+        ].map(([cx, cz, rot], idx) => (
+          <mesh key={`stadium-corner-arc-${idx}`} position={[cx, 0.006, cz]} rotation={[-Math.PI / 2, 0, rot]}>
+            <ringGeometry args={[0.94, 1.06, 16, 1, 0, Math.PI / 2]} />
+            <primitive object={lineMat} attach="material" />
+          </mesh>
+        ))}
+
+        {/* 3D Full Regulation Soccer Goals (7.32m x 2.44m x 2.0m) */}
+        <SoccerGoal
+          position={[0, 0, -stadiumPitchD / 2 + 0.5]}
+          rotationY={0}
+          goalWidth={7.32}
+          goalHeight={2.44}
+          goalDepth={2.0}
+        />
+        <SoccerGoal
+          position={[0, 0, stadiumPitchD / 2 - 0.5]}
+          rotationY={Math.PI}
+          goalWidth={7.32}
+          goalHeight={2.44}
+          goalDepth={2.0}
+        />
       </group>
     </group>
   );

@@ -241,11 +241,11 @@ export function AmphitheaterHall({
   const glassMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#93c5fd',
-        roughness: 0.1,
-        metalness: 0.1,
+        color: '#1e293b',
+        roughness: 0.12,
+        metalness: 0.75,
         transparent: true,
-        opacity: 0.35,
+        opacity: 0.55,
         side: THREE.DoubleSide,
       }),
     [],

@@ -82,7 +82,7 @@ export type ContextFeaturePx = {
 };
 
 export const contextFeaturesPx: ContextFeaturePx[] = [
-  { id: 'track', kind: 'track', rect: [35, 60, 245, 440], rounded: true, label: 'Беговая дорожка' },
+  { id: 'track', kind: 'track', rect: [5, 76, 185, 424], rounded: true, label: 'Беговая дорожка' },
   { id: 'pitch', kind: 'pitch', rect: [390, 480, 465, 650], label: 'Футбольное поле' },
   // Multi-Sport Court aligned with Sports Complex and Football Pitch (extended West per orange user markup)
   { id: 'court', kind: 'court', rect: [477, 480, 597, 650], label: 'Спортивная площадка' },

@@ -12,13 +12,18 @@ import { SolarCanopies } from './SolarCanopies';
 import { CampusWalkways } from './CampusWalkways';
 import { SportsFacilities } from './SportsFacilities';
 import { SiteFurniture } from './SiteFurniture';
+import {
+  getAsphaltRoadTextures,
+  getLushGrassTextures,
+  getPromenadePavingTextures,
+} from './materials/pbrMaterials';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
-  road: 0.03,
-  lawn: 0.05,
+  road: 0.015,
+  lawn: 0.055,
   track: 0.07,
-  pitch: 0.09,
-  court: 0.09,
+  pitch: 0.08,
+  court: 0.08,
   structure: 0,
 };
 
@@ -63,6 +68,9 @@ function FenceSegment({
     cloned.wrapS = THREE.RepeatWrapping;
     cloned.wrapT = THREE.ClampToEdgeWrapping;
     cloned.repeat.set(repeatCount, 1);
+    cloned.generateMipmaps = true;
+    cloned.minFilter = THREE.LinearMipmapLinearFilter;
+    cloned.magFilter = THREE.LinearFilter;
     cloned.needsUpdate = true;
     return new THREE.MeshStandardMaterial({
       map: cloned,
@@ -77,8 +85,6 @@ function FenceSegment({
 
   const plinthW = axis === 'z' ? 0.35 : length;
   const plinthD = axis === 'z' ? length : 0.35;
-  const metalW = axis === 'z' ? 0.05 : length;
-  const metalD = axis === 'z' ? length : 0.05;
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
@@ -86,9 +92,14 @@ function FenceSegment({
       <mesh position={[0, plinthHeight / 2, 0]} material={plinthMaterial} receiveShadow castShadow>
         <boxGeometry args={[plinthW, plinthHeight, plinthD]} />
       </mesh>
-      {/* See-through Metal Grille with Pickets, Diamonds & Spear tips */}
-      <mesh position={[0, plinthHeight + metalHeight / 2, 0]} material={metalMat} castShadow>
-        <boxGeometry args={[metalW, metalHeight, metalD]} />
+      {/* See-through Metal Grille with Pickets, Diamonds & Spear tips (single plane to eliminate moire) */}
+      <mesh
+        position={[0, plinthHeight + metalHeight / 2, 0]}
+        rotation={axis === 'z' ? [0, Math.PI / 2, 0] : [0, 0, 0]}
+        material={metalMat}
+        castShadow
+      >
+        <planeGeometry args={[length, metalHeight]} />
       </mesh>
     </group>
   );
@@ -408,6 +419,7 @@ type ContextTuning = {
   trackColor?: string;
   pitchColor?: string;
   courtColor?: string;
+  pbrTexturesEnabled?: boolean;
 };
 
 function SecurityCheckpointBooth({ footprint }: { footprint: Footprint }) {
@@ -460,6 +472,11 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
   const margin = 120;
   const width = max[0] - min[0] + margin * 2;
   const depth = max[1] - min[1] + margin * 2;
+  const usePbr = tuning?.pbrTexturesEnabled !== false;
+
+  const pavingPbr = useMemo(() => (usePbr ? getPromenadePavingTextures() : null), [usePbr]);
+  const asphaltPbr = useMemo(() => (usePbr ? getAsphaltRoadTextures() : null), [usePbr]);
+  const grassPbr = useMemo(() => (usePbr ? getLushGrassTextures() : null), [usePbr]);
 
   const groundCenter: [number, number, number] = [
     (min[0] + max[0]) / 2,
@@ -480,7 +497,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
 
   return (
     <group>
-      {/* Base ground terrain (warm light pavement / soil) */}
+      {/* Base ground terrain (warm light pavement / soil with PBR detail) */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={groundCenter}
@@ -488,7 +505,18 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
         raycast={() => null}
       >
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color={tuning?.groundColor ?? '#cbd5e1'} roughness={0.95} />
+        <meshStandardMaterial
+          color={tuning?.groundColor ?? '#d8d4cc'}
+          map={pavingPbr?.map ?? null}
+          normalMap={pavingPbr?.normalMap ?? null}
+          normalScale={[0.08, 0.08]}
+          roughnessMap={pavingPbr?.roughnessMap ?? null}
+          roughness={0.88}
+          metalness={0.02}
+          polygonOffset={true}
+          polygonOffsetFactor={3}
+          polygonOffsetUnits={3}
+        />
       </mesh>
 
       {/* Perimeter fence, Main Entrance checkpoint, 20m internal road, Art-object, and Fountain */}
@@ -515,7 +543,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       {/* Context landscape layers (roads, lawns, sports tracks, pitches) */}
       {geometry.context.map((f) => {
         if (f.id === 'kpp-e' || f.id === 'kpp-sw') return null;
-        if (f.id === 'court' || f.id === 'court-tennis' || f.id === 'pitch') return null; // Rendered via dedicated SportsFacilities & TennisCourt
+        if (f.id === 'court' || f.id === 'court-tennis' || f.id === 'pitch' || f.id === 'track' || f.id === 'lawn-n') return null; // Rendered via dedicated SportsFacilities & TennisCourt
         if (f.id.startsWith('solar-canopy-') || f.id === 'solar-canopy-1' || f.id === 'solar-canopy-2') return null; // Rendered via dedicated 3D SolarCanopies
         if (f.id.startsWith('dorm-garage-') || f.id.startsWith('dorm-shed-') || f.id.startsWith('dorm-booth-')) return null; // Rendered via dedicated 3D SolarCanopies
         if (f.id === 'road-entrance-main') return null; // Rendered via dedicated 20m entrance road in PerimeterFenceAndGate
@@ -523,25 +551,39 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
         if (f.id.startsWith('kpp-')) {
           return <SecurityCheckpointBooth key={f.id} footprint={f.footprint} />;
         }
-        return f.kind === 'structure' ? (
-          <ExtrudedFootprint
-            key={f.id}
-            footprint={f.footprint}
-            bottom={0}
-            height={f.height ?? mapConfig.building.unknownStructureHeight}
-            color="#94a3b8"
-            opacity={1}
-            interactive={false}
-            castShadow
-            receiveShadow
-          />
-        ) : (
+        if (f.kind === 'structure') {
+          return (
+            <ExtrudedFootprint
+              key={f.id}
+              footprint={f.footprint}
+              bottom={0}
+              height={f.height ?? mapConfig.building.unknownStructureHeight}
+              color="#94a3b8"
+              opacity={1}
+              interactive={false}
+              castShadow
+              receiveShadow
+            />
+          );
+        }
+
+        const isLawn = f.kind === 'lawn';
+        const isRoad = f.kind === 'road';
+        const pbrSet = isLawn ? grassPbr : isRoad ? asphaltPbr : null;
+
+        return (
           <ExtrudedFootprint
             key={f.id}
             footprint={f.footprint}
             bottom={flatLayerElevation[f.kind] ?? 0.02}
-            height={0.025}
+            height={isLawn ? 0.03 : isRoad ? 0.025 : 0.02}
             color={getColor(f.kind)}
+            map={pbrSet?.map ?? null}
+            normalMap={pbrSet?.normalMap ?? null}
+            normalScale={isLawn ? [0.12, 0.12] : [0.15, 0.15]}
+            roughnessMap={pbrSet?.roughnessMap ?? null}
+            roughness={isLawn ? 0.9 : isRoad ? 0.84 : 0.78}
+            metalness={isRoad ? 0.06 : 0.02}
             interactive={false}
             receiveShadow
           />

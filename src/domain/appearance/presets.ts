@@ -104,14 +104,16 @@ export const SPORTS_COMPLEX: BuildingAppearance = {
   wallRoughness: 0.7,
   wallMetalness: 0.15,
   roofType: 'barrel',
-  roofColor: '#334155',
-  roofHeight: 4.5,
+  roofColor: '#22252a',
+  roofHeight: 6.9,
   hasCornice: true,
   corniceColor: '#cbd5e1',
   hasPlinth: true,
-  plinthColor: '#0f172a',
-  glassAccent: true,
-  glassColor: '#0369a1',
+  plinthColor: '#dcd5c9',
+  plinthHeight: 2.2,
+  glassAccent: false,
+  glassColor: '#0f172a',
+  customFacade: 'sports-complex',
 };
 
 export const UTILITY: BuildingAppearance = {

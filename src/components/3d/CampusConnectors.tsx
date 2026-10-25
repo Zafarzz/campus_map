@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import type { ConnectorGeometry } from '../../domain/geometry/types';
+import { DaewooHallFacade } from './facades/DaewooHallFacade';
 
 const FLOOR_HEIGHT = mapConfig.building.floorHeight;
 
@@ -61,11 +62,11 @@ function GlazedConnectorMesh({
   const glassMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#7fa6c2',
-        roughness: 0.1,
-        metalness: 0.35,
+        color: '#1e293b',
+        roughness: 0.12,
+        metalness: 0.75,
         transparent: true,
-        opacity: dimmed ? 0.25 : 0.6,
+        opacity: dimmed ? 0.25 : 0.7,
         depthWrite: false,
       }),
     [dimmed]
@@ -153,51 +154,108 @@ function GlazedConnectorMesh({
   return (
     <group position={[cx, connector.elevation, cz]}>
       {/* 1. Floor Base Plinth */}
-      <mesh position={[0, plinthH / 2, 0]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[w, plinthH, d]} />
+      <mesh
+        position={
+          connector.id === 'conn-bld-g-bld-i'
+            ? [-0.15, plinthH / 2, 0]
+            : [0, plinthH / 2, 0]
+        }
+        material={plinthMat}
+        receiveShadow
+      >
+        <boxGeometry
+          args={
+            connector.id === 'conn-bld-g-bld-i'
+              ? [w - 0.3, plinthH, d]
+              : [w, plinthH, d]
+          }
+        />
       </mesh>
 
       {/* 2. Roof Canopy with slight architectural trim */}
       <mesh
-        position={[0, height - roofH / 2, 0]}
+        position={
+          connector.id === 'conn-bld-g-bld-i'
+            ? [-0.15, height - roofH / 2, 0]
+            : [0, height - roofH / 2, 0]
+        }
         material={roofMat}
         castShadow
         receiveShadow
       >
         <boxGeometry
-          args={[
-            w + (isXLong ? 0 : 0.3),
-            roofH,
-            d + (isXLong ? 0.3 : 0),
-          ]}
+          args={
+            connector.id === 'conn-bld-g-bld-i'
+              ? [w - 0.3, roofH, d]
+              : [
+                  w + (isXLong ? 0 : 0.3),
+                  roofH,
+                  d + (isXLong ? 0.3 : 0),
+                ]
+          }
         />
       </mesh>
 
       {/* 2b. Intermediate floor slabs for multi-storey passages (visible as opaque bands) */}
       {slabOffsets.map((oy) => (
-        <mesh key={`slab-${oy}`} position={[0, plinthH + windowH / 2 + oy, 0]} material={plinthMat} castShadow receiveShadow>
-          <boxGeometry args={[w + (isXLong ? 0 : 0.12), 0.3, d + (isXLong ? 0.12 : 0)]} />
+        <mesh
+          key={`slab-${oy}`}
+          position={
+            connector.id === 'conn-bld-g-bld-i'
+              ? [-0.15, plinthH + windowH / 2 + oy, 0]
+              : [0, plinthH + windowH / 2 + oy, 0]
+          }
+          material={plinthMat}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry
+            args={
+              connector.id === 'conn-bld-g-bld-i'
+                ? [w - 0.3, 0.3, d]
+                : [w + (isXLong ? 0 : 0.12), 0.3, d + (isXLong ? 0.12 : 0)]
+            }
+          />
         </mesh>
       ))}
 
       {/* 3. Corner Structural Support Columns */}
-      {cornerPosts.map(([px, pz], idx) => (
-        <mesh
-          key={`col-${idx}`}
-          position={[px, height / 2, pz]}
-          material={frameMat}
-          castShadow
-        >
-          <boxGeometry args={[0.2, height, 0.2]} />
-        </mesh>
-      ))}
+      {cornerPosts.map(([px, pz], idx) => {
+        // Exclude outer east corner columns for conn-bld-g-bld-i as DaewooHallFacade has its own structural framing
+        if (connector.id === 'conn-bld-g-bld-i' && px > 0) return null;
+        return (
+          <mesh
+            key={`col-${idx}`}
+            position={[px, height / 2, pz]}
+            material={frameMat}
+            castShadow
+          >
+            <boxGeometry args={[0.2, height, 0.2]} />
+          </mesh>
+        );
+      })}
 
       {/* 4. Glazed Side Windows with Mullions (по бокам окна, а не сплошные стены) */}
-      {(isXLong ? [-d / 2, d / 2] : [-w / 2, w / 2]).map((side, sIdx) => (
-        <group
-          key={`side-${sIdx}`}
-          position={isXLong ? [0, plinthH + windowH / 2, side] : [side, plinthH + windowH / 2, 0]}
-        >
+      {(isXLong ? [-d / 2, d / 2] : [-w / 2, w / 2]).map((side, sIdx) => {
+        // Outer (eastern) facade of connector facing outward (away from amphitheater) is DAEWOO HALL
+        if (connector.id === 'conn-bld-g-bld-i' && !isXLong && side > 0) {
+          return (
+            <DaewooHallFacade
+              key={`daewoo-hall-${sIdx}`}
+              width={length}
+              position={[side + 0.25, 0, 0]}
+              rotationY={Math.PI / 2}
+              opacity={dimmed ? 0.35 : 1}
+              transparent={dimmed}
+            />
+          );
+        }
+
+        return (
+          <group
+            key={`side-${sIdx}`}
+            position={isXLong ? [0, plinthH + windowH / 2, side] : [side, plinthH + windowH / 2, 0]}
+          >
           {/* Continuous Architectural Glazing Pane */}
           <mesh material={glassMat}>
             <boxGeometry args={bar(length - 0.2, windowH, 0.05)} />
@@ -222,7 +280,8 @@ function GlazedConnectorMesh({
             </mesh>
           ))}
         </group>
-      ))}
+        );
+      })}
     </group>
   );
 }

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { getArchitecturalWallTextures, getWindowGlassTexture } from '../materials/pbrMaterials';
 
 export type BlockBSouthFacadeProps = {
   buildingWidth: number;
@@ -68,29 +69,36 @@ export function BlockBSouthFacade({
   const wallZ = sign * (buildingDepth / 2);
 
   const plinthHeight = 1.0; // -1.000 to 0.000 in drawing
-  const glassColor = '#7fa6c2'; // Blue-grey architectural glazing
+  const glassColor = '#0f172a'; // Deep architectural tinted glass
   const pipeColor = '#853629'; // Terracotta downpipes
+
+  const wallTextures = useMemo(() => getArchitecturalWallTextures(14, 4), []);
+  const glassTexture = useMemo(() => getWindowGlassTexture(), []);
 
   // Materials
   const wallMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: wallColor,
-        roughness: 0.8,
-        metalness: 0.04,
+        map: wallTextures?.map ?? null,
+        normalMap: wallTextures?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.25, 0.25),
+        roughnessMap: wallTextures?.roughnessMap ?? null,
+        roughness: 0.78,
+        metalness: 0.03,
         transparent,
         opacity,
         depthWrite: !transparent,
       }),
-    [wallColor, transparent, opacity]
+    [wallColor, wallTextures, transparent, opacity]
   );
 
   const plinthMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: plinthColor,
-        roughness: 0.88,
-        metalness: 0.08,
+        roughness: 0.85,
+        metalness: 0.06,
         transparent,
         opacity,
         depthWrite: !transparent,
@@ -102,7 +110,7 @@ export function BlockBSouthFacade({
     () =>
       new THREE.MeshStandardMaterial({
         color: trimColor,
-        roughness: 0.75,
+        roughness: 0.7,
         metalness: 0.05,
         transparent,
         opacity,
@@ -114,27 +122,29 @@ export function BlockBSouthFacade({
   const frameMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: frameColor,
-        roughness: 0.45,
-        metalness: 0.6,
+        color: '#27272a',
+        roughness: 0.35,
+        metalness: 0.65,
         transparent,
         opacity,
         depthWrite: !transparent,
       }),
-    [frameColor, transparent, opacity]
+    [transparent, opacity]
   );
 
   const glassMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: glassColor,
-        roughness: 0.08,
-        metalness: 0.35,
+        map: glassTexture ?? null,
+        roughness: 0.12,
+        metalness: 0.78,
+        envMapIntensity: 1.45,
         transparent: true,
-        opacity: transparent ? opacity * 0.75 : 0.88,
+        opacity: transparent ? opacity * 0.85 : 0.94,
         depthWrite: !transparent,
       }),
-    [glassColor, transparent, opacity]
+    [glassColor, glassTexture, transparent, opacity]
   );
 
   const jointMat = useMemo(
@@ -243,21 +253,21 @@ export function BlockBSouthFacade({
           <group key={`ok2-${idx}`} position={[wx, wy, sign * 0.08]}>
             {/* Window Outer Frame */}
             <mesh material={frameMat}>
-              <boxGeometry args={[ww, wh, 0.1]} />
+              <boxGeometry args={[ww, wh, 0.06]} />
             </mesh>
             {/* Window Glass Pane */}
-            <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-              <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.04]} />
+            <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+              <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.03]} />
             </mesh>
             {/* 2 Vertical Mullions (3-pane casement) */}
             {[-ww / 3, ww / 3].map((mx, mIdx) => (
-              <mesh key={`m2-${mIdx}`} position={[mx, 0, sign * 0.03]} material={frameMat}>
-                <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.06]} />
+              <mesh key={`m2-${mIdx}`} position={[mx, 0, sign * 0.045]} material={frameMat}>
+                <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.04]} />
               </mesh>
             ))}
             {/* Horizontal Transom Beam (Upper fanlight) */}
-            <mesh position={[0, wh / 2 - 0.45, sign * 0.03]} material={frameMat}>
-              <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.05]} />
+            <mesh position={[0, wh / 2 - 0.45, sign * 0.045]} material={frameMat}>
+              <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.04]} />
             </mesh>
             {/* Stone Sill Molding */}
             <mesh position={[0, -wh / 2 - 0.05, sign * 0.06]} material={trimMat}>
@@ -289,21 +299,21 @@ export function BlockBSouthFacade({
               <group key={`ok1-f${floor}-${idx}`} position={[wx, centerY, sign * 0.08]}>
                 {/* Window Outer Frame */}
                 <mesh material={frameMat}>
-                  <boxGeometry args={[ww, wh, 0.1]} />
+                  <boxGeometry args={[ww, wh, 0.06]} />
                 </mesh>
                 {/* Window Glass Pane */}
-                <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-                  <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.04]} />
+                <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+                  <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.03]} />
                 </mesh>
                 {/* 2 Vertical Mullions (3-pane casement) */}
                 {[-ww / 3, ww / 3].map((mx, mIdx) => (
-                  <mesh key={`m1-${mIdx}`} position={[mx, 0, sign * 0.03]} material={frameMat}>
-                    <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.06]} />
+                  <mesh key={`m1-${mIdx}`} position={[mx, 0, sign * 0.045]} material={frameMat}>
+                    <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.04]} />
                   </mesh>
                 ))}
                 {/* Horizontal Transom Beam (Upper fanlight) */}
-                <mesh position={[0, wh / 2 - 0.45, sign * 0.03]} material={frameMat}>
-                  <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.05]} />
+                <mesh position={[0, wh / 2 - 0.45, sign * 0.045]} material={frameMat}>
+                  <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.04]} />
                 </mesh>
                 {/* Stone Sill Molding */}
                 <mesh position={[0, -wh / 2 - 0.05, sign * 0.06]} material={trimMat}>
@@ -325,38 +335,38 @@ export function BlockBSouthFacade({
       <group position={[0, curtainCenterY, sign * 0.09]}>
         {/* Outer Perimeter Frame */}
         <mesh material={frameMat} castShadow>
-          <boxGeometry args={[curtainWidth, curtainHeight, 0.14]} />
+          <boxGeometry args={[curtainWidth, curtainHeight, 0.06]} />
         </mesh>
         {/* Continuous Glazed Curtain Box */}
-        <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-          <boxGeometry args={[curtainWidth - 0.16 * scaleX, curtainHeight - 0.16, 0.08]} />
+        <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+          <boxGeometry args={[curtainWidth - 0.16 * scaleX, curtainHeight - 0.16, 0.04]} />
         </mesh>
 
         {/* 5 Vertical Mullions dividing 7m into 6 bays (~1.16m each) */}
         {[-2.33, -1.17, 0, 1.17, 2.33].map((mx, idx) => (
-          <mesh key={`curt-mull-${idx}`} position={[mx * scaleX, 0, sign * 0.04]} material={frameMat}>
-            <boxGeometry args={[0.08 * scaleX, curtainHeight - 0.16, 0.1]} />
+          <mesh key={`curt-mull-${idx}`} position={[mx * scaleX, 0, sign * 0.05]} material={frameMat}>
+            <boxGeometry args={[0.08 * scaleX, curtainHeight - 0.16, 0.06]} />
           </mesh>
         ))}
 
         {/* Horizontal Floor Transoms (every 3.6m relative to building base) */}
         {/* curtainCenterY is 7.4m. Transoms at y=3.6 (dy=-3.8), y=7.2 (dy=-0.2), y=10.8 (dy=+3.4) */}
         {[-3.8, -0.2, 3.4].map((dy, idx) => (
-          <mesh key={`curt-floor-beam-${idx}`} position={[0, dy, sign * 0.04]} material={frameMat}>
-            <boxGeometry args={[curtainWidth - 0.16 * scaleX, 0.12, 0.1]} />
+          <mesh key={`curt-floor-beam-${idx}`} position={[0, dy, sign * 0.05]} material={frameMat}>
+            <boxGeometry args={[curtainWidth - 0.16 * scaleX, 0.12, 0.06]} />
           </mesh>
         ))}
 
         {/* Intermediate Transoms at mid-floor levels */}
         {[-5.6, -2.0, 1.6, 5.2].map((dy, idx) => (
-          <mesh key={`curt-mid-beam-${idx}`} position={[0, dy, sign * 0.03]} material={frameMat}>
-            <boxGeometry args={[curtainWidth - 0.16 * scaleX, 0.06, 0.08]} />
+          <mesh key={`curt-mid-beam-${idx}`} position={[0, dy, sign * 0.045]} material={frameMat}>
+            <boxGeometry args={[curtainWidth - 0.16 * scaleX, 0.06, 0.05]} />
           </mesh>
         ))}
 
         {/* Chevron / Diagonal Architectural Reflections visible on drawing */}
         {[-3.8, -0.2, 3.4].map((baseY, idx) => (
-          <group key={`brace-${idx}`} position={[0, baseY + 1.8, sign * 0.015]}>
+          <group key={`brace-${idx}`} position={[0, baseY + 1.8, sign * 0.048]}>
             <mesh rotation={[0, 0, Math.PI / 12]} material={frameMat}>
               <boxGeometry args={[curtainWidth * 0.52, 0.04, 0.02]} />
             </mesh>
@@ -370,15 +380,15 @@ export function BlockBSouthFacade({
         <group position={[0, -curtainHeight / 2 + 1.3, sign * 0.05]}>
           {/* Double Door Frame */}
           <mesh material={frameMat}>
-            <boxGeometry args={[2.4 * scaleX, 2.4, 0.1]} />
+            <boxGeometry args={[2.4 * scaleX, 2.4, 0.06]} />
           </mesh>
           {/* Glass Doors */}
-          <mesh position={[0, 0, sign * 0.02]} material={glassMat}>
-            <boxGeometry args={[2.24 * scaleX, 2.24, 0.04]} />
+          <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
+            <boxGeometry args={[2.24 * scaleX, 2.24, 0.03]} />
           </mesh>
           {/* Center Door Mullion / Meeting Stile */}
-          <mesh position={[0, 0, sign * 0.04]} material={frameMat}>
-            <boxGeometry args={[0.06 * scaleX, 2.24, 0.08]} />
+          <mesh position={[0, 0, sign * 0.045]} material={frameMat}>
+            <boxGeometry args={[0.06 * scaleX, 2.24, 0.05]} />
           </mesh>
           {/* Door Handles */}
           <mesh position={[-0.15 * scaleX, 0, sign * 0.08]} material={trimMat}>

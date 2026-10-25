@@ -72,6 +72,9 @@ export function CampusWalkways() {
 
     const crosswalkWhiteMat = new THREE.MeshBasicMaterial({
       color: '#ffffff',
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
     });
 
     return { paverMat, curbMat, crosswalkWhiteMat };
@@ -128,7 +131,7 @@ export function CampusWalkways() {
   const crosswalks = useMemo(
     () => [
       // Crosswalk across East perimeter road outside Main Gate
-      { pos: [109.0, 0.046, -23.1], size: [8.6, 6.0] },
+      { pos: [109.0, 0.041, -23.1], size: [8.6, 6.0] },
     ],
     [],
   );
@@ -137,10 +140,10 @@ export function CampusWalkways() {
     <group>
       {/* Paved Walkway Ribbons & Plazas */}
       {walkways.map((w, idx) => (
-        <group key={`walkway-${idx}`} position={[w.center[0], 0.038, w.center[1]]}>
+        <group key={`walkway-${idx}`} position={[w.center[0], 0.046, w.center[1]]}>
           {/* Main paver surface */}
           <mesh receiveShadow>
-            <boxGeometry args={[w.size[0], 0.02, w.size[1]]} />
+            <boxGeometry args={[w.size[0], 0.016, w.size[1]]} />
             <primitive object={paverMat} attach="material" />
           </mesh>
           {/* Granite Edge Curbs */}

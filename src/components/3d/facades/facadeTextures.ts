@@ -280,7 +280,7 @@ export function getFenceTexture(): THREE.CanvasTexture | null {
   if (typeof document === 'undefined') return null;
   if (cachedFenceTexture) return cachedFenceTexture;
 
-  const width = 768;
+  const width = 1024;
   const height = 512;
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -377,7 +377,10 @@ export function getFenceTexture(): THREE.CanvasTexture | null {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.anisotropy = 8;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 4;
   cachedFenceTexture = texture;
   return texture;
 }
@@ -401,11 +404,11 @@ export function getSportsMeshTexture(): THREE.CanvasTexture | null {
 
   ctx.clearRect(0, 0, width, height);
 
-  // Diamond chain-link wire netting
-  ctx.strokeStyle = '#64748b'; // Slate wire
-  ctx.lineWidth = 2.0;
+  // Dense diamond chain-link wire netting
+  ctx.strokeStyle = '#475569'; // High-tensile steel galvanized slate wire
+  ctx.lineWidth = 1.4;
 
-  const step = 24;
+  const step = 12;
   for (let x = -width; x < width * 2; x += step) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -427,6 +430,9 @@ export function getSportsMeshTexture(): THREE.CanvasTexture | null {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   texture.anisotropy = 4;
   cachedSportsMeshTexture = texture;
   return texture;

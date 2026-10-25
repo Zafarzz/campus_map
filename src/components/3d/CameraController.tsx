@@ -52,9 +52,37 @@ export function CameraController({ geometry, selection }: Props) {
     if (typeof window !== 'undefined') {
       (window as unknown as { __cameraControls?: unknown }).__cameraControls = c;
     }
+    const params = new URLSearchParams(window.location.search);
+    const camParam = params.get('cam');
+    if (camParam) {
+      const nums = camParam.split(',').map(Number);
+      if (nums.length === 6 && nums.every((n) => Number.isFinite(n))) {
+        void c.setLookAt(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5], false);
+        return;
+      }
+    }
     const [pos, target] = framing(geometry, { buildingId, floorId, roomId });
     void c.setLookAt(...pos, ...target, true);
   }, [geometry, buildingId, floorId, roomId]);
+
+  useEffect(() => {
+    const win = window as unknown as {
+      __setMapCamera?: (
+        cx: number,
+        cy: number,
+        cz: number,
+        tx: number,
+        ty: number,
+        tz: number,
+      ) => void;
+    };
+    win.__setMapCamera = (cx, cy, cz, tx, ty, tz) => {
+      void controls.current?.setLookAt(cx, cy, cz, tx, ty, tz, false);
+    };
+    return () => {
+      delete win.__setMapCamera;
+    };
+  }, []);
 
   const cam = mapConfig.camera;
   return (

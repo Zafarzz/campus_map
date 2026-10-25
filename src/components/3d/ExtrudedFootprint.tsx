@@ -1,6 +1,7 @@
 import { Edges } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { useMemo } from 'react';
+import type * as THREE from 'three';
 import type { Footprint } from '../../domain/geometry/types';
 import { EXTRUDE_ROTATION, footprintOutline, useExtrudedGeometry } from './geometryUtils';
 
@@ -11,6 +12,12 @@ type Props = {
   color: string;
   opacity?: number;
   edgeColor?: string;
+  roughness?: number;
+  metalness?: number;
+  map?: THREE.Texture | null;
+  normalMap?: THREE.Texture | null;
+  normalScale?: [number, number];
+  roughnessMap?: THREE.Texture | null;
   /** Disable raycasting so the mesh never steals clicks. */
   interactive?: boolean;
   castShadow?: boolean;
@@ -30,6 +37,12 @@ export function ExtrudedFootprint({
   color,
   opacity = 1,
   edgeColor,
+  roughness = 0.85,
+  metalness = 0.04,
+  map,
+  normalMap,
+  normalScale,
+  roughnessMap,
   interactive = true,
   castShadow,
   receiveShadow,
@@ -49,8 +62,26 @@ export function ExtrudedFootprint({
       receiveShadow={receiveShadow}
       {...events}
     >
-      <meshStandardMaterial color={color} transparent={transparent} opacity={opacity} depthWrite={!transparent} />
-      {edgeColor && <Edges color={edgeColor} threshold={20} transparent opacity={transparent ? 0.5 : 0.7} />}
+      <meshStandardMaterial
+        color={color}
+        map={map ?? null}
+        normalMap={normalMap ?? null}
+        normalScale={normalScale}
+        roughnessMap={roughnessMap ?? null}
+        roughness={roughness}
+        metalness={metalness}
+        transparent={transparent}
+        opacity={opacity}
+        depthWrite={!transparent}
+      />
+      {edgeColor && (
+        <Edges
+          color={edgeColor}
+          threshold={20}
+          transparent
+          opacity={transparent ? 0.5 : 0.65}
+        />
+      )}
     </mesh>
   );
 }
