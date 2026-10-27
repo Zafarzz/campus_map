@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { CampusMap } from './components/3d/CampusMap';
 import { isDevOrDebugMode } from './components/3d/tuning/useVisualTuning';
 import { Breadcrumbs } from './components/ui/Breadcrumbs';
+import { BackendLivePanel } from './components/ui/BackendLivePanel';
 import { BuildingList } from './components/ui/BuildingList';
 import { FloorRoomList } from './components/ui/FloorRoomList';
 import { FloorSelector } from './components/ui/FloorSelector';
@@ -134,6 +135,7 @@ function AppLayout() {
           {selection.roomId && <RoomDetails />}
         </div>
         <footer className="footer">
+          <BackendLivePanel />
           <TimeControl />
           <Legend />
           <DataNotice />
