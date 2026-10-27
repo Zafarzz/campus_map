@@ -1,0 +1,6 @@
+{
+  "commit": "c87f94915996928e4b74bd0c9aee065480c6bb49",
+  "branch": "main",
+  "note": "Phase 0 safety baseline (MASTER_PROMPT.md 0.1 step 1). Working tree at this commit had exactly one untracked path: backend/. Backend work happens on branch feat/backend. 'allowed_outside_backend' must stay empty unless the repository owner explicitly approves a path.",
+  "allowed_outside_backend": []
+}

@@ -1,0 +1,44 @@
+# Backend-only ignores. The repository root .gitignore is never edited (MASTER_PROMPT.md 0.2 rule 3).
+
+# Secrets and local configuration — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local database data, dumps and backups
+pgdata/
+backups/
+*.dump
+*.sql.gz
+
+# Uploaded files (object-storage abstraction, local disk in development)
+var/
+media/
+uploads/
+
+# Downloaded source snapshots (fetched on demand, never committed:
+# the EduPage export contains teachers' names — see docs/privacy/)
+data/snapshots/
+
+# Compiled i18n catalogues (built from the .po sources)
+locales/**/*.mo
+
+# Tooling noise
+*.log
+.DS_Store

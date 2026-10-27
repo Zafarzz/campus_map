@@ -1,0 +1,63 @@
+# Translation template for the Campus Digital Twin backend.
+# English is the default locale; message IDs below are the source of truth.
+# Regenerate with: make i18n-extract
+msgid ""
+msgstr ""
+"Project-Id-Version: campus-backend 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "error.internal"
+msgstr ""
+
+msgid "error.not_found"
+msgstr ""
+
+msgid "error.validation"
+msgstr ""
+
+msgid "error.conflict"
+msgstr ""
+
+msgid "error.not_authenticated"
+msgstr ""
+
+msgid "error.permission_denied"
+msgstr ""
+
+msgid "error.ambiguous_alias"
+msgstr ""
+
+msgid "error.not_implemented_yet"
+msgstr ""
+
+msgid "room_state.free"
+msgstr ""
+
+msgid "room_state.lesson_now"
+msgstr ""
+
+msgid "room_state.starts_soon"
+msgstr ""
+
+msgid "room_state.done_for_today"
+msgstr ""
+
+msgid "room_state.cancelled"
+msgstr ""
+
+msgid "provenance.scheduled"
+msgstr ""
+
+msgid "provenance.confirmed"
+msgstr ""
+
+msgid "provenance.reported"
+msgstr ""
+
+msgid "provenance.estimated"
+msgstr ""

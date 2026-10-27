@@ -1,0 +1,62 @@
+# Russian catalogue. The repository's documentation and part of its UI are in
+# Russian (AGENTS.md, docs/*), so Russian is wired up from the start.
+# Room-state labels intentionally match the five states the map already shows.
+msgid ""
+msgstr ""
+"Project-Id-Version: campus-backend 0.1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+
+msgid "error.internal"
+msgstr "Внутренняя ошибка сервера."
+
+msgid "error.not_found"
+msgstr "Не найдено."
+
+msgid "error.validation"
+msgstr "Некорректный запрос."
+
+msgid "error.conflict"
+msgstr "Запрос конфликтует с существующими данными."
+
+msgid "error.not_authenticated"
+msgstr "Требуется аутентификация."
+
+msgid "error.permission_denied"
+msgstr "У вас нет прав на это действие."
+
+msgid "error.ambiguous_alias"
+msgstr "Этот устаревший идентификатор соответствует нескольким помещениям, однозначно определить его невозможно."
+
+msgid "error.not_implemented_yet"
+msgstr "Этот эндпоинт описан, но ещё не реализован."
+
+msgid "room_state.free"
+msgstr "Свободна"
+
+msgid "room_state.lesson_now"
+msgstr "Идёт занятие"
+
+msgid "room_state.starts_soon"
+msgstr "Скоро начнётся"
+
+msgid "room_state.done_for_today"
+msgstr "Занятий больше нет"
+
+msgid "room_state.cancelled"
+msgstr "Отменено"
+
+msgid "provenance.scheduled"
+msgstr "По расписанию"
+
+msgid "provenance.confirmed"
+msgstr "Подтверждено человеком"
+
+msgid "provenance.reported"
+msgstr "По сообщениям пользователей"
+
+msgid "provenance.estimated"
+msgstr "Оценка модели"
