@@ -4,6 +4,7 @@ import type { ContextFeaturePx, PxRect } from '../../data/reference-footprints';
 import { demoCampus } from '../../data/demo-campus';
 import { loadDraft } from '../../editor/storage/storageService';
 import { editorDocToCampusAndGeom } from '../../editor/domain/adapter';
+import { apiGet, isBackendEnabled } from '../api/apiClient';
 
 export type ActiveEditorOverrides = {
   buildingFootprintsPx?: Record<string, PxRect[]>;
@@ -54,6 +55,36 @@ export async function loadCampus(): Promise<Campus> {
   }
 
   activeEditorOverrides = {};
-  return demoCampus;
+  return (await loadCampusFromBackend()) ?? demoCampus;
 }
 
+
+/**
+ * Campus tree from the backend database (`GET /api/v1/compat/campus/bare`).
+ * Accepted only when it is a superset of `demoCampus` (same building and room ids), because
+ * geometry is keyed by those ids and must never lose a building or room. Otherwise null,
+ * and the caller keeps the static demo campus.
+ */
+async function loadCampusFromBackend(): Promise<Campus | null> {
+  if (!isBackendEnabled) return null;
+  try {
+    const remote = await apiGet<Campus>('/compat/campus/bare');
+    const remoteBuildings = new Map((remote.buildings ?? []).map((b) => [b.id, b]));
+    const remoteRooms = new Set(
+      (remote.buildings ?? []).flatMap((b) => b.floors.flatMap((f) => f.rooms.map((r) => r.id))),
+    );
+    const complete = demoCampus.buildings.every(
+      (b) =>
+        remoteBuildings.has(b.id) &&
+        b.floors.every((f) => f.rooms.every((r) => remoteRooms.has(r.id))),
+    );
+    if (!complete) {
+      console.warn('[campusService] Backend campus is missing demo buildings/rooms, using demoCampus');
+      return null;
+    }
+    return remote;
+  } catch (err) {
+    console.warn('[campusService] Backend unavailable, using demoCampus:', err);
+    return null;
+  }
+}

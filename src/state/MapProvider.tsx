@@ -6,9 +6,13 @@ import type { CampusGeometry } from '../domain/geometry/types';
 import { computeRoomStates } from '../domain/schedule/roomStatus';
 import type { Lesson, RoomScheduleState } from '../domain/schedule/types';
 import { initialTimeMode, useNow, type TimeMode } from '../hooks/useNow';
+import { isBackendEnabled } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
 import { geometryProvider } from '../services/geometry';
 import { loadLessonsForDate, toLocalDateKey } from '../services/schedule/scheduleService';
+
+/** How often the schedule is re-fetched from the backend (ms). */
+const BACKEND_REFRESH_MS = 10_000;
 
 export type Selection = { buildingId?: string; floorId?: string; roomId?: string };
 
@@ -66,9 +70,13 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
   useEffect(() => {
     if (!loaded) return;
     let alive = true;
-    loadLessonsForDate(loaded.campus, dateKey).then((l) => alive && setLessons(l));
+    const refresh = () => loadLessonsForDate(loaded.campus, dateKey).then((l) => alive && setLessons((prev) => (JSON.stringify(prev) === JSON.stringify(l) ? prev : l)));
+    refresh();
+    // With the backend on, poll so schedule changes (imports, cancellations, bookings) show up live.
+    const timer = isBackendEnabled ? window.setInterval(refresh, BACKEND_REFRESH_MS) : undefined;
     return () => {
       alive = false;
+      if (timer !== undefined) window.clearInterval(timer);
     };
   }, [loaded, dateKey]);
 

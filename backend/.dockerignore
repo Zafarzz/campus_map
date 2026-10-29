@@ -1,0 +1,18 @@
+# Never copy local virtualenvs, secrets, database dumps, or caches into the image.
+.venv
+.env
+.env.*
+!.env.example
+
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.hypothesis
+htmlcov
+.coverage
+coverage.xml
+
+backups
+docs
