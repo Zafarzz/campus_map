@@ -1,0 +1,201 @@
+# Unified full-stack development environment (PostgreSQL 18 + FastAPI + Vite 3D Map).
+#
+# Run everything with a single command from the repository root:
+#
+#   docker compose up --build        # foreground (Ctrl+C to stop)
+#   docker compose up -d --build     # detached in the background
+#
+# Endpoints:
+#   3D Campus Map (HTTPS) : https://localhost:5173
+#   Backend Swagger UI    : http://127.0.0.1:8000/docs
+#   Backend Health        : http://127.0.0.1:8000/healthz
+#
+# Safety guarantees:
+#   1. Reuses project name `campus-backend` and volume `campus-backend-pgdata` so
+#      existing local PostgreSQL data from `backend/docker-compose.yml` is preserved.
+#   2. Reads `backend/.env` when present and falls back to `backend/.env.example`
+#      when absent, so a fresh clone starts with zero manual setup.
+#   3. Mounts front-end and back-end source files READ-ONLY (`:ro`) and keeps
+#      `/app/node_modules` inside the container image, so host `node_modules/`,
+#      `dist/`, and `package-lock.json` are physically impossible to dirty.
+
+name: campus-backend
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.example
+      - path: ./backend/.env
+        required: false
+    environment:
+      POSTGRES_USER: campus_owner
+      POSTGRES_DB: campus
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        export POSTGRES_PASSWORD="$${POSTGRES_OWNER_PASSWORD}"
+        export APP_ROLE_PASSWORD="$${POSTGRES_APP_PASSWORD}"
+        export DB_SCHEMA="$${DATABASE_SCHEMA:-campus}"
+        exec docker-entrypoint.sh postgres -c timezone=UTC -c log_min_duration_statement=500
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./backend/docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus_owner -d campus"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  backend-init:
+    image: campus-backend-api:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env.example
+      - path: ./backend/.env
+        required: false
+    environment:
+      FRONTEND_SRC_DIR: /srv/frontend-src
+    volumes:
+      - ./backend/app:/srv/app:ro
+      - ./backend/alembic:/srv/alembic:ro
+      - ./backend/scripts:/srv/scripts:ro
+      - ./backend/locales:/srv/locales:ro
+      - ./src:/srv/frontend-src:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        export DATABASE_URL="postgresql+asyncpg://campus_app:$${POSTGRES_APP_PASSWORD}@db:5432/campus"
+        export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:$${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+        export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:$${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+        alembic upgrade head
+        python scripts/grant_app_privileges.py
+        if [ "$${APP_ENV:-development}" = "development" ]; then
+          if python -c "
+        import asyncio, os
+        from datetime import datetime, time, timezone
+        from zoneinfo import ZoneInfo
+        import asyncpg
+
+        async def needs_seed() -> bool:
+            dsn = os.environ['DATABASE_MIGRATION_URL'].replace('postgresql+asyncpg://', 'postgresql://', 1)
+            schema = os.environ.get('DATABASE_SCHEMA', 'campus')
+            tz = ZoneInfo(os.environ.get('CAMPUS_TZ', 'Asia/Tashkent'))
+            today = datetime.now(tz).date()
+            day_start = datetime.combine(today, time.min, tzinfo=tz).astimezone(timezone.utc)
+            day_end = datetime.combine(today, time.max, tzinfo=tz).astimezone(timezone.utc)
+            conn = await asyncpg.connect(dsn)
+            try:
+                if not await conn.fetchval(f'SELECT count(*) FROM {schema}.campus'):
+                    return True
+                if not await conn.fetchval(f'SELECT count(*) FROM {schema}.meeting'):
+                    return True
+                real_cnt = await conn.fetchval(f'SELECT count(*) FROM {schema}.meeting WHERE NOT is_demo')
+                if real_cnt == 0 and today.weekday() < 5:
+                    p1, p2 = chr(36) + '1', chr(36) + '2'
+                    todays = await conn.fetchval(
+                        f'SELECT count(*) FROM {schema}.meeting WHERE starts_at >= {p1} AND starts_at <= {p2}',
+                        day_start, day_end,
+                    )
+                    return todays == 0
+                return False
+            finally:
+                await conn.close()
+
+        raise SystemExit(0 if asyncio.run(needs_seed()) else 1)
+        "; then
+            python scripts/seed_demo_campus.py --with-dev-users
+            python scripts/grant_app_privileges.py
+          fi
+        fi
+
+  api:
+    image: campus-backend-api:local
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      backend-init:
+        condition: service_completed_successfully
+    env_file:
+      - ./backend/.env.example
+      - path: ./backend/.env
+        required: false
+    environment:
+      FRONTEND_SRC_DIR: /srv/frontend-src
+    ports:
+      - "${API_HOST:-127.0.0.1}:${API_PORT:-8000}:8000"
+    volumes:
+      - ./backend/app:/srv/app:ro
+      - ./backend/alembic:/srv/alembic:ro
+      - ./backend/scripts:/srv/scripts:ro
+      - ./backend/tests:/srv/tests:ro
+      - ./backend/locales:/srv/locales:ro
+      - ./src:/srv/frontend-src:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        export DATABASE_URL="postgresql+asyncpg://campus_app:$${POSTGRES_APP_PASSWORD}@db:5432/campus"
+        export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:$${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+        export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:$${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /srv/app
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  frontend:
+    image: campus-frontend-web:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Inside Docker Compose, Vite proxies /api, /healthz, /readyz, and /ws directly to the `api` service.
+      VITE_BACKEND_PROXY_TARGET: http://api:8000
+      VITE_WATCH_POLLING: "${VITE_WATCH_POLLING:-true}"
+    ports:
+      - "${FRONTEND_HOST:-127.0.0.1}:${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      # Mounted READ-ONLY so the container can never modify tracked host files or touch `node_modules/` / `dist/`.
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
+      - ./index.html:/app/index.html:ro
+      - ./vite.config.ts:/app/vite.config.ts:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';fetch('https://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pgdata:
+    name: campus-backend-pgdata

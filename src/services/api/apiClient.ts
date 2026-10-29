@@ -19,7 +19,8 @@ const env = import.meta.env as Record<string, string | boolean | undefined>;
 const explicitBase = typeof env.VITE_API_BASE_URL === 'string' ? env.VITE_API_BASE_URL.replace(/\/+$/, '') : '';
 
 export const isBackendEnabled: boolean =
-  env.VITE_USE_BACKEND !== 'false' && (explicitBase !== '' || env.DEV === true);
+  env.VITE_USE_BACKEND !== 'false' &&
+  (env.VITE_USE_BACKEND === 'true' || explicitBase !== '' || env.DEV === true);
 
 export const API_PREFIX = '/api/v1';
 

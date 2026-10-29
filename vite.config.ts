@@ -6,8 +6,9 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // Where the FastAPI backend lives. Default: a local/tunnelled backend on :8000.
-  // Override with VITE_BACKEND_PROXY_TARGET in `.env.local` (e.g. http://92.5.52.80).
-  const backend = env.VITE_BACKEND_PROXY_TARGET || 'http://127.0.0.1:8000';
+  // Override with VITE_BACKEND_PROXY_TARGET in `.env.local` or container environment (e.g. http://api:8000).
+  const backend = process.env.VITE_BACKEND_PROXY_TARGET || env.VITE_BACKEND_PROXY_TARGET || 'http://127.0.0.1:8000';
+  const usePolling = (process.env.VITE_WATCH_POLLING || env.VITE_WATCH_POLLING) === 'true';
 
   return {
     plugins: [
@@ -17,6 +18,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true, // Listen on all network interfaces
       https: true,
+      watch: usePolling ? { usePolling: true, interval: 300 } : undefined,
       // Same-origin proxy so the HTTPS dev page can call the plain-HTTP backend
       // without mixed-content or CORS problems (backend/docs/PROPOSED_ROOT_CHANGES.md P-1).
       proxy: {

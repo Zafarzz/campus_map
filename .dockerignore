@@ -1,0 +1,27 @@
+# Host dependencies and build outputs (tracked in git; never send to Docker build context)
+node_modules
+dist
+dist-ssr
+.vite
+
+# Version control and local caches
+.git
+.gitignore
+.hypothesis
+.ruff_cache
+*.log
+*.tmp
+*.zip
+
+# Backend, docs, PDFs, and non-runtime scripts (built separately or not needed by frontend)
+backend
+docs
+scripts
+tools
+*.pdf
+*.md
+
+# Local environment overrides and secrets
+.env
+.env.*
+!.env.example
