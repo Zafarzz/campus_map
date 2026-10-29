@@ -84,7 +84,7 @@ backup_db_if_migrations_changed() {
 
   if "${DOCKER[@]}" ps --format '{{.Names}}' | grep -q '^campus-backend-db-1$'; then
     log "Alembic migration changes detected; backing up PostgreSQL to ${dump_file} ..."
-    "${DOCKER[@]}" exec -T campus-backend-db-1 pg_dump -U campus_owner -d campus -Fc > "${dump_file}"
+    "${DOCKER[@]}" exec campus-backend-db-1 pg_dump -U campus_owner -d campus -Fc > "${dump_file}"
     # Retain the 10 newest pre-deploy backups
     ls -1t "${BACKUP_DIR}"/pre-deploy-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
   fi
