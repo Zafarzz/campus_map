@@ -71,3 +71,29 @@ export async function pingBackend(signal?: AbortSignal): Promise<{ ok: boolean; 
     return { ok: false, latencyMs: Math.round(performance.now() - started) };
   }
 }
+
+export type BuildVersionInfo = {
+  commit: string;
+  buildId: string;
+  builtAt?: string;
+};
+
+/**
+ * Fetches `/version.json` stamped into the production frontend image during build.
+ * Returns `null` in local Vite dev mode or when unavailable.
+ */
+export async function fetchBuildVersion(signal?: AbortSignal): Promise<BuildVersionInfo | null> {
+  try {
+    const res = await fetch(`/version.json?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal,
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as Partial<BuildVersionInfo>;
+    if (typeof body.commit !== 'string' || typeof body.buildId !== 'string') return null;
+    return { commit: body.commit, buildId: body.buildId, builtAt: body.builtAt };
+  } catch {
+    return null;
+  }
+}

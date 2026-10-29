@@ -58,12 +58,21 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
 
   useEffect(() => {
     let alive = true;
-    loadCampus().then((campus) => {
-      if (!alive) return;
-      setLoaded({ campus, index: createCampusIndex(campus), geometry: geometryProvider.build(campus) });
-    });
+    const syncCampus = () => {
+      loadCampus().then((campus) => {
+        if (!alive) return;
+        setLoaded((prev) =>
+          prev && JSON.stringify(prev.campus) === JSON.stringify(campus)
+            ? prev
+            : { campus, index: createCampusIndex(campus), geometry: geometryProvider.build(campus) },
+        );
+      });
+    };
+    syncCampus();
+    window.addEventListener('campus:backend-updated', syncCampus);
     return () => {
       alive = false;
+      window.removeEventListener('campus:backend-updated', syncCampus);
     };
   }, []);
 

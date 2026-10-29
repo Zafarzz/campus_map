@@ -34,15 +34,53 @@ export function BackendLivePanel() {
 
   return (
     <section className="section" aria-label="Backend status">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
         <span style={{ width: 9, height: 9, borderRadius: '50%', background: dot, display: 'inline-block' }} />
         <strong>{label}</strong>
         {live.status === 'online' && (
           <span style={{ opacity: 0.7 }}>
             v{live.version} · {live.latencyMs} ms
+            {live.deployedCommit && live.deployedCommit !== 'dev' && live.deployedCommit !== 'unknown'
+              ? ` · #${live.deployedCommit}`
+              : ''}
           </span>
         )}
       </div>
+      {live.updatingToCommit && (
+        <div
+          style={{
+            marginTop: 6,
+            padding: '4px 8px',
+            borderRadius: 6,
+            background: 'rgba(37, 99, 235, 0.18)',
+            border: '1px solid rgba(59, 130, 246, 0.45)',
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          New deploy #{live.updatingToCommit} live — refreshing…
+        </div>
+      )}
+      {live.reloadPendingCommit && !live.updatingToCommit && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          style={{
+            marginTop: 6,
+            width: '100%',
+            padding: '5px 8px',
+            borderRadius: 6,
+            background: '#2563eb',
+            color: '#ffffff',
+            border: 'none',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Update #{live.reloadPendingCommit} ready — Reload now
+        </button>
+      )}
       {live.status === 'online' && (
         <>
           {top.length > 0 ? (

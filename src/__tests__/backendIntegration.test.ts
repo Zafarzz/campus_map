@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
+import { reconcileBuildVersion } from '../hooks/useBackendLive';
+import { fetchBuildVersion } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
 import { loadLessonsForDate } from '../services/schedule/scheduleService';
 
@@ -41,5 +43,32 @@ describe('backend integration seams', () => {
     vi.stubGlobal('fetch', vi.fn(() => okJson(remote)));
     const campus = await loadCampus();
     expect(campus.name).toBe('Campus from DB');
+  });
+
+  it('parses /version.json when valid and returns null in dev/404 mode', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => okJson({ commit: '25fa250', buildId: 'a1b2c3d4e5f6', builtAt: '2026-10-29T15:00:00Z' })),
+    );
+    const info = await fetchBuildVersion();
+    expect(info).toEqual({ commit: '25fa250', buildId: 'a1b2c3d4e5f6', builtAt: '2026-10-29T15:00:00Z' });
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 404 } as Response)));
+    expect(await fetchBuildVersion()).toBeNull();
+  });
+
+  it('distinguishes backend-only deploys from frontend bundle updates', () => {
+    const v1 = { commit: '25fa250', buildId: 'bundle-aaa111' };
+    expect(reconcileBuildVersion(null, v1)).toEqual({ action: 'init', current: v1 });
+    expect(reconcileBuildVersion(v1, v1)).toEqual({ action: 'none', current: v1 });
+
+    const backendOnly = { commit: '89bc012', buildId: 'bundle-aaa111' };
+    expect(reconcileBuildVersion(v1, backendOnly)).toEqual({ action: 'backend-updated', current: backendOnly });
+
+    const frontendChanged = { commit: '99de345', buildId: 'bundle-bbb222' };
+    expect(reconcileBuildVersion(backendOnly, frontendChanged)).toEqual({
+      action: 'frontend-updated',
+      current: frontendChanged,
+    });
   });
 });

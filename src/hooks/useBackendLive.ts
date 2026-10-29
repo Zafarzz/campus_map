@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
-import { apiGet, isBackendEnabled, pingBackend } from '../services/api/apiClient';
+import { useEffect, useRef, useState } from 'react';
+import {
+  apiGet,
+  fetchBuildVersion,
+  isBackendEnabled,
+  pingBackend,
+  type BuildVersionInfo,
+} from '../services/api/apiClient';
 
 export type BusynessPlace = {
   place_id: string;
@@ -20,13 +26,39 @@ export type BackendLive = {
   /** `connecting` until the first probe finishes */
   status: 'connecting' | 'online' | 'offline';
   version?: string;
+  deployedCommit?: string;
+  updatingToCommit?: string;
+  reloadPendingCommit?: string;
   latencyMs?: number;
   places: BusynessPlace[];
   /** wall-clock time of the last successful refresh */
   updatedAt?: Date;
 };
 
+export type VersionTransition =
+  | { action: 'init'; current: BuildVersionInfo }
+  | { action: 'none'; current: BuildVersionInfo }
+  | { action: 'backend-updated'; current: BuildVersionInfo }
+  | { action: 'frontend-updated'; current: BuildVersionInfo };
+
+export function reconcileBuildVersion(
+  initial: BuildVersionInfo | null,
+  incoming: BuildVersionInfo | null,
+): VersionTransition | null {
+  if (!incoming) return null;
+  if (!initial) return { action: 'init', current: incoming };
+  if (incoming.buildId !== initial.buildId) {
+    return { action: 'frontend-updated', current: incoming };
+  }
+  if (incoming.commit !== initial.commit) {
+    return { action: 'backend-updated', current: incoming };
+  }
+  return { action: 'none', current: incoming };
+}
+
 const REFRESH_MS = 10_000;
+const AUTO_RELOAD_DELAY_MS = 1_200;
+const RELOAD_GUARD_KEY = 'campus_autoreload_build';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -35,9 +67,38 @@ function toNaiveLocal(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 }
 
+function shouldDeferAutoReload(nextBuildId: string): boolean {
+  if (typeof window === 'undefined') return true;
+  const { pathname, hash } = window.location;
+  if (
+    pathname === '/editor' ||
+    pathname.startsWith('/editor/') ||
+    hash.startsWith('#/editor') ||
+    pathname === '/game' ||
+    pathname.startsWith('/game/') ||
+    hash.startsWith('#/game')
+  ) {
+    return true;
+  }
+  try {
+    return window.sessionStorage.getItem(RELOAD_GUARD_KEY) === nextBuildId;
+  } catch {
+    return false;
+  }
+}
+
+function markAutoReloaded(nextBuildId: string): void {
+  try {
+    window.sessionStorage.setItem(RELOAD_GUARD_KEY, nextBuildId);
+  } catch {
+    // Ignore storage quota / private mode restrictions
+  }
+}
+
 /**
- * Polls backend health and the crowd/busyness feed. `at` follows the Live/Simulate clock so the
- * panel agrees with the map. Never throws: an unreachable backend just reports `offline`.
+ * Polls backend health, `/version.json` deploy metadata, and the crowd/busyness feed.
+ * `at` follows the Live/Simulate clock so the panel agrees with the map.
+ * Never throws: an unreachable backend just reports `offline`.
  */
 export function useBackendLive(at: Date): BackendLive {
   const [state, setState] = useState<BackendLive>({
@@ -45,7 +106,17 @@ export function useBackendLive(at: Date): BackendLive {
     status: 'connecting',
     places: [],
   });
+  const initialVersionRef = useRef<BuildVersionInfo | null>(null);
+  const reloadTimerRef = useRef<number | undefined>(undefined);
   const atKey = toNaiveLocal(at);
+
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current !== undefined) {
+        window.clearTimeout(reloadTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isBackendEnabled) return;
@@ -53,12 +124,43 @@ export function useBackendLive(at: Date): BackendLive {
     const controller = new AbortController();
 
     const refresh = async () => {
-      const ping = await pingBackend(controller.signal);
+      const [ping, buildInfo] = await Promise.all([
+        pingBackend(controller.signal),
+        fetchBuildVersion(controller.signal),
+      ]);
       if (!alive) return;
       if (!ping.ok) {
         setState((s) => ({ ...s, status: 'offline', latencyMs: ping.latencyMs }));
         return;
       }
+
+      let deployedCommit = initialVersionRef.current?.commit;
+      let updatingToCommit: string | undefined;
+      let reloadPendingCommit: string | undefined;
+
+      const transition = reconcileBuildVersion(initialVersionRef.current, buildInfo);
+      if (transition) {
+        deployedCommit = transition.current.commit;
+        if (transition.action === 'init') {
+          initialVersionRef.current = transition.current;
+        } else if (transition.action === 'backend-updated') {
+          initialVersionRef.current = transition.current;
+          window.dispatchEvent(new CustomEvent('campus:backend-updated'));
+        } else if (transition.action === 'frontend-updated') {
+          if (shouldDeferAutoReload(transition.current.buildId)) {
+            reloadPendingCommit = transition.current.commit;
+          } else {
+            updatingToCommit = transition.current.commit;
+            if (reloadTimerRef.current === undefined) {
+              markAutoReloaded(transition.current.buildId);
+              reloadTimerRef.current = window.setTimeout(() => {
+                window.location.reload();
+              }, AUTO_RELOAD_DELAY_MS);
+            }
+          }
+        }
+      }
+
       try {
         const res = await apiGet<{ places: BusynessPlace[] }>('/busyness', { at: atKey }, controller.signal);
         if (!alive) return;
@@ -66,12 +168,25 @@ export function useBackendLive(at: Date): BackendLive {
           enabled: true,
           status: 'online',
           version: ping.version,
+          deployedCommit,
+          updatingToCommit,
+          reloadPendingCommit,
           latencyMs: ping.latencyMs,
           places: res.places ?? [],
           updatedAt: new Date(),
         });
       } catch {
-        if (alive) setState((s) => ({ ...s, status: 'online', version: ping.version, latencyMs: ping.latencyMs }));
+        if (alive) {
+          setState((s) => ({
+            ...s,
+            status: 'online',
+            version: ping.version,
+            deployedCommit: deployedCommit ?? s.deployedCommit,
+            updatingToCommit,
+            reloadPendingCommit,
+            latencyMs: ping.latencyMs,
+          }));
+        }
       }
     };
 

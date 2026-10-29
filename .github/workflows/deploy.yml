@@ -1,0 +1,85 @@
+name: CI & Auto-Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: campus-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Typecheck, Tests, Frontend Build & Backend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Run frontend & integration unit tests
+        run: npm test
+
+      - name: Verify production Vite bundle build
+        env:
+          VITE_USE_BACKEND: 'true'
+        run: npm run build
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Lint backend with Ruff
+        run: |
+          python -m pip install --quiet ruff
+          ruff check --config backend/pyproject.toml backend/app backend/scripts backend/tests
+
+  deploy:
+    name: Trigger Server Auto-Deploy
+    needs: verify
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger instant SSH deploy (or delegate to server GitOps timer)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "${DEPLOY_HOST}" ] || [ -z "${DEPLOY_SSH_KEY}" ]; then
+            echo "DEPLOY_HOST / DEPLOY_SSH_KEY secrets are not set; server-side campus-autodeploy.timer will pull and deploy origin/main within ~30s."
+            exit 0
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          SSH_PORT="${DEPLOY_PORT:-22}"
+          SSH_USER="${DEPLOY_USER:-ubuntu}"
+
+          ssh -i ~/.ssh/deploy_key \
+              -p "${SSH_PORT}" \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=15 \
+              "${SSH_USER}@${DEPLOY_HOST}" \
+              "/usr/local/bin/campus-deploy"

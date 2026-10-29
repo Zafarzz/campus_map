@@ -7,7 +7,7 @@
 #
 # Targets:
 #   - `dev`  : Vite HTTPS dev server with HMR and same-origin `/api` proxy (used by docker-compose.yml)
-#   - `prod` : Static production bundle served by Nginx with same-origin `/api` & `/ws` proxy
+#   - `prod` : Static production bundle served by Nginx with same-origin `/api`, `/docs` & `/ws` proxy
 
 FROM node:22-slim AS base
 
@@ -51,6 +51,14 @@ COPY src ./src
 
 RUN npm run build
 
+# Placed AFTER `npm run build` so backend-only commits reuse the cached Vite bundle
+# in 0.1s while still stamping the newly deployed commit SHA into `/version.json`.
+ARG APP_COMMIT=dev
+ARG APP_BUILT_AT=unknown
+RUN BUILD_ID="$(sha256sum dist/index.html | cut -c1-12)" \
+ && printf '{"commit":"%s","buildId":"%s","builtAt":"%s"}\n' \
+      "${APP_COMMIT}" "${BUILD_ID}" "${APP_BUILT_AT}" > dist/version.json
+
 # ------------------------------------------------------------------------ prod
 
 FROM nginx:1.27-alpine AS prod
@@ -76,6 +84,21 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /docs {
+        proxy_pass ${BACKEND_UPSTREAM};
+        proxy_set_header Host $host;
+    }
+
+    location = /redoc {
+        proxy_pass ${BACKEND_UPSTREAM};
+        proxy_set_header Host $host;
+    }
+
+    location = /openapi.json {
+        proxy_pass ${BACKEND_UPSTREAM};
+        proxy_set_header Host $host;
+    }
+
     location = /healthz {
         proxy_pass ${BACKEND_UPSTREAM};
     }
@@ -92,7 +115,22 @@ server {
         proxy_set_header Host $host;
     }
 
+    location = /version.json {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        try_files $uri =404;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
     location / {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
         try_files $uri $uri/ /index.html;
     }
 }
@@ -103,4 +141,4 @@ COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:80/version.json >/dev/null || exit 1

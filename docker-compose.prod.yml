@@ -1,0 +1,56 @@
+# Production / remote-server overlay for `docker-compose.yml`.
+#
+# Usage (used automatically by `scripts/deploy-server.sh`):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Differences from local `docker-compose.yml`:
+#   - Builds immutable `prod` targets (no `--reload`, no live source bind-mounts),
+#     so `git fetch` / `docker compose build` never disturbs running requests.
+#   - Serves the compiled 3D Campus Map + `/version.json` + reverse-proxied API
+#     through Nginx on `127.0.0.1:${FRONTEND_PROD_PORT:-8080}` (behind host Nginx :80).
+
+services:
+  backend-init:
+    image: campus-backend-api:prod
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: prod
+    volumes: !override
+      - ./src:/srv/frontend-src:ro
+      - ./backend/data:/srv/data:ro
+
+  api:
+    image: campus-backend-api:prod
+    pull_policy: never
+    ports: !override
+      - "${API_HOST:-127.0.0.1}:${API_PORT:-8000}:8000"
+    volumes: !override []
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        export DATABASE_URL="postgresql+asyncpg://campus_app:$${POSTGRES_APP_PASSWORD}@db:5432/campus"
+        export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:$${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+        export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:$${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    image: campus-frontend-web:prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: prod
+      args:
+        APP_COMMIT: "${APP_COMMIT:-unknown}"
+        APP_BUILT_AT: "${APP_BUILT_AT:-unknown}"
+        VITE_USE_BACKEND: "true"
+    ports: !override
+      - "127.0.0.1:${FRONTEND_PROD_PORT:-8080}:80"
+    volumes: !override []
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/version.json >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
