@@ -57,7 +57,12 @@ jobs:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger instant SSH deploy (or delegate to server GitOps timer)
+      - name: Checkout full git history for SSH push
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push commit & trigger safe deploy on server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -76,10 +81,9 @@ jobs:
 
           SSH_PORT="${DEPLOY_PORT:-22}"
           SSH_USER="${DEPLOY_USER:-ubuntu}"
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
 
-          ssh -i ~/.ssh/deploy_key \
-              -p "${SSH_PORT}" \
-              -o StrictHostKeyChecking=accept-new \
-              -o ConnectTimeout=15 \
-              "${SSH_USER}@${DEPLOY_HOST}" \
-              "/usr/local/bin/campus-deploy"
+          # Push directly into server's origin/main ref so private repos work without a separate deploy key
+          GIT_SSH_COMMAND="ssh ${SSH_OPTS}" git push --force "ssh://${SSH_USER}@${DEPLOY_HOST}/home/ubuntu/campus_map" HEAD:refs/remotes/origin/main
+
+          ssh ${SSH_OPTS} "${SSH_USER}@${DEPLOY_HOST}" "/usr/local/bin/campus-deploy"

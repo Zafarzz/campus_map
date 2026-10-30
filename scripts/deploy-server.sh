@@ -143,6 +143,7 @@ rollback() {
 main() {
   local mode="${1:-deploy}"
   cd "${REPO_DIR}"
+  export GIT_TERMINAL_PROMPT=0
 
   exec 9>"${LOCK_FILE}"
   if [ "${mode}" = "--poll" ]; then
@@ -162,13 +163,25 @@ main() {
   if [ "${mode}" = "--poll" ]; then
     local ls_sha
     ls_sha="$(git ls-remote --heads origin "refs/heads/${BRANCH}" 2>/dev/null | awk '{print $1}' || true)"
-    if [ -z "${ls_sha}" ] || [ "${ls_sha}" = "${local_sha}" ]; then
-      exit 0
+    if [ -n "${ls_sha}" ]; then
+      if [ "${ls_sha}" = "${local_sha}" ]; then
+        exit 0
+      fi
+      log "New commit detected on origin/${BRANCH}: ${local_sha:0:7} -> ${ls_sha:0:7}"
+    else
+      # Fallback when repo is private without a server deploy key: check if SSH push updated refs/remotes/origin/main
+      local ref_sha
+      ref_sha="$(git rev-parse "origin/${BRANCH}" 2>/dev/null || echo "${local_sha}")"
+      if [ "${ref_sha}" = "${local_sha}" ]; then
+        exit 0
+      fi
+      log "New pushed ref detected on origin/${BRANCH}: ${local_sha:0:7} -> ${ref_sha:0:7}"
     fi
-    log "New commit detected on origin/${BRANCH}: ${local_sha:0:7} -> ${ls_sha:0:7}"
   fi
 
-  git fetch --prune origin "${BRANCH}"
+  if ! git fetch --prune origin "${BRANCH}" 2>/dev/null; then
+    log "Direct git fetch skipped (using local origin/${BRANCH} ref)."
+  fi
   local target_sha
   target_sha="$(git rev-parse "origin/${BRANCH}")"
 
