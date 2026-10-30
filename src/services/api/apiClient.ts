@@ -7,20 +7,21 @@
  * Configuration (Vite env):
  *  - `VITE_USE_BACKEND=false`  force-disable (always static data).
  *  - `VITE_API_BASE_URL`       absolute API origin, e.g. `https://api.example.com`.
- *                              Leave empty to use same-origin `/api/...`, which the Vite dev
- *                              server proxies to the backend (see `vite.config.ts`). The
- *                              proxy is what avoids HTTPS -> HTTP mixed-content and CORS issues.
+ *                              Leave empty to use same-origin `/api/...`, which Vite's dev
+ *                              server (`vite.config.ts`) and production Nginx (`Dockerfile`)
+ *                              proxy to the backend, avoiding mixed-content and CORS issues.
  *
- * Enabled by default in dev; in production builds only when `VITE_API_BASE_URL` is set.
+ * Enabled by default in both dev and production builds unless `VITE_USE_BACKEND=false`.
+ * NOTE: Access `import.meta.env.VITE_*` via direct member expressions (never through an
+ * intermediate `const env = import.meta.env` alias), because Vite 8 / Rolldown only
+ * statically substitutes `VITE_*` variables on direct property reads.
  */
 
-const env = import.meta.env as Record<string, string | boolean | undefined>;
+const rawApiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+const explicitBase = typeof rawApiBase === 'string' ? rawApiBase.replace(/\/+$/, '') : '';
 
-const explicitBase = typeof env.VITE_API_BASE_URL === 'string' ? env.VITE_API_BASE_URL.replace(/\/+$/, '') : '';
-
-export const isBackendEnabled: boolean =
-  env.VITE_USE_BACKEND !== 'false' &&
-  (env.VITE_USE_BACKEND === 'true' || explicitBase !== '' || env.DEV === true);
+const rawUseBackend = import.meta.env.VITE_USE_BACKEND as string | boolean | undefined;
+export const isBackendEnabled: boolean = rawUseBackend !== 'false' && rawUseBackend !== false;
 
 export const API_PREFIX = '/api/v1';
 

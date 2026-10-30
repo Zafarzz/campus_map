@@ -111,17 +111,17 @@ sync_demo_inventory_if_needed() {
   local should_sync="false"
   if [ "${force_mode}" = "true" ]; then
     should_sync="true"
-  elif [ "${from_sha}" != "${to_sha}" ] && git diff --name-only "${from_sha}..${to_sha}" | grep -qE '^(src/data/|backend/scripts/seed_demo_campus\.py)'; then
+  elif [ "${from_sha}" != "${to_sha}" ] && git diff --name-only "${from_sha}..${to_sha}" | grep -qE '^(src/data/|backend/scripts/seed_demo_campus\.py|docker-compose\.yml|scripts/deploy-server\.sh)'; then
     should_sync="true"
   fi
 
   if [ "${should_sync}" = "true" ]; then
-    log "Syncing campus inventory from src/data into PostgreSQL (development mode) ..."
+    log "Syncing campus inventory & 7-day demo schedule from src/data into PostgreSQL (development mode) ..."
     compose run --rm -T backend-init /bin/sh -ec '
       export DATABASE_URL="postgresql+asyncpg://campus_app:${POSTGRES_APP_PASSWORD}@db:5432/campus"
       export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
       export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
-      python scripts/seed_demo_campus.py --with-dev-users
+      python scripts/seed_demo_campus.py --with-dev-users --include-weekends
       python scripts/grant_app_privileges.py
     '
   fi

@@ -105,7 +105,7 @@ services:
                 if not await conn.fetchval(f'SELECT count(*) FROM {schema}.meeting'):
                     return True
                 real_cnt = await conn.fetchval(f'SELECT count(*) FROM {schema}.meeting WHERE NOT is_demo')
-                if real_cnt == 0 and today.weekday() < 5:
+                if real_cnt == 0:
                     p1, p2 = chr(36) + '1', chr(36) + '2'
                     todays = await conn.fetchval(
                         f'SELECT count(*) FROM {schema}.meeting WHERE starts_at >= {p1} AND starts_at <= {p2}',
@@ -118,7 +118,7 @@ services:
 
         raise SystemExit(0 if asyncio.run(needs_seed()) else 1)
         "; then
-            python scripts/seed_demo_campus.py --with-dev-users
+            python scripts/seed_demo_campus.py --with-dev-users --include-weekends
             python scripts/grant_app_privileges.py
           fi
         fi

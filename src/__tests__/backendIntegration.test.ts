@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
-import { reconcileBuildVersion } from '../hooks/useBackendLive';
-import { fetchBuildVersion } from '../services/api/apiClient';
+import { reconcileBuildVersion, toCampusIsoMinute } from '../hooks/useBackendLive';
+import { fetchBuildVersion, isBackendEnabled } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
 import { loadLessonsForDate } from '../services/schedule/scheduleService';
 
@@ -10,6 +10,15 @@ const okJson = (body: unknown) => Promise.resolve({ ok: true, status: 200, json:
 afterEach(() => vi.unstubAllGlobals());
 
 describe('backend integration seams', () => {
+  it('enables backend integration by default unless explicitly disabled', () => {
+    expect(isBackendEnabled).toBe(true);
+  });
+
+  it('formats /busyness timestamps with explicit +05:00 Asia/Tashkent offset', () => {
+    const sample = new Date(2026, 9, 31, 10, 30, 45);
+    expect(toCampusIsoMinute(sample)).toBe('2026-10-31T10:30:00+05:00');
+  });
+
   it('uses lessons from the backend when reachable', async () => {
     const lesson = {
       id: 'l1',
