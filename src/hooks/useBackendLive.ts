@@ -62,9 +62,12 @@ const RELOAD_GUARD_KEY = 'campus_autoreload_build';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Campus-local naive instant the backend understands, e.g. `2026-10-27T10:45:00`. */
-function toNaiveLocal(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+/**
+ * Campus-local offset-aware instant (`Asia/Tashkent`, permanent UTC+05:00),
+ * e.g. `2026-10-30T10:30:00+05:00`. The backend rejects naive `at` parameters (`naive_at`).
+ */
+export function toCampusIsoMinute(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00+05:00`;
 }
 
 function shouldDeferAutoReload(nextBuildId: string): boolean {
@@ -108,7 +111,7 @@ export function useBackendLive(at: Date): BackendLive {
   });
   const initialVersionRef = useRef<BuildVersionInfo | null>(null);
   const reloadTimerRef = useRef<number | undefined>(undefined);
-  const atKey = toNaiveLocal(at);
+  const atKey = toCampusIsoMinute(at);
 
   useEffect(() => {
     return () => {
