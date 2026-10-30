@@ -49,16 +49,17 @@ export const mapConfig = {
     upcomingWindowMinutes: 60,
     liveTickMs: 30_000,
     /** Range of the simulated-time slider, minutes since midnight. */
-    simulatedRange: [8 * 60, 19 * 60] as [number, number],
-    defaultSimulatedMinutes: 10 * 60 + 45,
-    // TODO: Replace with the university's real lesson slots.
+    simulatedRange: [8 * 60, 20 * 60] as [number, number],
+    defaultSimulatedMinutes: 10 * 60 + 30,
+    /** Official Ajou University in Tashkent lesson periods (12:45?13:30 is lunch break). */
     slots: [
-      ['09:00', '10:20'],
-      ['10:30', '11:50'],
-      ['12:00', '13:20'],
-      ['14:00', '15:20'],
-      ['15:30', '16:50'],
-      ['17:00', '18:20'],
+      ['08:30', '09:45'],
+      ['10:00', '11:15'],
+      ['11:30', '12:45'],
+      ['13:30', '14:45'],
+      ['15:00', '16:15'],
+      ['16:30', '17:45'],
+      ['18:00', '19:15'],
     ] as [string, string][],
   },
 

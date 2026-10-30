@@ -116,12 +116,13 @@ sync_demo_inventory_if_needed() {
   fi
 
   if [ "${should_sync}" = "true" ]; then
-    log "Syncing campus inventory & 7-day demo schedule from src/data into PostgreSQL (development mode) ..."
+    log "Syncing campus spatial inventory & live EduPage timetable into PostgreSQL ..."
     compose run --rm -T backend-init /bin/sh -ec '
       export DATABASE_URL="postgresql+asyncpg://campus_app:${POSTGRES_APP_PASSWORD}@db:5432/campus"
       export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
       export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
-      python scripts/seed_demo_campus.py --with-dev-users --include-weekends
+      python scripts/seed_demo_campus.py --no-schedule --with-dev-users
+      python scripts/sync_edupage_timetable.py
       python scripts/grant_app_privileges.py
     '
   fi

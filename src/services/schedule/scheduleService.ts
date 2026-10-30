@@ -15,9 +15,10 @@ export async function loadLessonsForDate(campus: Campus, date: string): Promise<
   if (isBackendEnabled) {
     try {
       const res = await apiGet<{ date: string; lessons: Lesson[] }>('/compat/lessons', { date });
-      if (Array.isArray(res.lessons)) return res.lessons;
+      return Array.isArray(res.lessons) ? res.lessons : [];
     } catch (err) {
-      console.warn('[scheduleService] Backend unavailable, using demo schedule:', err);
+      console.warn('[scheduleService] Backend schedule request failed; refusing to show fake mock lessons:', err);
+      return [];
     }
   }
   return createDemoSchedule(campus, date, mapConfig.schedule.slots);
