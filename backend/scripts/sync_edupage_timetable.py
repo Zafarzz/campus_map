@@ -29,7 +29,7 @@ from app.services.edupage_sync_service import sync_edupage_timetable
 
 async def run(args: argparse.Namespace) -> int:
     settings = get_settings()
-    database = init_database(settings.migration_url, settings)
+    database = init_database(settings.database_url, settings)
     try:
         async with database.sessionmaker() as session:
             result = await sync_edupage_timetable(

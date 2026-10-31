@@ -24,6 +24,7 @@ from typing import Any
 
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
+from app.core.time import now as utc_now
 from app.jobs.maintenance import (
     EDUPAGE_SYNC_INTERVAL_MINUTES,
     SNAPSHOT_INTERVAL_MINUTES,
@@ -123,6 +124,7 @@ class JobScheduler:
             coalesce=True,
             max_instances=1,
             replace_existing=True,
+            next_run_time=utc_now(),
         )
 
         scheduler.start()
