@@ -2,11 +2,11 @@ import { navigateToPlaceOnMap, resolvePlaceNavigationTarget, useBackendLive } fr
 import { useMap } from '../../state/MapProvider';
 
 const LEVEL_COLOR: Record<string, string> = {
-  empty: '#22c55e',
-  quiet: '#22c55e',
-  moderate: '#f59e0b',
-  busy: '#f97316',
-  full: '#ef4444',
+  empty: '#16a34a',
+  quiet: '#16a34a',
+  moderate: '#d97706',
+  busy: '#ea580c',
+  full: '#dc2626',
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -84,7 +84,7 @@ export function BackendLivePanel() {
       {live.status === 'online' && (
         <>
           {top.length > 0 ? (
-            <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, fontSize: 12, display: 'grid', gap: 4 }}>
+            <ul className="crowd-places-list">
               {top.map((p) => {
                 const target = resolvePlaceNavigationTarget(p);
                 const isSelected = Boolean(
@@ -96,6 +96,7 @@ export function BackendLivePanel() {
                   <li key={p.place_id}>
                     <button
                       type="button"
+                      className={`crowd-place-btn ${isSelected ? 'crowd-place-btn--selected' : ''}`}
                       onClick={() =>
                         navigateToPlaceOnMap(p, {
                           hasRoom: (id) => index.rooms.has(id),
@@ -111,41 +112,22 @@ export function BackendLivePanel() {
                           ? `Click to locate ${p.name} (${target.locationBadge}) on the 3D map`
                           : p.name
                       }
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                        padding: '5px 8px',
-                        borderRadius: 6,
-                        border: isSelected
-                          ? '1px solid rgba(59, 130, 246, 0.7)'
-                          : '1px solid rgba(148, 163, 184, 0.14)',
-                        background: isSelected
-                          ? 'rgba(37, 99, 235, 0.22)'
-                          : 'rgba(15, 23, 42, 0.35)',
-                        color: 'inherit',
-                        fontSize: 12,
-                        textAlign: 'left',
-                        cursor: target ? 'pointer' : 'default',
-                        transition: 'background 0.15s ease, border-color 0.15s ease',
-                      }}
                     >
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                        <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span className="crowd-place-btn__title">
                           {p.name}
                         </span>
                         {target && (
-                          <span style={{ fontSize: 10, opacity: 0.65 }}>
+                          <span className="crowd-place-btn__badge">
                             📍 {target.locationBadge} · Click to view
                           </span>
                         )}
                       </span>
                       <span
                         style={{
-                          color: LEVEL_COLOR[p.level] ?? '#94a3b8',
+                          color: LEVEL_COLOR[p.level] ?? '#64748b',
                           fontWeight: 600,
+                          fontSize: 11.5,
                           whiteSpace: 'nowrap',
                           flexShrink: 0,
                         }}

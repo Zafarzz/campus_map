@@ -252,3 +252,74 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
   box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05);
 }
 .room-label--selected { background: var(--primary); color: white; }
+
+/* Crowd Places in Live Panel */
+.crowd-places-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0 3px 0 0;
+  display: grid;
+  gap: 5px;
+  max-height: 98px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.crowd-places-list::-webkit-scrollbar {
+  width: 5px;
+}
+.crowd-places-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.crowd-places-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.crowd-place-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f1f5f9;
+  color: var(--text-main);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.crowd-place-btn:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+.crowd-place-btn--selected {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.18);
+}
+.crowd-place-btn--selected:hover {
+  background: #f8fafc;
+}
+.crowd-place-btn__title {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crowd-place-btn--selected .crowd-place-btn__title {
+  color: #1d4ed8;
+}
+.crowd-place-btn__badge {
+  font-size: 10.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.crowd-place-btn--selected .crowd-place-btn__badge {
+  color: #2563eb;
+}
