@@ -29,10 +29,11 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import numpy as np
 
-from app.domain.base import CrowdLevel, Provenance
+from app.domain.base import CrowdLevel, PlaceKind, Provenance
 from app.engines.evidence import DEFAULT_CROWD_FRACTIONS, crowd_level_for_fraction
 
 __all__ = [
@@ -49,6 +50,8 @@ __all__ = [
     "FlowMeeting",
     "HourlyBucketProfile",
     "ScheduledTransitionSlot",
+    "TimetableMeetingSlot",
+    "TimetablePlacePriorResult",
     "WalkingCheckConfig",
     "WalkingTransitionIssue",
     "building_distance_m",
@@ -58,6 +61,7 @@ __all__ = [
     "compute_class_change_flows",
     "compute_hourly_profile",
     "compute_schedule_proxy_by_how",
+    "compute_timetable_place_prior",
     "erlang_c_probability",
     "mmc_queue_estimate",
     "required_walking_seconds",
@@ -308,6 +312,323 @@ def compute_schedule_proxy_by_how(
         demand_by_how[how] += expected_attendees * capture_fraction
 
     return {how: min(1.5, round(demand / capacity, 4)) for how, demand in demand_by_how.items() if demand > 0}
+
+
+@dataclass(frozen=True, slots=True)
+class TimetableMeetingSlot:
+    """One scheduled meeting on a campus day used to compute place busyness priors."""
+
+    starts_at: datetime
+    ends_at: datetime
+    building_id: str
+    group_label: str | None = None
+    expected_students: float = 20.0
+
+
+@dataclass(frozen=True, slots=True)
+class TimetablePlacePriorResult:
+    """Detailed timetable-derived busyness prior for a campus venue at ``at``."""
+
+    fraction: float
+    in_break_window: bool
+    break_headcount: float
+    open_class_groups_count: int
+    open_class_headcount: float
+    on_campus_students: float
+    morning_share: float
+    afternoon_share: float
+    note: str
+
+
+def compute_timetable_place_prior(
+    *,
+    kind: PlaceKind,
+    capacity: int | None,
+    at: datetime,
+    day_meetings: Sequence[TimetableMeetingSlot],
+    building_id: str | None = None,
+    nearby_building_ids: Sequence[str] | None = None,
+    timezone: ZoneInfo | None = None,
+) -> TimetablePlacePriorResult:
+    """Compute a time-sensitive busyness prior from the day's real timetable.
+
+    Accounts for three key student-behaviour factors:
+    1. **15-minute breaks after 75-minute lectures (and midday lunch break)**:
+       during active 75-minute lectures students are inside classrooms; during
+       the 15-minute class-change breaks (``09:45-10:00``, ``11:15-11:30``,
+       ``14:45-15:00``, ``16:15-16:30``) and lunch (``12:45-13:30``) students
+       pour out into corridors, building halls, study lounges, and the canteen.
+    2. **Open classes (free windows between two classes on the same day)**:
+       cohorts with a gap ``> 20 min`` between two scheduled classes on the
+       same day (e.g. ``I25D`` having ``08:30-09:45`` and ``11:30-12:45``)
+       remain on campus and populate open study lounges, coworking/chill zones,
+       the library, and the cafeteria.
+    3. **Morning vs. afternoon student load ratio**:
+       scales afternoon occupancy and lingering by the fraction of students who
+       actually have afternoon classes on that day.
+    """
+    if not capacity or capacity <= 0 or not day_meetings:
+        return TimetablePlacePriorResult(
+            fraction=0.0,
+            in_break_window=False,
+            break_headcount=0.0,
+            open_class_groups_count=0,
+            open_class_headcount=0.0,
+            on_campus_students=0.0,
+            morning_share=0.0,
+            afternoon_share=0.0,
+            note="No scheduled classes on this day.",
+        )
+
+    tz = timezone or ZoneInfo("Asia/Tashkent")
+    nearby_set = set(nearby_building_ids) if nearby_building_ids else None
+
+    # Deduplicate meetings by (starts_at, ends_at, building_id, group_label).
+    dedup: dict[tuple[datetime, datetime, str, str], float] = {}
+    for m in day_meetings:
+        if m.ends_at <= m.starts_at or m.expected_students <= 0:
+            continue
+        key = (m.starts_at, m.ends_at, m.building_id, (m.group_label or "").strip())
+        dedup[key] = max(dedup.get(key, 0.0), float(m.expected_students))
+
+    if not dedup:
+        return TimetablePlacePriorResult(
+            fraction=0.0,
+            in_break_window=False,
+            break_headcount=0.0,
+            open_class_groups_count=0,
+            open_class_headcount=0.0,
+            on_campus_students=0.0,
+            morning_share=0.0,
+            afternoon_share=0.0,
+            note="No active classes on this day.",
+        )
+
+    morning_load = 0.0
+    afternoon_load = 0.0
+    for (s_dt, _e_dt, _bld, _grp), exp in dedup.items():
+        if s_dt.astimezone(tz).hour < 13:
+            morning_load += exp
+        else:
+            afternoon_load += exp
+
+    total_load = morning_load + afternoon_load
+    morning_share = round(morning_load / total_load, 4) if total_load > 0 else 0.0
+    afternoon_share = round(afternoon_load / total_load, 4) if total_load > 0 else 0.0
+
+    earliest_start = min(k[0] for k in dedup)
+    latest_end = max(k[1] for k in dedup)
+    local_at = at.astimezone(tz)
+    local_min = local_at.hour * 60 + local_at.minute
+
+    if (
+        at < earliest_start - timedelta(minutes=30)
+        or at > latest_end + timedelta(minutes=150)
+        or local_min < 7 * 60 + 45
+        or local_min > 21 * 60
+    ):
+        return TimetablePlacePriorResult(
+            fraction=0.0,
+            in_break_window=False,
+            break_headcount=0.0,
+            open_class_groups_count=0,
+            open_class_headcount=0.0,
+            on_campus_students=0.0,
+            morning_share=morning_share,
+            afternoon_share=afternoon_share,
+            note="Outside active campus teaching hours.",
+        )
+
+    # Group meetings by individual student cohort token (e.g. "I25D").
+    raw_group_slots: dict[str, list[tuple[datetime, datetime, str, float]]] = defaultdict(list)
+    for (s_dt, e_dt, bld, grp_label), exp in dedup.items():
+        tokens = [t.strip() for t in grp_label.split(",") if t.strip()]
+        if not tokens:
+            tokens = [f"anon:{bld}:{int(s_dt.timestamp())}"]
+        per_group = max(10.0, min(28.0, exp / len(tokens)))
+        for token in tokens:
+            raw_group_slots[token].append((s_dt, e_dt, bld, per_group))
+
+    on_campus_students = 0.0
+    post_class_students = 0.0
+    in_class_students = 0.0
+    break_headcount = 0.0
+    lunch_headcount = 0.0
+    open_class_headcount = 0.0
+    open_class_groups_count = 0
+    in_break_window = False
+    linger_tau = 70.0 if afternoon_load > 0 else 24.0
+
+    def _bld_proximity(bld: str) -> float:
+        if building_id and bld == building_id:
+            return 1.0
+        if nearby_set is None or bld in nearby_set:
+            return 0.80
+        return 0.40
+
+    for _token, slots in raw_group_slots.items():
+        # Deduplicate simultaneous split-room slots for the same cohort.
+        by_interval: dict[tuple[datetime, datetime], tuple[str, float]] = {}
+        for s_dt, e_dt, bld, sz in sorted(slots, key=lambda x: (x[0], x[1])):
+            prev = by_interval.get((s_dt, e_dt))
+            if prev is None or _bld_proximity(bld) > _bld_proximity(prev[0]) or sz > prev[1]:
+                by_interval[(s_dt, e_dt)] = (
+                    bld if prev is None or _bld_proximity(bld) >= _bld_proximity(prev[0]) else prev[0],
+                    max(sz, prev[1] if prev else 0.0),
+                )
+
+        ordered = [
+            (s_dt, e_dt, bld, sz)
+            for (s_dt, e_dt), (bld, sz) in sorted(by_interval.items(), key=lambda item: item[0])
+        ]
+        if not ordered:
+            continue
+
+        first_s = ordered[0][0]
+        last_e = max(item[1] for item in ordered)
+        cohort_sz = max(item[3] for item in ordered)
+
+        # 1. Campus presence window for this cohort on this day.
+        if first_s - timedelta(minutes=20) <= at <= last_e:
+            on_campus_students += cohort_sz
+        elif last_e < at <= last_e + timedelta(minutes=150):
+            mins_after = (at - last_e).total_seconds() / 60.0
+            linger = cohort_sz * 0.42 * math.exp(-mins_after / linger_tau)
+            on_campus_students += linger
+            post_class_students += linger
+        elif first_s - timedelta(minutes=40) <= at < first_s - timedelta(minutes=20):
+            on_campus_students += cohort_sz * 0.25
+
+        # 2. Active lecture vs. 15-minute break / lunch break waves.
+        for s_dt, e_dt, bld, sz in ordered:
+            prox = _bld_proximity(bld)
+            if s_dt + timedelta(minutes=3) <= at <= e_dt - timedelta(minutes=1):
+                in_class_students += sz
+
+            mins_since_end = (at - e_dt).total_seconds() / 60.0
+            e_local = e_dt.astimezone(tz)
+            e_min = e_local.hour * 60 + e_local.minute
+
+            if 0.0 <= mins_since_end <= 45.0 and (12 * 60 + 25) <= e_min <= (13 * 60 + 5):
+                pulse = math.sin(math.pi * min(45.0, max(3.0, mins_since_end)) / 48.0)
+                lunch_headcount += sz * prox * max(0.45, pulse)
+                in_break_window = True
+            elif 0.0 <= mins_since_end <= 15.5:
+                pulse = math.sin(math.pi * min(15.0, max(2.0, mins_since_end)) / 16.0)
+                break_headcount += sz * prox * max(0.60, pulse)
+                in_break_window = True
+            elif 15.5 < mins_since_end <= 20.0:
+                tail = 0.25 * (1.0 - (mins_since_end - 15.5) / 4.5)
+                break_headcount += sz * prox * tail
+
+            mins_before_start = (s_dt - at).total_seconds() / 60.0
+            if 0.0 < mins_before_start <= 12.0:
+                pre_pulse = 0.45 * (1.0 - mins_before_start / 12.0)
+                break_headcount += sz * prox * pre_pulse
+                if mins_before_start <= 10.0:
+                    in_break_window = True
+
+        # 3. Open classes (free gap windows between two classes on the same day).
+        for (_s1, e1, bld1, sz1), (s2, _e2, bld2, sz2) in itertools.pairwise(ordered):
+            gap_min = (s2 - e1).total_seconds() / 60.0
+            if 20.0 < gap_min <= 300.0 and e1 <= at <= s2:
+                if building_id and (bld1 == building_id or bld2 == building_id):
+                    open_prox = 1.15
+                elif nearby_set is None or bld1 in nearby_set or bld2 in nearby_set:
+                    open_prox = 0.95
+                else:
+                    open_prox = 0.70
+                gap_weight = 1.0 if gap_min >= 50.0 else 0.60
+                open_class_groups_count += 1
+                open_class_headcount += max(sz1, sz2) * open_prox * gap_weight
+                break
+
+    # 4. Morning vs. afternoon activity ratio from the day's timetable.
+    if local_min < 13 * 60 + 15:
+        period_factor = max(0.35, min(1.05, morning_share / 0.60)) if morning_load > 0 else 0.15
+    else:
+        aft_to_morn = afternoon_load / max(1.0, morning_load)
+        period_factor = min(1.0, 0.18 + 0.82 * min(1.0, aft_to_morn)) if afternoon_load > 0 else 0.04
+
+    free_campus_students = max(0.0, on_campus_students - in_class_students)
+
+    if kind is PlaceKind.corridor:
+        demand = (
+            0.48 * break_headcount
+            + 0.28 * lunch_headcount
+            + 0.06 * open_class_headcount
+            + 0.022 * free_campus_students
+        )
+    elif kind is PlaceKind.study_area:
+        demand = (
+            0.16 * open_class_headcount
+            + 0.08 * break_headcount
+            + 0.07 * lunch_headcount
+            + 0.14 * post_class_students * period_factor
+            + 0.02 * free_campus_students
+        )
+    elif kind is PlaceKind.library:
+        demand = (
+            0.34 * open_class_headcount
+            + 0.05 * break_headcount
+            + 0.10 * lunch_headcount
+            + 0.36 * post_class_students * period_factor
+            + 0.045 * on_campus_students * period_factor
+        )
+    elif kind is PlaceKind.canteen:
+        is_lunch_hours = (11 * 60) <= local_min <= (14 * 60 + 15)
+        open_canteen_share = 0.34 if is_lunch_hours else 0.16
+        base_canteen_share = 0.055 if is_lunch_hours else 0.022
+        demand = (
+            0.38 * break_headcount
+            + 0.52 * lunch_headcount
+            + open_canteen_share * open_class_headcount
+            + 0.16 * post_class_students * period_factor
+            + base_canteen_share * on_campus_students * period_factor
+        )
+    elif kind is PlaceKind.gym:
+        sports_tod = 0.22 if local_min < 11 * 60 + 30 else (0.55 if local_min < 14 * 60 else 0.95)
+        demand = sports_tod * (
+            0.05 * open_class_headcount
+            + 0.14 * post_class_students * period_factor
+            + 0.022 * on_campus_students * period_factor
+        )
+    else:
+        sports_tod = 0.22 if local_min < 11 * 60 + 30 else (0.55 if local_min < 14 * 60 else 0.95)
+        demand = sports_tod * (
+            0.08 * open_class_headcount
+            + 0.22 * post_class_students * period_factor
+            + 0.032 * on_campus_students * period_factor
+        )
+
+    raw_fraction = demand / float(capacity)
+    if raw_fraction > 0.78:
+        fraction = 0.78 + 0.18 * (1.0 - math.exp(-(raw_fraction - 0.78) * 1.8))
+    else:
+        fraction = raw_fraction
+    fraction = round(min(0.96, max(0.0, fraction)), 4)
+
+    period_label = (
+        f"Morning schedule {round(morning_share * 100)}%"
+        if local_min < 13 * 60 + 15
+        else f"Afternoon schedule {round(afternoon_share * 100)}%"
+    )
+    phase_label = "15-min class break surge" if in_break_window else "Active lecture period"
+    note = (
+        f"{phase_label} · {open_class_groups_count} cohorts in open class · {period_label}"
+    )
+
+    return TimetablePlacePriorResult(
+        fraction=fraction,
+        in_break_window=in_break_window,
+        break_headcount=round(break_headcount + lunch_headcount, 2),
+        open_class_groups_count=open_class_groups_count,
+        open_class_headcount=round(open_class_headcount, 2),
+        on_campus_students=round(on_campus_students, 2),
+        morning_share=morning_share,
+        afternoon_share=afternoon_share,
+        note=note,
+    )
 
 
 # ---------------------------------------------------------------------------

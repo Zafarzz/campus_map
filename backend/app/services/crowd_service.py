@@ -44,6 +44,7 @@ from app.engines.crowds import (
     ClassChangeFlowResult,
     FlowMeeting,
     ScheduledTransitionSlot,
+    TimetableMeetingSlot,
     WalkingCheckConfig,
     WalkingTransitionIssue,
     calibrate_arrival_multiplier,
@@ -52,6 +53,7 @@ from app.engines.crowds import (
     compute_class_change_flows,
     compute_hourly_profile,
     compute_schedule_proxy_by_how,
+    compute_timetable_place_prior,
     mmc_queue_estimate,
     update_reporter_reliability,
 )
@@ -96,8 +98,10 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
         "name": "Central Campus Library",
         "kind": PlaceKind.library,
         "capacity": 160,
-        "nearby_building_ids": ["bld-h", "bld-g", "bld-i"],
+        "nearby_building_ids": ["bld-d", "bld-c", "bld-b", "bld-h", "bld-g", "bld-i"],
         "config": {
+            "floor_id": "bld-d-f1",
+            "room_id": "bld-d-f1-f101",
             "tau_minutes": 15,
             "min_reports_for_reported": 3,
             "crowd_fractions": {
@@ -111,12 +115,14 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
     },
     {
         "id": "place-canteen",
-        "building_id": "bld-f",
+        "building_id": "bld-i",
         "name": "Main Student Canteen",
         "kind": PlaceKind.canteen,
         "capacity": 200,
         "nearby_building_ids": ["bld-h", "bld-g", "bld-i", "bld-e", "bld-f"],
         "config": {
+            "floor_id": "bld-i-f1",
+            "room_id": "room-canteen",
             "tau_minutes": 10,
             "min_reports_for_reported": 3,
             "counters": 3,
@@ -133,7 +139,12 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
         "kind": PlaceKind.gym,
         "capacity": 60,
         "nearby_building_ids": ["bld-e", "bld-j"],
-        "config": {"tau_minutes": 15, "min_reports_for_reported": 3},
+        "config": {
+            "floor_id": "bld-e-f1",
+            "room_id": "bld-e-f1-r1",
+            "tau_minutes": 15,
+            "min_reports_for_reported": 3,
+        },
     },
     {
         "id": "place-sports-hall",
@@ -142,7 +153,12 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
         "kind": PlaceKind.sports_hall,
         "capacity": 120,
         "nearby_building_ids": ["bld-e", "bld-f"],
-        "config": {"tau_minutes": 15, "min_reports_for_reported": 3},
+        "config": {
+            "floor_id": "bld-e-f1",
+            "room_id": "bld-e-f1-r1",
+            "tau_minutes": 15,
+            "min_reports_for_reported": 3,
+        },
     },
     {
         "id": "place-study-a",
@@ -151,7 +167,12 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
         "kind": PlaceKind.study_area,
         "capacity": 48,
         "nearby_building_ids": ["bld-h", "bld-g"],
-        "config": {"tau_minutes": 12, "min_reports_for_reported": 2},
+        "config": {
+            "floor_id": "bld-h-f1",
+            "room_id": "bld-h-f1-a105",
+            "tau_minutes": 12,
+            "min_reports_for_reported": 2,
+        },
     },
     {
         "id": "place-corridor-main",
@@ -160,7 +181,12 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
         "kind": PlaceKind.corridor,
         "capacity": 150,
         "nearby_building_ids": ["bld-g", "bld-i", "bld-h"],
-        "config": {"tau_minutes": 8, "min_reports_for_reported": 3},
+        "config": {
+            "floor_id": "bld-g-f1",
+            "room_id": "bld-g-f1-lobby",
+            "tau_minutes": 8,
+            "min_reports_for_reported": 3,
+        },
     },
 )
 
@@ -186,6 +212,8 @@ class PlaceBusynessView:
     at: datetime
     inputs: tuple[dict[str, object], ...]
     note: str | None = None
+    floor_id: str | None = None
+    room_id: str | None = None
 
 
 async def ensure_default_places(
@@ -221,6 +249,17 @@ async def ensure_default_places(
                 is_demo=is_demo,
             )
             session.add(place)
+        else:
+            if bld_id is not None and place.building_id != bld_id:
+                place.building_id = bld_id
+            if list(place.nearby_building_ids or []) != list(spec["nearby_building_ids"]):
+                place.nearby_building_ids = list(spec["nearby_building_ids"])
+            merged_cfg = {**dict(spec["config"]), **dict(place.config or {})}
+            for nav_key in ("floor_id", "room_id"):
+                if nav_key in spec["config"]:
+                    merged_cfg[nav_key] = spec["config"][nav_key]
+            if merged_cfg != (place.config or {}):
+                place.config = merged_cfg
         places.append(place)
     await session.flush()
     return places
@@ -251,13 +290,115 @@ def _hour_of_week(at: datetime, tz: ZoneInfo) -> int:
     return local.weekday() * 24 + local.hour
 
 
+async def _load_day_timetable_slots(
+    session: AsyncSession,
+    at: datetime,
+    tz: ZoneInfo,
+) -> list[TimetableMeetingSlot]:
+    """Load all non-cancelled scheduled meetings on the campus local day of ``at``."""
+    local_dt = at.astimezone(tz)
+    day_start = datetime(local_dt.year, local_dt.month, local_dt.day, 0, 0, tzinfo=tz)
+    day_end = day_start + timedelta(days=1)
+
+    stmt = (
+        select(
+            Meeting.starts_at,
+            Meeting.ends_at,
+            Meeting.group_label,
+            Floor.building_id,
+            Section.enrolled_count,
+            Section.cohort,
+            Room.capacity,
+        )
+        .join(Room, Room.id == Meeting.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .outerjoin(MeetingRule, MeetingRule.id == Meeting.rule_id)
+        .outerjoin(Section, Section.id == MeetingRule.section_id)
+        .where(
+            Meeting.cancelled.is_(False),
+            Meeting.starts_at < day_end,
+            Meeting.ends_at > day_start,
+        )
+    )
+    rows = (await session.execute(stmt)).all()
+    slots: list[TimetableMeetingSlot] = []
+    for starts_at, ends_at, group_label, bld_id, enrolled, cohort, room_cap in rows:
+        grp = group_label or cohort or None
+        tokens = [t.strip() for t in (grp or "").split(",") if t.strip()]
+        num_groups = max(1, len(tokens))
+        if enrolled is not None and enrolled > 0:
+            expected = float(enrolled) * DEFAULT_PRIOR_MEAN
+        else:
+            expected = max(14.0, min(float(room_cap or 36) * 0.70, 18.0 * num_groups))
+        slots.append(
+            TimetableMeetingSlot(
+                starts_at=starts_at,
+                ends_at=ends_at,
+                building_id=bld_id,
+                group_label=grp,
+                expected_students=round(expected, 2),
+            )
+        )
+    return slots
+
+
 async def _prior_fraction_for_place(
     session: AsyncSession,
     place: Place,
     at: datetime,
     tz: ZoneInfo,
 ) -> float | None:
-    """Compute a prior fraction for ``place`` at ``at`` from history or schedule proxy."""
+    """Compute a prior fraction for ``place`` at ``at`` from timetable + history."""
+    if not place.capacity or place.capacity <= 0:
+        return None
+    day_slots = await _load_day_timetable_slots(session, at, tz)
+    tt_prior = compute_timetable_place_prior(
+        kind=place.kind,
+        capacity=place.capacity,
+        at=at,
+        day_meetings=day_slots,
+        building_id=place.building_id,
+        nearby_building_ids=place.nearby_building_ids,
+        timezone=tz,
+    )
+    how = _hour_of_week(at, tz)
+    snapshots = (
+        (
+            await session.execute(
+                select(BusynessSnapshot.fraction)
+                .where(
+                    BusynessSnapshot.place_id == place.id,
+                    BusynessSnapshot.hour_of_week == how,
+                    BusynessSnapshot.is_demo.is_(False),
+                )
+                .order_by(BusynessSnapshot.at.desc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if day_slots:
+        if tt_prior.on_campus_students <= 0.0 and tt_prior.fraction == 0.0:
+            return 0.0
+        if len(snapshots) >= 3:
+            sorted_vals = sorted(float(x) for x in snapshots)
+            snap_median = sorted_vals[len(sorted_vals) // 2]
+            return round(0.80 * tt_prior.fraction + 0.20 * snap_median, 4)
+        return tt_prior.fraction
+
+    if len(snapshots) >= 3:
+        sorted_vals = sorted(float(x) for x in snapshots)
+        return sorted_vals[len(sorted_vals) // 2]
+    return 0.0
+
+
+async def _legacy_prior_fraction_unused(
+    session: AsyncSession,
+    place: Place,
+    at: datetime,
+    tz: ZoneInfo,
+) -> float | None:
     how = _hour_of_week(at, tz)
     snapshots = (
         (
@@ -378,6 +519,9 @@ async def get_place_busyness(
     level = estimate.level or crowd_level_for_fraction(estimate.fraction, est_cfg.crowd_fractions)
     pct = round(min(100.0, max(0.0, estimate.fraction * 100.0)), 1)
 
+    cfg = place.config or {}
+    raw_floor_id = cfg.get("floor_id")
+    raw_room_id = cfg.get("room_id")
     return PlaceBusynessView(
         place_id=place.id,
         name=place.name,
@@ -396,6 +540,8 @@ async def get_place_busyness(
         at=instant,
         inputs=estimate.inputs,
         note=estimate.note,
+        floor_id=str(raw_floor_id) if raw_floor_id else None,
+        room_id=str(raw_room_id) if raw_room_id else None,
     )
 
 

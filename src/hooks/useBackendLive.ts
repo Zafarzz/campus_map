@@ -18,6 +18,97 @@ export type BusynessPlace = {
   headcount_likely: number | null;
   provenance: string;
   confidence: number | null;
+  floor_id?: string | null;
+  room_id?: string | null;
+  note?: string | null;
+};
+
+export type PlaceNavigationTarget = {
+  buildingId: string;
+  floorId: string;
+  roomId?: string;
+  locationBadge: string;
+};
+
+export const PLACE_NAVIGATION_TARGETS: Record<string, PlaceNavigationTarget> = {
+  'place-study-a': {
+    buildingId: 'bld-h',
+    floorId: 'bld-h-f1',
+    roomId: 'bld-h-f1-a105',
+    locationBadge: 'Block A · F1',
+  },
+  'place-corridor-main': {
+    buildingId: 'bld-g',
+    floorId: 'bld-g-f1',
+    roomId: 'bld-g-f1-lobby',
+    locationBadge: 'Block B · F1',
+  },
+  'place-library': {
+    buildingId: 'bld-d',
+    floorId: 'bld-d-f1',
+    roomId: 'bld-d-f1-f101',
+    locationBadge: 'Block F · F1',
+  },
+  'place-canteen': {
+    buildingId: 'bld-i',
+    floorId: 'bld-i-f1',
+    roomId: 'room-canteen',
+    locationBadge: 'Block C · F1',
+  },
+  'place-gym': {
+    buildingId: 'bld-e',
+    floorId: 'bld-e-f1',
+    roomId: 'bld-e-f1-r1',
+    locationBadge: 'Sports · F1',
+  },
+  'place-sports-hall': {
+    buildingId: 'bld-e',
+    floorId: 'bld-e-f1',
+    roomId: 'bld-e-f1-r2',
+    locationBadge: 'Sports · F1',
+  },
+};
+
+export function resolvePlaceNavigationTarget(place: BusynessPlace): PlaceNavigationTarget | null {
+  const preset = PLACE_NAVIGATION_TARGETS[place.place_id];
+  const buildingId = preset?.buildingId ?? place.building_id ?? null;
+  if (!buildingId) return null;
+  const floorId = place.floor_id ?? preset?.floorId ?? `${buildingId}-f1`;
+  const roomId = place.room_id ?? preset?.roomId;
+  return {
+    buildingId,
+    floorId,
+    roomId,
+    locationBadge: preset?.locationBadge ?? 'F1',
+  };
+}
+
+export function navigateToPlaceOnMap(
+  place: BusynessPlace,
+  nav: {
+    hasRoom: (roomId: string) => boolean;
+    hasFloor: (floorId: string) => boolean;
+    hasBuilding: (buildingId: string) => boolean;
+    selectRoom: (roomId: string) => void;
+    selectFloor: (floorId: string) => void;
+    selectBuilding: (buildingId: string) => void;
+  },
+): PlaceNavigationTarget | null {
+  const target = resolvePlaceNavigationTarget(place);
+  if (!target) return null;
+  if (target.roomId && nav.hasRoom(target.roomId)) {
+    nav.selectRoom(target.roomId);
+    return target;
+  }
+  if (target.floorId && nav.hasFloor(target.floorId)) {
+    nav.selectFloor(target.floorId);
+    return target;
+  }
+  if (nav.hasBuilding(target.buildingId)) {
+    nav.selectBuilding(target.buildingId);
+    return target;
+  }
+  return null;
 };
 
 export type BackendLive = {

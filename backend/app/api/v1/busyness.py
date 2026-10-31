@@ -84,6 +84,8 @@ def _serialize_busyness(view: PlaceBusynessView) -> dict[str, Any]:
         "name": view.name,
         "kind": view.kind.value,
         "building_id": view.building_id,
+        "floor_id": view.floor_id,
+        "room_id": view.room_id,
         "capacity": view.capacity,
         "level": view.level.value,
         "percentage_of_capacity": view.percentage_of_capacity,

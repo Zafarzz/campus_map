@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
 import { mapConfig } from '../config/mapConfig';
-import { reconcileBuildVersion, toCampusIsoMinute } from '../hooks/useBackendLive';
+import { createCampusIndex } from '../domain/campus/campusIndex';
+import {
+  navigateToPlaceOnMap,
+  reconcileBuildVersion,
+  resolvePlaceNavigationTarget,
+  toCampusIsoMinute,
+  type BusynessPlace,
+} from '../hooks/useBackendLive';
 import { initialTimeMode, resolveSimulatedDate } from '../hooks/useNow';
 import { fetchBuildVersion, isBackendEnabled } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
@@ -110,5 +117,59 @@ describe('backend integration seams', () => {
 
     const tueMorning = new Date(2026, 9, 27, 10, 30, 0); // Tuesday Oct 27, 2026
     expect(initialTimeMode(tueMorning)).toEqual({ mode: 'live' });
+  });
+
+  it('navigates to the exact building, floor, and room when a crowded place is clicked', () => {
+    const index = createCampusIndex(demoCampus);
+    const selectedRooms: string[] = [];
+    const selectedFloors: string[] = [];
+    const selectedBuildings: string[] = [];
+
+    const nav = {
+      hasRoom: (id: string) => index.rooms.has(id),
+      hasFloor: (id: string) => index.floors.has(id),
+      hasBuilding: (id: string) => index.buildings.has(id),
+      selectRoom: (id: string) => selectedRooms.push(id),
+      selectFloor: (id: string) => selectedFloors.push(id),
+      selectBuilding: (id: string) => selectedBuildings.push(id),
+    };
+
+    const studyLounge: BusynessPlace = {
+      place_id: 'place-study-a',
+      name: 'Block A Open Study Lounge',
+      kind: 'study_area',
+      building_id: 'bld-h',
+      capacity: 48,
+      level: 'busy',
+      percentage_of_capacity: 75.8,
+      headcount_likely: 36,
+      provenance: 'estimated',
+      confidence: 0.65,
+    };
+
+    const target = resolvePlaceNavigationTarget(studyLounge);
+    expect(target).toEqual({
+      buildingId: 'bld-h',
+      floorId: 'bld-h-f1',
+      roomId: 'bld-h-f1-a105',
+      locationBadge: 'Block A · F1',
+    });
+
+    navigateToPlaceOnMap(studyLounge, nav);
+    expect(selectedRooms).toEqual(['bld-h-f1-a105']);
+    expect(index.rooms.get('bld-h-f1-a105')?.building.id).toBe('bld-h');
+    expect(index.rooms.get('bld-h-f1-a105')?.floor.id).toBe('bld-h-f1');
+
+    const canteen: BusynessPlace = {
+      ...studyLounge,
+      place_id: 'place-canteen',
+      name: 'Main Student Canteen',
+      kind: 'canteen',
+      building_id: 'bld-i',
+    };
+    navigateToPlaceOnMap(canteen, nav);
+    expect(selectedRooms).toEqual(['bld-h-f1-a105', 'room-canteen']);
+    expect(index.rooms.get('room-canteen')?.building.id).toBe('bld-i');
+    expect(index.rooms.get('room-canteen')?.floor.id).toBe('bld-i-f1');
   });
 });

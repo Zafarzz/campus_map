@@ -40,11 +40,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.security import Role, create_access_token
-from app.domain.base import CrowdLevel, Provenance
+from app.domain.base import CrowdLevel, PlaceKind, Provenance
 from app.domain.people import AppUser
 from app.engines.crowds import (
     FlowMeeting,
     ScheduledTransitionSlot,
+    TimetableMeetingSlot,
     WalkingCheckConfig,
     calibrate_arrival_multiplier,
     canteen_arrival_rate,
@@ -52,6 +53,7 @@ from app.engines.crowds import (
     compute_class_change_flows,
     compute_hourly_profile,
     compute_schedule_proxy_by_how,
+    compute_timetable_place_prior,
     erlang_c_probability,
     mmc_queue_estimate,
     required_walking_seconds,
@@ -348,6 +350,205 @@ class TestReporterReliability:
         assert rel < 0.5
         assert agr == 0
         assert dis == 1
+
+
+class TestTimetablePlacePrior:
+    def test_break_window_surges_corridor_and_canteen_vs_mid_lecture(self) -> None:
+        """During a 15-min break (09:45-10:00), corridor & canteen surge compared to mid-lecture (09:10)."""
+        meetings = [
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 26, 8, 30, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 26, 9, 45, tzinfo=TASHKENT),
+                building_id="bld-g",
+                group_label="A25A, A25B",
+                expected_students=45.0,
+            ),
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 26, 10, 0, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 26, 11, 15, tzinfo=TASHKENT),
+                building_id="bld-g",
+                group_label="A25A, A25B",
+                expected_students=45.0,
+            ),
+        ]
+        mid_lecture = datetime(2026, 10, 26, 9, 10, tzinfo=TASHKENT)
+        break_time = datetime(2026, 10, 26, 9, 52, tzinfo=TASHKENT)
+
+        corridor_mid = compute_timetable_place_prior(
+            kind=PlaceKind.corridor,
+            capacity=150,
+            at=mid_lecture,
+            day_meetings=meetings,
+            building_id="bld-g",
+            nearby_building_ids=["bld-g", "bld-h", "bld-i"],
+            timezone=TASHKENT,
+        )
+        corridor_break = compute_timetable_place_prior(
+            kind=PlaceKind.corridor,
+            capacity=150,
+            at=break_time,
+            day_meetings=meetings,
+            building_id="bld-g",
+            nearby_building_ids=["bld-g", "bld-h", "bld-i"],
+            timezone=TASHKENT,
+        )
+        assert corridor_break.in_break_window is True
+        assert corridor_mid.in_break_window is False
+        assert corridor_break.fraction > corridor_mid.fraction
+
+        canteen_mid = compute_timetable_place_prior(
+            kind=PlaceKind.canteen,
+            capacity=200,
+            at=mid_lecture,
+            day_meetings=meetings,
+            building_id="bld-i",
+            nearby_building_ids=["bld-i", "bld-g", "bld-h"],
+            timezone=TASHKENT,
+        )
+        canteen_break = compute_timetable_place_prior(
+            kind=PlaceKind.canteen,
+            capacity=200,
+            at=break_time,
+            day_meetings=meetings,
+            building_id="bld-i",
+            nearby_building_ids=["bld-i", "bld-g", "bld-h"],
+            timezone=TASHKENT,
+        )
+        assert canteen_break.fraction > canteen_mid.fraction
+
+    def test_open_class_gap_boosts_study_lounge_and_library(self) -> None:
+        """Group I25D with 08:30-09:45 and 11:30-12:45 has an open class at 10:30 that boosts lounge/library."""
+        without_open_class = [
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 26, 10, 0, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 26, 11, 15, tzinfo=TASHKENT),
+                building_id="bld-h",
+                group_label="B25A",
+                expected_students=22.0,
+            ),
+        ]
+        with_i25d_open_class = [
+            *without_open_class,
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 26, 8, 30, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 26, 9, 45, tzinfo=TASHKENT),
+                building_id="bld-h",
+                group_label="I25D",
+                expected_students=24.0,
+            ),
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 26, 11, 30, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 26, 12, 45, tzinfo=TASHKENT),
+                building_id="bld-h",
+                group_label="I25D",
+                expected_students=24.0,
+            ),
+        ]
+        at_10_30 = datetime(2026, 10, 26, 10, 30, tzinfo=TASHKENT)
+
+        lounge_base = compute_timetable_place_prior(
+            kind=PlaceKind.study_area,
+            capacity=48,
+            at=at_10_30,
+            day_meetings=without_open_class,
+            building_id="bld-h",
+            nearby_building_ids=["bld-h", "bld-g"],
+            timezone=TASHKENT,
+        )
+        lounge_open = compute_timetable_place_prior(
+            kind=PlaceKind.study_area,
+            capacity=48,
+            at=at_10_30,
+            day_meetings=with_i25d_open_class,
+            building_id="bld-h",
+            nearby_building_ids=["bld-h", "bld-g"],
+            timezone=TASHKENT,
+        )
+        assert lounge_open.open_class_groups_count >= 1
+        assert lounge_open.fraction > lounge_base.fraction
+
+        lib_base = compute_timetable_place_prior(
+            kind=PlaceKind.library,
+            capacity=160,
+            at=at_10_30,
+            day_meetings=without_open_class,
+            building_id="bld-d",
+            timezone=TASHKENT,
+        )
+        lib_open = compute_timetable_place_prior(
+            kind=PlaceKind.library,
+            capacity=160,
+            at=at_10_30,
+            day_meetings=with_i25d_open_class,
+            building_id="bld-d",
+            timezone=TASHKENT,
+        )
+        assert lib_open.fraction > lib_base.fraction
+
+    def test_morning_heavy_schedule_reduces_afternoon_crowd(self) -> None:
+        """When almost all classes are in the morning, afternoon crowd is lower than on a full afternoon day."""
+        morning_slots = [
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 29, 8, 30, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 29, 9, 45, tzinfo=TASHKENT),
+                building_id="bld-h",
+                group_label=f"M{i}",
+                expected_students=24.0,
+            )
+            for i in range(8)
+        ]
+        light_afternoon_day = [
+            *morning_slots,
+            TimetableMeetingSlot(
+                starts_at=datetime(2026, 10, 29, 13, 30, tzinfo=TASHKENT),
+                ends_at=datetime(2026, 10, 29, 14, 45, tzinfo=TASHKENT),
+                building_id="bld-h",
+                group_label="AFT1",
+                expected_students=20.0,
+            ),
+        ]
+        busy_afternoon_day = [
+            *morning_slots,
+            *[
+                TimetableMeetingSlot(
+                    starts_at=datetime(2026, 10, 29, 13, 30, tzinfo=TASHKENT),
+                    ends_at=datetime(2026, 10, 29, 14, 45, tzinfo=TASHKENT),
+                    building_id="bld-h",
+                    group_label=f"AFT{i}",
+                    expected_students=24.0,
+                )
+                for i in range(7)
+            ],
+            *[
+                TimetableMeetingSlot(
+                    starts_at=datetime(2026, 10, 29, 15, 0, tzinfo=TASHKENT),
+                    ends_at=datetime(2026, 10, 29, 16, 15, tzinfo=TASHKENT),
+                    building_id="bld-h",
+                    group_label=f"LATE{i}",
+                    expected_students=24.0,
+                )
+                for i in range(5)
+            ],
+        ]
+        at_15_15 = datetime(2026, 10, 29, 15, 15, tzinfo=TASHKENT)
+        light_res = compute_timetable_place_prior(
+            kind=PlaceKind.library,
+            capacity=160,
+            at=at_15_15,
+            day_meetings=light_afternoon_day,
+            building_id="bld-d",
+            timezone=TASHKENT,
+        )
+        busy_res = compute_timetable_place_prior(
+            kind=PlaceKind.library,
+            capacity=160,
+            at=at_15_15,
+            day_meetings=busy_afternoon_day,
+            building_id="bld-d",
+            timezone=TASHKENT,
+        )
+        assert light_res.afternoon_share < busy_res.afternoon_share
+        assert light_res.fraction < busy_res.fraction
 
 
 # ---------------------------------------------------------------------------
