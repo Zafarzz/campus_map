@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.compat import (
     CompatCampus,
     CompatCampusResponse,
+    CompatCatalogResponse,
     CompatLessonsResponse,
     CompatLiveCountsResponse,
     CompatRoomStatesResponse,
@@ -130,6 +131,26 @@ async def compat_lessons(
     return CompatLessonsResponse(
         date=date.isoformat(),
         lessons=[compat_service.meeting_to_compat(meeting, timezone) for meeting in meetings],
+        meta=compat_service.meta_for_states([], at=now(), any_demo=any_demo),
+    )
+
+
+@router.get(
+    "/catalog",
+    response_model=CompatCatalogResponse,
+    response_model_exclude_none=True,
+    summary="Directory of known subjects, professors, and student groups for search diagnostics",
+)
+async def compat_catalog(
+    session: SessionDep,
+    response: Response,
+) -> CompatCatalogResponse:
+    catalog, any_demo = await schedule_service.timetable_catalog(session)
+    _provenance_headers(response, "demo" if any_demo else "confirmed", any_demo)
+    return CompatCatalogResponse(
+        subjects=catalog["subjects"],
+        professors=catalog["professors"],
+        groups=catalog["groups"],
         meta=compat_service.meta_for_states([], at=now(), any_demo=any_demo),
     )
 

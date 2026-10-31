@@ -35,6 +35,7 @@ from app.engines.timetable.template import (
 __all__ = [
     "ParseResult",
     "parse_csv",
+    "parse_edupage",
     "parse_ics",
     "parse_xlsx",
     "sniff_format",
@@ -88,6 +89,8 @@ def sniff_format(filename: str | None, payload: bytes) -> str:
         return "xlsx"
     if name.endswith(".ics"):
         return "ics"
+    if name.endswith(".json"):
+        return "edupage"
     if name.endswith((".csv", ".tsv", ".txt")):
         return "csv"
 
@@ -96,7 +99,16 @@ def sniff_format(filename: str | None, payload: bytes) -> str:
         return "xlsx"  # any OOXML zip
     if b"BEGIN:VCALENDAR" in payload[:2048].upper():
         return "ics"
+    if head.startswith(b"{") and b"dbiAccessorRes" in payload[:16384]:
+        return "edupage"
     return "csv"
+
+
+def parse_edupage(payload: bytes) -> ParseResult:
+    """Parse an EduPage ``regularttGetData`` JSON payload."""
+    from app.engines.timetable.edupage import parse_edupage as _parse_edupage
+
+    return _parse_edupage(payload)
 
 
 # --------------------------------------------------------------------- CSV

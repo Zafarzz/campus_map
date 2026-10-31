@@ -10,9 +10,9 @@ const subjects = [
   'English Academic Writing', 'Korean Language', 'Economics', 'Statistics',
   'Operating Systems', 'Databases', 'Digital Logic', 'Machine Learning', 'Discrete Math',
 ];
-const teachers = [
-  'Dr. Kim', 'Prof. Lee', 'Dr. Park', 'Ms. Karimova', 'Mr. Tashkentov',
-  'Dr. Choi', 'Prof. Rahimov', 'Ms. Yusupova', 'Dr. Jung', 'Mr. Aliev',
+const professors = [
+  'Prof. Kim', 'Prof. Lee', 'Prof. Park', 'Prof. Karimova', 'Prof. Tashkentov',
+  'Prof. Choi', 'Prof. Rahimov', 'Prof. Yusupova', 'Prof. Jung', 'Prof. Aliev',
 ];
 const groups = ['CSE-21', 'CSE-22', 'CSE-23', 'ICE-21', 'ICE-22', 'BM-22', 'BM-23', 'ME-21', 'FIN-23', 'CIE-22'];
 
@@ -45,7 +45,7 @@ export function createDemoSchedule(campus: Campus, date: string, slots: [string,
             id: `demo-${room.id}-${date}-${slotIndex}`,
             roomId: room.id,
             subject: room.kind === 'hall' ? 'Physical Education' : pick(subjects, `${seed}|s`),
-            teacher: pick(teachers, `${seed}|t`),
+            teacher: pick(professors, `${seed}|t`),
             group: pick(groups, `${seed}|g`),
             // Local time (no timezone suffix) — parsed as campus-local time.
             startsAt: `${date}T${start}:00`,

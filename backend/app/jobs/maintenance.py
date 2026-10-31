@@ -26,13 +26,18 @@ from app.services import booking_service, campus_service, history_service, state
 log = get_logger(__name__)
 
 __all__ = [
+    "EDUPAGE_SYNC_INTERVAL_MINUTES",
     "SNAPSHOT_INTERVAL_MINUTES",
     "broadcast_heartbeat",
     "release_unclaimed_bookings",
     "run_studentlife_housekeeping",
     "snapshot_campus_state",
     "snapshot_place_busyness",
+    "sync_live_edupage_timetable",
 ]
+
+#: How often to poll EduPage for a newly published timetable (e.g. exam -> regular).
+EDUPAGE_SYNC_INTERVAL_MINUTES = 30
 
 #: How often a full-campus snapshot is taken. Bounds replay work: a day's
 #: replay folds at most this many minutes of events on top of a snapshot
@@ -184,3 +189,26 @@ async def run_studentlife_housekeeping(
         expired = await studentlife_service.expire_old_lost_found_items(session, now=instant)
         await session.commit()
         return len(dissolved), len(expired)
+
+
+async def sync_live_edupage_timetable(
+    database: Database | None = None,
+    settings: Settings | None = None,
+) -> bool:
+    """Sync the published EduPage timetable if upstream changed; no-op otherwise."""
+    from app.jobs.scheduler import get_scheduler
+    from app.services.edupage_sync_service import sync_edupage_timetable
+
+    cfg = settings or get_settings()
+    if not cfg.edupage_base_url.strip():
+        return False
+    db = database or get_database()
+
+    async with db.sessionmaker() as session:
+        result = await sync_edupage_timetable(session, settings=cfg)
+        if not result.changed:
+            return False
+        await session.commit()
+
+    get_scheduler(cfg).transitions.poke()
+    return True

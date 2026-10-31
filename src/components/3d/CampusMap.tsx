@@ -11,6 +11,8 @@ import { Suspense, useEffect } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import { useMap } from '../../state/MapProvider';
+import { CameraPathEditor } from '../../cinematic/CameraPathEditor';
+import { CinematicCameraController } from '../../cinematic/CinematicCameraController';
 import { CameraController, cameraFraming } from './CameraController';
 import { Campus } from './Campus';
 import { ContextLayer } from './ContextLayer';
@@ -151,6 +153,10 @@ export function CampusMap() {
 
       {/* Camera Navigation Controller */}
       <CameraController geometry={geometry} selection={selection} />
+
+      {/* Cinematic mode: drives the same CameraControls; inert while the mode is closed */}
+      <CinematicCameraController geometry={geometry} />
+      <CameraPathEditor />
     </Canvas>
   );
 }

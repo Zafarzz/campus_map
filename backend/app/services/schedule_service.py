@@ -21,7 +21,8 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.time import campus_day_bounds
-from app.domain.academic import Meeting
+from app.domain.academic import ImportBatch, Meeting
+from app.domain.base import ImportStatus
 
 __all__ = [
     "day_is_demo",
@@ -29,6 +30,7 @@ __all__ = [
     "lessons_by_room_for_day",
     "lessons_for_day",
     "lessons_for_room",
+    "timetable_catalog",
 ]
 
 
@@ -134,3 +136,62 @@ async def day_is_demo(
         )
     )
     return bool(found)
+
+
+async def timetable_catalog(session: AsyncSession) -> tuple[dict[str, list[str]], bool]:
+    """Return known subjects, professors, and groups across active schedule & EduPage roster."""
+    subjects: set[str] = set()
+    professors: set[str] = set()
+    groups: set[str] = set()
+
+    latest_batch = (
+        await session.execute(
+            select(ImportBatch)
+            .where(ImportBatch.status == ImportStatus.applied)
+            .order_by(ImportBatch.applied_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if latest_batch is not None and isinstance(latest_batch.report, dict):
+        cat = latest_batch.report.get("catalog")
+        if isinstance(cat, dict):
+            for s in cat.get("subjects", []):
+                if isinstance(s, str) and s.strip():
+                    subjects.add(s.strip())
+            for p in cat.get("professors", []):
+                if isinstance(p, str) and p.strip():
+                    professors.add(p.strip())
+            for g in cat.get("groups", []):
+                if isinstance(g, str) and g.strip():
+                    groups.add(g.strip())
+
+    rows = (
+        await session.execute(
+            select(Meeting.subject, Meeting.teacher_label, Meeting.group_label, Meeting.is_demo).distinct()
+        )
+    ).all()
+
+    any_demo = False
+    for subj, prof, grp, is_demo in rows:
+        if is_demo:
+            any_demo = True
+        if subj and subj.strip():
+            subjects.add(subj.strip())
+        if prof and prof.strip():
+            for part in prof.split(","):
+                if part.strip():
+                    professors.add(part.strip())
+        if grp and grp.strip():
+            for part in grp.split(","):
+                if part.strip():
+                    groups.add(part.strip())
+
+    return (
+        {
+            "subjects": sorted(subjects),
+            "professors": sorted(professors),
+            "groups": sorted(groups),
+        },
+        any_demo,
+    )

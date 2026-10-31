@@ -87,41 +87,40 @@ services:
         if [ "$${APP_ENV:-development}" = "development" ]; then
           if python -c "
         import asyncio, os
-        from datetime import datetime, time, timezone
-        from zoneinfo import ZoneInfo
         import asyncpg
 
-        async def needs_seed() -> bool:
+        async def needs_campus_seed() -> bool:
             dsn = os.environ['DATABASE_MIGRATION_URL'].replace('postgresql+asyncpg://', 'postgresql://', 1)
             schema = os.environ.get('DATABASE_SCHEMA', 'campus')
-            tz = ZoneInfo(os.environ.get('CAMPUS_TZ', 'Asia/Tashkent'))
-            today = datetime.now(tz).date()
-            day_start = datetime.combine(today, time.min, tzinfo=tz).astimezone(timezone.utc)
-            day_end = datetime.combine(today, time.max, tzinfo=tz).astimezone(timezone.utc)
             conn = await asyncpg.connect(dsn)
             try:
-                if not await conn.fetchval(f'SELECT count(*) FROM {schema}.campus'):
-                    return True
-                if not await conn.fetchval(f'SELECT count(*) FROM {schema}.meeting'):
-                    return True
-                real_cnt = await conn.fetchval(f'SELECT count(*) FROM {schema}.meeting WHERE NOT is_demo')
-                if real_cnt == 0:
-                    p1, p2 = chr(36) + '1', chr(36) + '2'
-                    todays = await conn.fetchval(
-                        f'SELECT count(*) FROM {schema}.meeting WHERE starts_at >= {p1} AND starts_at <= {p2}',
-                        day_start, day_end,
-                    )
-                    return todays == 0
-                return False
+                return not await conn.fetchval(f'SELECT count(*) FROM {schema}.campus')
             finally:
                 await conn.close()
 
-        raise SystemExit(0 if asyncio.run(needs_seed()) else 1)
+        raise SystemExit(0 if asyncio.run(needs_campus_seed()) else 1)
         "; then
-            python scripts/seed_demo_campus.py --with-dev-users --include-weekends
-            python scripts/grant_app_privileges.py
+            python scripts/seed_demo_campus.py --no-schedule --with-dev-users
           fi
         fi
+        if python -c "
+        import asyncio, os
+        import asyncpg
+
+        async def has_campus() -> bool:
+            dsn = os.environ['DATABASE_MIGRATION_URL'].replace('postgresql+asyncpg://', 'postgresql://', 1)
+            schema = os.environ.get('DATABASE_SCHEMA', 'campus')
+            conn = await asyncpg.connect(dsn)
+            try:
+                return bool(await conn.fetchval(f'SELECT count(*) FROM {schema}.campus'))
+            finally:
+                await conn.close()
+
+        raise SystemExit(0 if asyncio.run(has_campus()) else 1)
+        "; then
+          python scripts/sync_edupage_timetable.py || echo "WARN: EduPage timetable sync skipped (upstream unreachable)"
+        fi
+        python scripts/grant_app_privileges.py
 
   api:
     image: campus-backend-api:local
