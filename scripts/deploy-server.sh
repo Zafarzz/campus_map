@@ -232,6 +232,11 @@ main() {
   fi
 
   sync_demo_inventory_if_needed "${local_sha}" "${target_sha}" "${force_mode}"
+  compose run --rm -T backend-init /bin/sh -ec '
+    export DATABASE_URL="postgresql+asyncpg://campus_app:${POSTGRES_APP_PASSWORD}@db:5432/campus"
+    export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+    python scripts/sync_edupage_timetable.py
+  ' || log "WARN: EduPage timetable sync deferred to scheduler."
 
   "${DOCKER[@]}" image prune -f >/dev/null 2>&1 || true
   log "SUCCESS: Commit #${APP_COMMIT} is live and healthy on 127.0.0.1:${FRONTEND_PORT}."
