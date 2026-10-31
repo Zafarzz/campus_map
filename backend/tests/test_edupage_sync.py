@@ -9,11 +9,14 @@ import json
 from datetime import date, time
 from zoneinfo import ZoneInfo
 
+from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db import Database
 from app.domain.academic import Meeting, Section
 from app.engines.timetable.edupage import (
+    extract_edupage_catalog,
     parse_edupage,
     pseudonymise_teacher,
     resolve_edupage_room_code,
@@ -68,6 +71,11 @@ def _synthetic_edupage_payload(*, subject_monday_d101: str = "Physics 1") -> byt
                                 "name": "Project Management for Construction",
                                 "short": "Project Management for Construction",
                             },
+                            {
+                                "id": "s4",
+                                "name": "Principles of Economics",
+                                "short": "Econ",
+                            },
                         ],
                     },
                     {
@@ -76,6 +84,7 @@ def _synthetic_edupage_payload(*, subject_monday_d101: str = "Physics 1") -> byt
                             {"id": "c1", "short": "A25A", "name": "A25A"},
                             {"id": "c2", "short": "A25B", "name": "A25B"},
                             {"id": "c3", "short": "I26C", "name": "I26C"},
+                            {"id": "c4", "short": "I25D", "name": "I25D"},
                         ],
                     },
                     {
@@ -177,7 +186,8 @@ def test_edupage_room_aliases_and_pseudonymous_teachers() -> None:
     assert resolve_edupage_room_code("E-201") == "E-205"
     assert resolve_edupage_room_code("D-101") == "D-101"
 
-    parsed = parse_edupage(_synthetic_edupage_payload())
+    payload = _synthetic_edupage_payload()
+    parsed = parse_edupage(payload)
     assert parsed.ok
     assert len(parsed.rows) == 5
 
@@ -196,6 +206,12 @@ def test_edupage_room_aliases_and_pseudonymous_teachers() -> None:
     assert multi.room_code == "C-conF"
     assert multi.starts_at == time(8, 30)
     assert multi.ends_at == time(11, 15)
+
+    catalog = extract_edupage_catalog(payload)
+    assert "Prof. Synthetic Alpha" in catalog["professors"]
+    assert "Prof. Synthetic Beta" in catalog["professors"]
+    assert "Principles of Economics" in catalog["subjects"]
+    assert catalog["groups"] == ["A25A", "A25B", "I25D", "I26C"]
 
 
 async def test_sync_edupage_purges_demo_schedule_and_switches_versions(
@@ -225,6 +241,16 @@ async def test_sync_edupage_purges_demo_schedule_and_switches_versions(
     assert res1.rules == 5
     assert res1.meetings > 0
 
+    # Catalog includes both placed and unplaced professors, subjects, and discrete student groups.
+    catalog, any_demo = await schedule_service.timetable_catalog(seeded_session)
+    assert any_demo is False
+    assert "Prof. Synthetic Alpha" in catalog["professors"]
+    assert "Prof. Synthetic Beta" in catalog["professors"]
+    assert "Principles of Economics" in catalog["subjects"]
+    assert "I25D" in catalog["groups"]
+    assert "A25A, A25B" not in catalog["groups"]
+    assert "A25A" in catalog["groups"] and "A25B" in catalog["groups"]
+
     # Demo meetings must be completely gone.
     demo_after = await seeded_session.scalar(
         select(func.count(Meeting.id)).where(Meeting.is_demo.is_(True))
@@ -239,8 +265,7 @@ async def test_sync_edupage_purges_demo_schedule_and_switches_versions(
         assert "Synthetic" not in ref
 
     # Verify a Monday within the active window has real EduPage slots and NO 12:00-13:20 lunch class.
-    monday = res1_monday(seeded_session)
-    target_monday = await monday
+    target_monday = await res1_monday(seeded_session)
     day_meetings = await schedule_service.lessons_for_day(
         seeded_session, day=target_monday, timezone=TASHKENT
     )
@@ -272,6 +297,26 @@ async def test_sync_edupage_purges_demo_schedule_and_switches_versions(
     updated_subjects = {m.subject for m in updated_meetings}
     assert "General Physics Lecture" in updated_subjects
     assert "Physics 1 (Midterm Exam)" not in updated_subjects
+
+
+async def test_compat_catalog_endpoint(
+    seeded_client: AsyncClient,
+    clean_database: Database,
+) -> None:
+    payload = _synthetic_edupage_payload()
+    async with clean_database.sessionmaker() as session:
+        await sync_edupage_timetable(
+            session,
+            payload_override=("163", "26-27.Fall V5 Mid-term Exam", payload),
+        )
+        await session.commit()
+
+    resp = await seeded_client.get("/api/v1/compat/catalog")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "Prof. Synthetic Beta" in body["professors"]
+    assert "Principles of Economics" in body["subjects"]
+    assert "I25D" in body["groups"]
 
 
 async def res1_monday(session: AsyncSession) -> date:

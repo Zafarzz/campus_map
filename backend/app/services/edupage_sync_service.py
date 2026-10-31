@@ -43,6 +43,7 @@ from app.domain.academic import Course, ImportBatch, Meeting, MeetingRule, Secti
 from app.domain.base import ImportStatus
 from app.domain.booking import Resource, ResourceOccupancy
 from app.domain.spatial import Building, Floor, Room
+from app.engines.timetable.edupage import extract_edupage_catalog
 from app.engines.timetable.validate import IssueCode
 from app.services import campus_service, import_service
 
@@ -309,10 +310,17 @@ async def sync_edupage_timetable(
         and existing_term.ends_on >= today + timedelta(days=14)
     )
 
+    has_catalog = bool(
+        latest_batch is not None
+        and isinstance(latest_batch.report, dict)
+        and isinstance(latest_batch.report.get("catalog"), dict)
+    )
+
     if (
         not force
         and latest_batch is not None
         and latest_batch.source_version == source_version
+        and has_catalog
         and window_healthy
         and demo_count == 0
         and real_count > 0
@@ -387,6 +395,9 @@ async def sync_edupage_timetable(
     if batch is not None:
         batch.source = EDUPAGE_BATCH_SOURCE
         batch.source_version = source_version
+        existing_report = dict(batch.report) if isinstance(batch.report, dict) else {}
+        existing_report["catalog"] = extract_edupage_catalog(payload_bytes)
+        batch.report = existing_report
         await session.flush()
 
     log.info(

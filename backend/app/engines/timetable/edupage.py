@@ -27,6 +27,7 @@ from app.engines.timetable.validate import normalise_room_code
 
 __all__ = [
     "EDUPAGE_ROOM_ALIASES",
+    "extract_edupage_catalog",
     "parse_edupage",
     "pseudonymise_teacher",
     "resolve_edupage_room_code",
@@ -290,3 +291,48 @@ def parse_edupage(payload: bytes) -> ParseResult:
         }
     )
     return ParseResult(rows=rows, mapping=mapping)
+
+
+def extract_edupage_catalog(payload: bytes) -> dict[str, list[str]]:
+    """Extract full published lists of subjects, professors, and groups from EduPage JSON.
+
+    During exam weeks (e.g. TT #163), some professors, subjects, or cohorts in
+    the university roster have zero placed exam cards. Exposing the published
+    catalog lets search distinguish a real professor/subject/group with no
+    session on the selected day from a misspelled query.
+    """
+    try:
+        decoded = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {"subjects": [], "professors": [], "groups": []}
+
+    tables = _extract_tables(decoded)
+    if tables is None:
+        return {"subjects": [], "professors": [], "groups": []}
+
+    subjects = sorted(
+        {
+            str(item.get("name") or item.get("short") or "").strip()
+            for item in tables.get("subjects", [])
+            if str(item.get("name") or item.get("short") or "").strip()
+        }
+    )
+    professors = sorted(
+        {
+            str(item.get("short") or "").strip()
+            for item in tables.get("teachers", [])
+            if str(item.get("short") or "").strip()
+        }
+    )
+    groups = sorted(
+        {
+            str(item.get("short") or item.get("name") or "").strip()
+            for item in tables.get("classes", [])
+            if str(item.get("short") or item.get("name") or "").strip()
+        }
+    )
+    return {
+        "subjects": subjects,
+        "professors": professors,
+        "groups": groups,
+    }
