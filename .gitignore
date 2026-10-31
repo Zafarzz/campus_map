@@ -10,6 +10,7 @@ dist-ssr/
 
 # Cache and logs
 .vite/
+graphify-out/cache/
 *.log
 npm-debug.log*
 yarn-debug.log*

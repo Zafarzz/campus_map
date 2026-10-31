@@ -10,6 +10,7 @@ import { FloorSelector } from './components/ui/FloorSelector';
 import { DataNotice, Legend, TimeControl } from './components/ui/MapControls';
 import { RoomDetails } from './components/ui/RoomDetails';
 import { SearchBox } from './components/ui/SearchBox';
+import { CinematicButton, CinematicOverlay, useCinematicClean } from './cinematic/CinematicMode';
 import { isGameRoute, navigateToGame } from './game/config/gameConfig';
 import { MapProvider, useMap } from './state/MapProvider';
 
@@ -33,6 +34,7 @@ function isEditorRoute(): boolean {
 function AppLayout() {
   const { selection } = useMap();
   const isDev = isDevOrDebugMode();
+  const cinematicClean = useCinematicClean();
   const [showTuning, setShowTuning] = useState(isDev);
 
   // Global hotkey to toggle tuning panel in dev mode (Ctrl+Alt+T)
@@ -49,13 +51,14 @@ function AppLayout() {
   }, [isDev]);
 
   return (
-    <div className="layout">
+    <div className={`layout${cinematicClean ? ' layout--cinematic' : ''}`}>
       {/* Visual Tuning Panel via Leva */}
       <Leva hidden={!showTuning} collapsed={true} />
 
       <main className="layout__3d">
         <CampusMap />
-        {selection.buildingId && <FloorSelector />}
+        {selection.buildingId && !cinematicClean && <FloorSelector />}
+        <CinematicOverlay />
       </main>
 
       <aside className="layout__ui">
@@ -87,6 +90,7 @@ function AppLayout() {
                 {showTuning ? '🎛️ Скрыть тюнинг' : '🎛️ Тюнинг'}
               </button>
             )}
+            <CinematicButton />
             <button
               onClick={navigateToGame}
               style={{

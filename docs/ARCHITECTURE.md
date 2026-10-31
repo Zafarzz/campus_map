@@ -325,3 +325,11 @@ flowchart TD
      - `campus-edit/preview.png`, `campus-edit/campus-overview.svg` и `campus-edit/floor-plans/<buildingId>-floor-<level>.svg` — визуальные превью генерального плана и поэтажных планов с маркерами изменений.
 
 
+
+## Cinematic Mode (`src/cinematic/`)
+
+Дополнительный режим съёмки (вне этапов A–C, по явному запросу). Не вводит второй контроллер камеры: `CinematicCameraController` управляет существующим drei `CameraControls` (`makeDefault`) через `setLookAt(..., false)` в `useFrame` (приоритет −2), снимает/восстанавливает пользовательскую камеру, FOV и лимиты при входе/выходе.
+- `pathMath.ts` — кейфреймы, easing, сплайн (кардинальный Catmull-Rom, параметр `smoothness`), валидация JSON; `presets.ts` — 8 пресетов из геометрии кампуса (оси по GEOMETRY_SPEC: X восток, Y вверх, Z юг).
+- `cinematicStore.ts` — внешний store (`useSyncExternalStore`) + мутабельный `runtime.time` (плейхед обновляется императивно, без ре-рендеров React). Пути сохраняются в `localStorage` (`campus-map.cinematic.paths.v1`) и экспортируются в `.camera.json`.
+- `recorder.ts` — копирует кадр WebGL-канваса в offscreen 2D-канвас нужного разрешения (`addAfterEffect`) и пишет через `MediaRecorder` в WebM; UI не попадает в видео.
+- Не реализовано: depth of field / motion blur (в проекте нет постпроцессинга); разрешение записи масштабируется из размера canvas (без суперсэмплинга).
