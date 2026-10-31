@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
+import { mapConfig } from '../config/mapConfig';
 import { reconcileBuildVersion, toCampusIsoMinute } from '../hooks/useBackendLive';
+import { initialTimeMode, resolveSimulatedDate } from '../hooks/useNow';
 import { fetchBuildVersion, isBackendEnabled } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
 import { loadLessonsForDate } from '../services/schedule/scheduleService';
@@ -34,11 +36,10 @@ describe('backend integration seams', () => {
     expect(String(fetchMock.mock.calls[0]![0])).toContain('/api/v1/compat/lessons?date=2026-10-27');
   });
 
-  it('falls back to the demo schedule when the backend is down', async () => {
+  it('returns an empty list instead of fake mock lessons when backend is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('connection refused'))));
     const lessons = await loadLessonsForDate(demoCampus, '2026-10-27');
-    expect(lessons.length).toBeGreaterThan(0);
-    expect(lessons[0]?.subject).not.toBe('From DB');
+    expect(lessons).toEqual([]);
   });
 
   it('keeps demoCampus when the backend campus is incomplete', async () => {
@@ -79,5 +80,35 @@ describe('backend integration seams', () => {
       action: 'frontend-updated',
       current: frontendChanged,
     });
+  });
+
+  it('uses official AUT EduPage lesson periods with 12:45?13:30 lunch break free', () => {
+    const slotPairs = mapConfig.schedule.slots.map(([s, e]) => `${s}-${e}`);
+    expect(slotPairs).not.toContain('12:00-13:20');
+    expect(slotPairs).toEqual([
+      '08:30-09:45',
+      '10:00-11:15',
+      '11:30-12:45',
+      '13:30-14:45',
+      '15:00-16:15',
+      '16:30-17:45',
+      '18:00-19:15',
+    ]);
+  });
+
+  it('defaults weekend visits to simulated Monday while keeping weekday class hours live', () => {
+    const satMorning = new Date(2026, 9, 31, 10, 30, 0); // Saturday Oct 31, 2026
+    const modeSat = initialTimeMode(satMorning);
+    expect(modeSat).toEqual({ mode: 'simulated', minutes: 630, weekday: 0 });
+
+    const resolvedMon = resolveSimulatedDate(satMorning, 630, 0);
+    expect(resolvedMon.getFullYear()).toBe(2026);
+    expect(resolvedMon.getMonth()).toBe(9);
+    expect(resolvedMon.getDate()).toBe(26); // Monday Oct 26, 2026
+    expect(resolvedMon.getHours()).toBe(10);
+    expect(resolvedMon.getMinutes()).toBe(30);
+
+    const tueMorning = new Date(2026, 9, 27, 10, 30, 0); // Tuesday Oct 27, 2026
+    expect(initialTimeMode(tueMorning)).toEqual({ mode: 'live' });
   });
 });

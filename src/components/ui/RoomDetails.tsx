@@ -12,7 +12,7 @@ function LessonBlock({ lesson, label }: { lesson: Lesson; label: string }) {
         {formatTime(lesson.startsAt)} — {formatTime(lesson.endsAt)}
         {lesson.cancelled && ' · Cancelled'}
       </div>
-      {lesson.teacher && <div>Teacher: {lesson.teacher}</div>}
+      {lesson.teacher && <div>Professor: {lesson.teacher}</div>}
       {lesson.group && <div>Group: {lesson.group}</div>}
     </div>
   );

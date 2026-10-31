@@ -5,11 +5,24 @@ import type { Campus } from '../domain/campus/types';
 import type { CampusGeometry } from '../domain/geometry/types';
 import { computeRoomStates } from '../domain/schedule/roomStatus';
 import type { Lesson, RoomScheduleState } from '../domain/schedule/types';
-import { initialTimeMode, useNow, type TimeMode } from '../hooks/useNow';
+import {
+  TEACHING_WEEKDAYS,
+  initialTimeMode,
+  resolveSimulatedDate,
+  useNow,
+  type TimeMode,
+  type WeekdayIndex,
+} from '../hooks/useNow';
 import { isBackendEnabled } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
 import { geometryProvider } from '../services/geometry';
-import { loadLessonsForDate, toLocalDateKey } from '../services/schedule/scheduleService';
+import {
+  EMPTY_TIMETABLE_CATALOG,
+  loadLessonsForDate,
+  loadTimetableCatalog,
+  toLocalDateKey,
+  type TimetableCatalog,
+} from '../services/schedule/scheduleService';
 
 /** How often the schedule is re-fetched from the backend (ms). */
 const BACKEND_REFRESH_MS = 10_000;
@@ -21,6 +34,8 @@ type MapContextValue = {
   index: CampusIndex;
   geometry: CampusGeometry;
   lessons: Lesson[];
+  weekLessons: ReadonlyMap<WeekdayIndex, Lesson[]>;
+  catalog: TimetableCatalog;
   roomStates: Map<string, RoomScheduleState>;
   now: Date;
 
@@ -50,11 +65,14 @@ type LoadedCampus = { campus: Campus; index: CampusIndex; geometry: CampusGeomet
 export function MapProvider({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
   const [loaded, setLoaded] = useState<LoadedCampus | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [weekLessons, setWeekLessons] = useState<ReadonlyMap<WeekdayIndex, Lesson[]>>(() => new Map());
+  const [catalog, setCatalog] = useState<TimetableCatalog>(EMPTY_TIMETABLE_CATALOG);
   const [selection, setSelection] = useState<Selection>({});
   const [time, setTime] = useState<TimeMode>(initialTimeMode);
   const [showReference, setShowReference] = useState(false);
   const now = useNow(time);
   const dateKey = toLocalDateKey(now);
+  const weekMondayKey = toLocalDateKey(resolveSimulatedDate(now, 0, 0));
 
   useEffect(() => {
     let alive = true;
@@ -79,7 +97,10 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
   useEffect(() => {
     if (!loaded) return;
     let alive = true;
-    const refresh = () => loadLessonsForDate(loaded.campus, dateKey).then((l) => alive && setLessons((prev) => (JSON.stringify(prev) === JSON.stringify(l) ? prev : l)));
+    const refresh = () =>
+      loadLessonsForDate(loaded.campus, dateKey).then(
+        (l) => alive && setLessons((prev) => (JSON.stringify(prev) === JSON.stringify(l) ? prev : l)),
+      );
     refresh();
     // With the backend on, poll so schedule changes (imports, cancellations, bookings) show up live.
     const timer = isBackendEnabled ? window.setInterval(refresh, BACKEND_REFRESH_MS) : undefined;
@@ -88,6 +109,34 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
       if (timer !== undefined) window.clearInterval(timer);
     };
   }, [loaded, dateKey]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    let alive = true;
+    const anchorMonday = new Date(`${weekMondayKey}T12:00:00`);
+    const refreshWeekAndCatalog = () => {
+      Promise.all(
+        TEACHING_WEEKDAYS.map(async ({ index: wd }) => {
+          const dayDate = resolveSimulatedDate(anchorMonday, 12 * 60, wd);
+          const items = await loadLessonsForDate(loaded.campus, toLocalDateKey(dayDate));
+          return [wd, items] as const;
+        }),
+      ).then((entries) => {
+        if (!alive) return;
+        setWeekLessons(new Map(entries));
+      });
+      loadTimetableCatalog().then((cat) => {
+        if (!alive) return;
+        setCatalog((prev) => (JSON.stringify(prev) === JSON.stringify(cat) ? prev : cat));
+      });
+    };
+    refreshWeekAndCatalog();
+    window.addEventListener('campus:backend-updated', refreshWeekAndCatalog);
+    return () => {
+      alive = false;
+      window.removeEventListener('campus:backend-updated', refreshWeekAndCatalog);
+    };
+  }, [loaded, weekMondayKey]);
 
   const roomStates = useMemo(
     () =>
@@ -135,6 +184,8 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
   const value: MapContextValue = {
     ...loaded,
     lessons,
+    weekLessons,
+    catalog,
     roomStates,
     now,
     selection,

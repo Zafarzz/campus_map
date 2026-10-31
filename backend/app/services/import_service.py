@@ -54,7 +54,7 @@ from app.domain.base import (
 from app.domain.booking import Resource, ResourceOccupancy
 from app.domain.spatial import Building, Floor, Room
 from app.engines.recurrence import RecurrenceError, RecurrenceSpec, expand_rule, weekly_rrule
-from app.engines.timetable.parsers import parse_csv, parse_ics, parse_xlsx, sniff_format
+from app.engines.timetable.parsers import parse_csv, parse_edupage, parse_ics, parse_xlsx, sniff_format
 from app.engines.timetable.template import TimetableRow
 from app.engines.timetable.validate import (
     ImportReport,
@@ -415,6 +415,8 @@ async def _parse_and_validate(
         parsed = parse_xlsx(payload, overrides=overrides)
     elif fmt == "ics":
         parsed = parse_ics(payload)
+    elif fmt == "edupage":
+        parsed = parse_edupage(payload)
     else:
         parsed = parse_csv(payload, overrides=overrides)
 
@@ -480,7 +482,11 @@ async def _find_term(session: AsyncSession, *, campus_id: str, term_id: uuid.UUI
         return term
     result = await session.execute(
         select(Term)
-        .where(Term.campus_id == campus_id, Term.is_current.is_(True))
+        .where(
+            Term.campus_id == campus_id,
+            Term.is_current.is_(True),
+            Term.is_demo.is_(False),
+        )
         .order_by(Term.starts_on.desc())
         .limit(1)
     )
@@ -631,6 +637,8 @@ async def _ensure_section(
         result.sections += 1
     elif row.enrolled_count is not None:
         section.enrolled_count = row.enrolled_count
+    if row.teacher_ref is not None and section.teacher_ref != row.teacher_ref:
+        section.teacher_ref = row.teacher_ref
     cache[key] = section
     return section
 
@@ -763,7 +771,7 @@ async def _materialise_rule(
             original_starts_at=occurrence.original_starts_at,
             cancelled=occurrence.cancelled,
             subject=row.title,
-            teacher_label=row.teacher_ref,
+            teacher_label=row.teacher_label if row.teacher_label is not None else row.teacher_ref,
             group_label=row.section_code,
             is_demo=False,
         )

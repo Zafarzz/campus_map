@@ -25,12 +25,14 @@ from typing import Any
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.jobs.maintenance import (
+    EDUPAGE_SYNC_INTERVAL_MINUTES,
     SNAPSHOT_INTERVAL_MINUTES,
     broadcast_heartbeat,
     release_unclaimed_bookings,
     run_studentlife_housekeeping,
     snapshot_campus_state,
     snapshot_place_busyness,
+    sync_live_edupage_timetable,
 )
 from app.jobs.transitions import TransitionRunner
 
@@ -109,6 +111,15 @@ class JobScheduler:
             "interval",
             minutes=15,
             id="run_studentlife_housekeeping",
+            coalesce=True,
+            max_instances=1,
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            _guard(sync_live_edupage_timetable, "sync_live_edupage_timetable"),
+            "interval",
+            minutes=EDUPAGE_SYNC_INTERVAL_MINUTES,
+            id="sync_live_edupage_timetable",
             coalesce=True,
             max_instances=1,
             replace_existing=True,

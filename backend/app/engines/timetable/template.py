@@ -241,6 +241,10 @@ class TimetableRow:
     section_code: str | None = None
     title: str | None = None
     teacher_ref: str | None = None
+    #: Optional human-facing teacher display string for materialised meetings,
+    #: kept separate so ``Section.teacher_ref`` can stay pseudonymous
+    #: (``docs/privacy/timetable.md`` rule 2).
+    teacher_label: str | None = None
     #: "weekly" | "odd" | "even", or a raw string the parser could not classify.
     week_pattern: str | None = None
     enrolled_count: int | None = None

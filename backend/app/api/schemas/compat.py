@@ -159,3 +159,12 @@ class CompatLiveCountsResponse(CompatModel):
     at: str
     counts: dict[str, int]
     meta: CompatMeta
+
+
+class CompatCatalogResponse(CompatModel):
+    """``GET /api/v1/compat/catalog``: known subjects, professors, and student groups."""
+
+    subjects: list[str]
+    professors: list[str]
+    groups: list[str]
+    meta: CompatMeta
