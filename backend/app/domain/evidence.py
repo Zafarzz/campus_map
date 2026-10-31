@@ -209,12 +209,29 @@ class AttendanceRecord(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL")
     )
-    #: "present" | "late" | "pending_review" | "guest"
+    #: "present" | "late" | "pending_review" | "guest" | "rejected"
     state: Mapped[ShortText] = mapped_column(nullable=False)
     scanned_at: Mapped[Utc] = mapped_column(nullable=False)
     #: Soft device binding. A hash, never a raw device fingerprint.
     device_ref: Mapped[str | None] = mapped_column(String(128))
     review_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class UserDevice(Base, TimestampMixin):
+    """Soft device binding registered at first QR attendance scan (brief section 13.3).
+
+    Only a hashed device identifier is stored. A subsequent scan from a different
+    ``device_ref`` routes the attendance record to ``pending_review`` for the
+    teacher rather than blocking the student.
+    """
+
+    __tablename__ = "user_device"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="CASCADE"), primary_key=True
+    )
+    device_ref: Mapped[str] = mapped_column(String(128), nullable=False)
+    registered_at: Mapped[Utc] = mapped_column(nullable=False)
 
 
 class AttendanceRate(Base, TimestampMixin, IsDemoMixin):

@@ -30,6 +30,7 @@ __all__ = [
     "SNAPSHOT_INTERVAL_MINUTES",
     "broadcast_heartbeat",
     "release_unclaimed_bookings",
+    "run_facilities_housekeeping",
     "run_studentlife_housekeeping",
     "snapshot_campus_state",
     "snapshot_place_busyness",
@@ -49,14 +50,7 @@ async def release_unclaimed_bookings(
     database: Database | None = None,
     hub: Hub | None = None,
 ) -> int:
-    """Free bookings nobody checked in to, and publish the change.
-
-    Scoped to bookings by construction: the sweeper queries the ``booking``
-    table, which timetable lessons have no row in. That is the mechanism behind
-    "official timetable lessons are never auto-cancelled by default" (brief
-    section 10.4) - not a flag that could be set wrong, but the absence of any
-    row for this job to find.
-    """
+    """Free bookings nobody checked in to, and publish the change."""
     db = database or get_database()
     hub_ = hub or get_hub()
 
@@ -65,7 +59,6 @@ async def release_unclaimed_bookings(
         if not released:
             return 0
 
-        # Capture what the publish needs before the session closes.
         freed = [
             (str(booking.id), booking.resource_id, booking.starts_at, booking.ends_at) for booking in released
         ]
@@ -99,14 +92,7 @@ async def snapshot_campus_state(
     *,
     at: datetime | None = None,
 ) -> bool:
-    """Take a full-campus snapshot, unless a recent one already exists.
-
-    The recency check is what makes this idempotent: two workers firing the same
-    quarter-hour tick produce one snapshot, not two, and a restart that
-    re-triggers the job does not duplicate the row.
-
-    Returns True when a snapshot was written.
-    """
+    """Take a full-campus snapshot, unless a recent one already exists."""
     db = database or get_database()
     cfg = settings or get_settings()
     instant = at or utc_now()
@@ -138,12 +124,7 @@ async def snapshot_campus_state(
 
 
 async def broadcast_heartbeat(database: Database | None = None, hub: Hub | None = None) -> int:
-    """Beat this worker's own sockets. Returns how many were reached.
-
-    Direct rather than through the broker: each worker beats its own
-    connections, and routing heartbeats through Redis would multiply the traffic
-    by the number of workers for no benefit.
-    """
+    """Beat this worker's own sockets. Returns how many were reached."""
     db = database or get_database()
     hub_ = hub or get_hub()
 
@@ -189,6 +170,26 @@ async def run_studentlife_housekeeping(
         expired = await studentlife_service.expire_old_lost_found_items(session, now=instant)
         await session.commit()
         return len(dissolved), len(expired)
+
+
+async def run_facilities_housekeeping(
+    database: Database | None = None,
+    *,
+    now: datetime | None = None,
+) -> tuple[int, int]:
+    """Escalate SLA-breached tickets and flag overdue asset loans (Phase 4 §14.1, §14.4)."""
+    from app.services import facilities_service, ticket_service
+
+    db = database or get_database()
+    instant = now or utc_now()
+
+    async with db.sessionmaker() as session:
+        escalated = await ticket_service.escalate_overdue_tickets(session, now=instant)
+        alerts = await facilities_service.check_overdue_and_maintenance_alerts(
+            session, now=instant
+        )
+        await session.commit()
+        return len(escalated), int(alerts["overdue_loans_count"])
 
 
 async def sync_live_edupage_timetable(

@@ -8,10 +8,13 @@ Enforces:
       closed -> reopened
 
 * SLA deadline calculation by priority.
+* Priority escalation when SLA deadlines are breached.
 * Duplicate merge window ("me too" upvoting when an open ticket already exists
   for the same room/place and category within the window).
 * Room blocking rule: ``blocks_use=True`` while in an active status puts the
   room into ``out_of_service``.
+* Deterministic operational metrics (time to triage, time to resolve, SLA
+  breaches, reopen rate).
 
 Nothing in this module performs database or network I/O.
 """
@@ -30,9 +33,13 @@ __all__ = [
     "SLA_HOURS_BY_PRIORITY",
     "CandidateExistingTicket",
     "InvalidTicketTransitionError",
+    "TicketMetricSample",
+    "TicketMetricsSummary",
     "compute_sla_due_at",
+    "compute_ticket_metrics",
     "find_duplicate_ticket",
     "is_ticket_blocking_room",
+    "next_escalated_priority",
     "validate_ticket_transition",
 ]
 
@@ -68,6 +75,13 @@ SLA_HOURS_BY_PRIORITY: dict[TicketPriority, int] = {
     TicketPriority.low: 120,
 }
 
+_PRIORITY_ESCALATION_CHAIN: dict[TicketPriority, TicketPriority] = {
+    TicketPriority.low: TicketPriority.normal,
+    TicketPriority.normal: TicketPriority.high,
+    TicketPriority.high: TicketPriority.urgent,
+    TicketPriority.urgent: TicketPriority.urgent,
+}
+
 
 class InvalidTicketTransitionError(ValueError):
     """Raised when a caller requests an illegal ticket status transition."""
@@ -101,6 +115,11 @@ def compute_sla_due_at(
     table = sla_hours_override or SLA_HOURS_BY_PRIORITY
     hours = table.get(priority, 48)
     return created_at + timedelta(hours=hours)
+
+
+def next_escalated_priority(priority: TicketPriority) -> TicketPriority:
+    """Promote priority by one step upon SLA breach (low -> normal -> high -> urgent)."""
+    return _PRIORITY_ESCALATION_CHAIN.get(priority, TicketPriority.urgent)
 
 
 def is_ticket_blocking_room(status: TicketStatus, blocks_use: bool) -> bool:
@@ -165,3 +184,105 @@ def find_duplicate_ticket(
         ):
             return item.id
     return None
+
+
+@dataclass(frozen=True, slots=True)
+class TicketMetricSample:
+    """Single ticket history sample for operational metrics (§14.1)."""
+
+    ticket_id: uuid.UUID
+    status: TicketStatus
+    priority: TicketPriority
+    created_at: datetime
+    sla_due_at: datetime | None
+    triaged_at: datetime | None = None
+    resolved_at: datetime | None = None
+    reopened_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class TicketMetricsSummary:
+    """Aggregated ticket operational metrics (§14.1)."""
+
+    total_tickets: int
+    open_tickets: int
+    resolved_or_closed_tickets: int
+    sla_breaches: int
+    sla_breach_rate: float
+    avg_time_to_triage_hours: float | None
+    avg_time_to_resolve_hours: float | None
+    reopened_tickets: int
+    reopen_rate: float
+
+
+def compute_ticket_metrics(
+    samples: list[TicketMetricSample] | tuple[TicketMetricSample, ...],
+    *,
+    now: datetime,
+) -> TicketMetricsSummary:
+    """Compute time-to-triage, time-to-resolve, SLA breaches, and reopen rate."""
+    if not samples:
+        return TicketMetricsSummary(
+            total_tickets=0,
+            open_tickets=0,
+            resolved_or_closed_tickets=0,
+            sla_breaches=0,
+            sla_breach_rate=0.0,
+            avg_time_to_triage_hours=None,
+            avg_time_to_resolve_hours=None,
+            reopened_tickets=0,
+            reopen_rate=0.0,
+        )
+
+    total = len(samples)
+    open_count = 0
+    resolved_count = 0
+    sla_breaches = 0
+    reopened_tickets = 0
+    triage_hours: list[float] = []
+    resolve_hours: list[float] = []
+
+    for s in samples:
+        if s.status in ACTIVE_TICKET_STATUSES:
+            open_count += 1
+        else:
+            resolved_count += 1
+
+        if s.triaged_at is not None and s.triaged_at >= s.created_at:
+            triage_hours.append(
+                (s.triaged_at - s.created_at).total_seconds() / 3600.0
+            )
+
+        if s.resolved_at is not None and s.resolved_at >= s.created_at:
+            resolve_hours.append(
+                (s.resolved_at - s.created_at).total_seconds() / 3600.0
+            )
+
+        if s.sla_due_at is not None:
+            end_time = s.resolved_at if s.resolved_at is not None else now
+            if end_time > s.sla_due_at:
+                sla_breaches += 1
+
+        if s.reopened_count > 0 or s.status == TicketStatus.reopened:
+            reopened_tickets += 1
+
+    avg_triage = (
+        round(sum(triage_hours) / len(triage_hours), 3) if triage_hours else None
+    )
+    avg_resolve = (
+        round(sum(resolve_hours) / len(resolve_hours), 3) if resolve_hours else None
+    )
+    breach_rate = round(sla_breaches / total, 4)
+    reopen_rate = round(reopened_tickets / total, 4)
+
+    return TicketMetricsSummary(
+        total_tickets=total,
+        open_tickets=open_count,
+        resolved_or_closed_tickets=resolved_count,
+        sla_breaches=sla_breaches,
+        sla_breach_rate=breach_rate,
+        avg_time_to_triage_hours=avg_triage,
+        avg_time_to_resolve_hours=avg_resolve,
+        reopened_tickets=reopened_tickets,
+        reopen_rate=reopen_rate,
+    )

@@ -21,6 +21,9 @@ from app.domain import (
     studentlife,
 )
 from app.domain.base import (
+    AssetCondition,
+    AssetStatus,
+    CleaningTaskStatus,
     IsDemoMixin,
     LostFoundKind,
     LostFoundStatus,
@@ -31,6 +34,7 @@ from app.domain.base import (
     RoomKind,
     RoomStateKind,
     RoomStatusCompat,
+    ScenarioStatus,
     StudyGroupStatus,
     TeacherVisibilityMode,
     TicketPriority,
@@ -40,6 +44,9 @@ from app.domain.base import (
 )
 
 __all__ = [
+    "AssetCondition",
+    "AssetStatus",
+    "CleaningTaskStatus",
     "IsDemoMixin",
     "LostFoundKind",
     "LostFoundStatus",
@@ -50,6 +57,7 @@ __all__ = [
     "RoomKind",
     "RoomStateKind",
     "RoomStatusCompat",
+    "ScenarioStatus",
     "StudyGroupStatus",
     "TeacherVisibilityMode",
     "TicketPriority",

@@ -38,6 +38,7 @@ from app.core.time import campus_date, campus_day_bounds
 from app.domain.academic import Meeting
 from app.domain.base import ConfirmationState, OccupancyKind, OccupancyStatus
 from app.domain.booking import Booking, Resource, ResourceOccupancy
+from app.domain.evidence import AttendanceSession
 from app.domain.spatial import Building, Floor, Room
 from app.engines.room_state import (
     BuildingSummary,
@@ -63,10 +64,6 @@ __all__ = [
     "upcoming_transitions",
 ]
 
-# --------------------------------------------------------------------- cache
-# Per-minute-bucket room-context cache (tracked in docs/runbooks/performance.md
-# as the first item in the Phase 3 backlog). Invalidated automatically on any
-# SQLAlchemy flush or rollback and explicitly via `invalidate_state_cache()`.
 
 _CACHE_TTL_SECONDS = 60.0
 _STATE_CACHE: dict[tuple[object, ...], tuple[float, dict[str, RoomContext]]] = {}
@@ -268,29 +265,7 @@ async def _load_rooms(session: AsyncSession, query: StateQuery) -> dict[str, _Ro
 
 
 def _room_scope(query: StateQuery, room_column: InstrumentedAttribute[str | None]) -> ColumnElement[bool]:
-    """The predicate restricting a query to the request's rooms.
-
-    Returns a clause rather than wrapping the query, because ``Select`` is
-    generic over the *tuple of columns selected* - which differs at every call
-    site - and threading that through a helper means either a variadic generic
-    or erasing the row type. A boolean clause composes with any ``select()``
-    and keeps each query's own typing intact.
-
-    Two ways to express "these rooms", and which one is used matters a great
-    deal at scale:
-
-    * **By join**, when the scope is a building or the whole campus. The room
-      set is described by a predicate, so the database never sees a list.
-    * **By ``IN``**, only when the caller asked for specific room ids - which is
-      a handful, from ``/rooms/{id}/state``.
-
-    Passing a thousand room ids in an ``IN`` list was the single largest cost in
-    a full-campus query: it defeats the planner's use of the composite index and
-    the list itself has to be parsed and matched per row. Measured on a
-    synthetic 1,000-room building, replacing it with the join below took the
-    p95 for a full-building query from roughly 390 ms to comfortably under the
-    brief's 100 ms target (``docs/runbooks/performance.md``).
-    """
+    """The predicate restricting a query to the request's rooms."""
     if query.room_ids is not None:
         return room_column.in_(query.room_ids)
     if query.building_id is not None:
@@ -300,8 +275,6 @@ def _room_scope(query: StateQuery, room_column: InstrumentedAttribute[str | None
             .where(Floor.building_id == query.building_id)
             .scalar_subquery()
         )
-    # Whole campus: every room is wanted, so the cheapest filter is none at all.
-    # ``true()`` keeps the call site uniform and the planner discards it.
     return true()
 
 
@@ -311,39 +284,31 @@ async def _load_meeting_intervals(
     window_start: datetime,
     window_end: datetime,
 ) -> list[tuple[str, Interval]]:
-    """Timetable occurrences overlapping the window.
-
-    Reads **materialised** ``meeting`` rows and never re-expands recurrence rules
-    per request (brief section 10.1). Expansion happens once at import time; this
-    is the hot path.
-
-    Overlap, not containment: ``starts_at < window_end AND ends_at >
-    window_start``. The composite index ``ix_meeting_room_window`` on
-    ``(room_id, starts_at, ends_at)`` serves it.
-
-    Selects **columns rather than entities**. The engine needs seven values per
-    meeting; hydrating a full ORM object per row adds identity-map bookkeeping
-    and change tracking for a row that is read once and never written. On a
-    campus-sized query that was the second largest cost after the ``IN`` list.
-    """
-    stmt = select(
-        Meeting.room_id,
-        Meeting.id,
-        Meeting.starts_at,
-        Meeting.ends_at,
-        Meeting.cancelled,
-        Meeting.subject,
-        Meeting.teacher_label,
-        Meeting.group_label,
-    ).where(
-        Meeting.room_id.is_not(None),
-        Meeting.starts_at < window_end,
-        Meeting.ends_at > window_start,
+    """Timetable occurrences overlapping the window."""
+    stmt = (
+        select(
+            Meeting.room_id,
+            Meeting.id,
+            Meeting.starts_at,
+            Meeting.ends_at,
+            Meeting.cancelled,
+            Meeting.subject,
+            Meeting.teacher_label,
+            Meeting.group_label,
+            AttendanceSession.id.label("attendance_session_id"),
+        )
+        .outerjoin(AttendanceSession, AttendanceSession.meeting_id == Meeting.id)
+        .where(
+            Meeting.room_id.is_not(None),
+            Meeting.starts_at < window_end,
+            Meeting.ends_at > window_start,
+        )
     )
     result = await session.execute(stmt.where(_room_scope(query, Meeting.room_id)))
 
     intervals: list[tuple[str, Interval]] = []
     for row in result.all():
+        has_attendance_session = row.attendance_session_id is not None
         intervals.append(
             (
                 row.room_id,
@@ -357,10 +322,13 @@ async def _load_meeting_intervals(
                     teacher_label=row.teacher_label,
                     group_label=row.group_label,
                     # A scheduled lesson with nobody checked in is *unconfirmed*,
-                    # never "empty" (brief section 10.3). Attendance evidence
-                    # upgrades this in Phase 4; until then every lesson says so
-                    # honestly rather than implying confirmation.
-                    confirmation=ConfirmationState.unconfirmed,
+                    # never "empty" (brief section 10.3). Opening an attendance
+                    # session upgrades this to confirmed (Phase 4 §13.3).
+                    confirmation=(
+                        ConfirmationState.confirmed
+                        if has_attendance_session
+                        else ConfirmationState.unconfirmed
+                    ),
                 ),
             )
         )
@@ -373,17 +341,7 @@ async def _load_booking_intervals(
     window_start: datetime,
     window_end: datetime,
 ) -> list[tuple[str, Interval]]:
-    """Bookings, events, maintenance and blackouts overlapping the window.
-
-    Read from ``resource_occupancy`` rather than from ``booking``, because that
-    is the table the exclusion constraint guards and therefore the only one
-    guaranteed to be complete: events and maintenance windows write there too,
-    without a ``booking`` row.
-
-    Only ``pending`` and ``confirmed`` rows occupy a room - the same predicate
-    the exclusion constraint uses - so a cancelled or released booking frees the
-    room here exactly as it does in the database.
-    """
+    """Bookings, events, maintenance and blackouts overlapping the window."""
     stmt = (
         select(
             Resource.room_id,
@@ -396,13 +354,8 @@ async def _load_booking_intervals(
         .join(Resource, Resource.id == ResourceOccupancy.resource_id)
         .outerjoin(Booking, Booking.id == ResourceOccupancy.booking_id)
         .where(
-            # An occupancy on a non-room resource (a projector, a laundry slot)
-            # has no bearing on a room's state, so it is excluded in SQL rather
-            # than fetched and discarded.
             Resource.room_id.is_not(None),
             ResourceOccupancy.status.in_((OccupancyStatus.pending, OccupancyStatus.confirmed)),
-            # Occupancies carry a tstzrange; compare with the range operators so
-            # the GiST index on `period` is usable.
             ResourceOccupancy.period.op("&&")(_tstzrange(window_start, window_end)),
         )
     )
@@ -441,14 +394,6 @@ def _booking_confirmation(
     booking_id: uuid.UUID | None,
     checked_in_at: datetime | None,
 ) -> ConfirmationState:
-    """Whether a human has confirmed this occupancy.
-
-    A booking with a check-in is ``confirmed``; one still waiting is
-    ``unconfirmed``. Maintenance and blackouts are ``not_required`` - nobody
-    checks in to a closed room, and marking them unconfirmed would invite a
-    client to render "nobody turned up" about a window that was never about
-    people.
-    """
     if kind in {OccupancyKind.maintenance, OccupancyKind.blackout}:
         return ConfirmationState.not_required
     if checked_in_at is not None:
@@ -466,12 +411,6 @@ def _tstzrange(start: datetime, end: datetime) -> object:
 
 
 def _range_bounds(period: object) -> tuple[datetime, datetime] | None:
-    """Extract ``(lower, upper)`` from a psycopg/asyncpg range value.
-
-    Unbounded ranges are skipped rather than clamped: the engine's intervals are
-    finite by construction, and inventing a bound would silently turn "reserved
-    indefinitely" into a window that expires.
-    """
     lower = getattr(period, "lower", None)
     upper = getattr(period, "upper", None)
     if not isinstance(lower, datetime) or not isinstance(upper, datetime):
@@ -563,13 +502,7 @@ async def upcoming_transitions(
     options: StateOptions | None = None,
     limit: int = 500,
 ) -> list[tuple[str, datetime]]:
-    """``(room_id, instant)`` pairs for the next state change of each room.
-
-    This is what the transition scheduler consumes (brief section 10.2): instead
-    of polling every room every second, it asks when each room next changes and
-    sets one timer per instant. Sorted soonest-first and truncated, because the
-    scheduler only needs the near horizon - it re-asks after each wake-up.
-    """
+    """``(room_id, instant)`` pairs for the next state change of each room."""
     opts = options or StateOptions(timezone=timezone)
     contexts = await load_room_contexts(session, StateQuery(at=at), timezone=timezone)
 
@@ -584,10 +517,5 @@ async def upcoming_transitions(
 
 
 def settings_timezone(settings: Settings | None = None) -> ZoneInfo:
-    """The campus timezone from configuration.
-
-    A thin helper so endpoints do not each reach into settings; the authoritative
-    value lives on the ``campus`` row and is passed explicitly everywhere the
-    campus is already loaded.
-    """
+    """The campus timezone from configuration."""
     return (settings or get_settings()).timezone

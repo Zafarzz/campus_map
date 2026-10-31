@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from asyncpg.exceptions import ExclusionViolationError
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +43,7 @@ from app.core.logging import get_logger
 from app.core.time import now as utc_now
 from app.domain.base import OccupancyKind, OccupancyStatus, new_uuid
 from app.domain.booking import Blackout, Booking, Resource, ResourceOccupancy
+from app.domain.people import UserCapability
 from app.engines.booking import (
     BookingPolicy,
     PolicyViolation,
@@ -55,10 +56,12 @@ log = get_logger(__name__)
 __all__ = [
     "BookingRequest",
     "BookingResult",
+    "approve_booking",
     "cancel_booking",
     "check_in",
     "create_booking",
     "list_bookings",
+    "reject_booking",
     "release_expired",
 ]
 
@@ -112,6 +115,8 @@ async def create_booking(
     policy = _policy_for(resource)
     blackouts = await _load_blackouts(session, resource.id, request.slot, policy)
     active = await _count_active_bookings(session, request.user_id, instant)
+    db_caps = await _load_user_capabilities(session, request.user_id, instant)
+    effective_capabilities = held_capabilities | db_caps
 
     from app.engines.booking import validate_request
 
@@ -122,7 +127,7 @@ async def create_booking(
         timezone=timezone,
         is_bookable=resource.is_bookable,
         active_bookings=active,
-        held_capabilities=held_capabilities,
+        held_capabilities=effective_capabilities,
         blackouts=blackouts,
     )
     if violations:
@@ -203,6 +208,58 @@ async def create_booking(
         policy=policy,
         awaiting_approval=status is OccupancyStatus.pending,
     )
+
+
+async def approve_booking(
+    session: AsyncSession,
+    booking_id: uuid.UUID,
+    *,
+    approver_id: uuid.UUID | None = None,
+) -> Booking:
+    """Approve a pending booking (§13.1), promoting it and its occupancy to ``confirmed``."""
+    booking = await session.get(Booking, booking_id)
+    if booking is None:
+        raise NotFoundError(f"Booking {booking_id} does not exist.", code="booking_not_found")
+    if booking.status in {OccupancyStatus.cancelled, OccupancyStatus.released}:
+        raise ValidationError(
+            f"Booking is {booking.status.value} and cannot be approved.",
+            code="booking_not_approvable",
+        )
+    booking.status = OccupancyStatus.confirmed
+    if approver_id is not None:
+        booking.approved_by = approver_id
+    await _set_occupancy_status(session, booking.id, OccupancyStatus.confirmed, note="approved")
+    await session.flush()
+    log.info("booking_approved", booking_id=str(booking.id), approver_id=str(approver_id or ""))
+    return booking
+
+
+async def reject_booking(
+    session: AsyncSession,
+    booking_id: uuid.UUID,
+    *,
+    approver_id: uuid.UUID | None = None,
+    reason: str | None = None,
+    now: datetime | None = None,
+) -> Booking:
+    """Reject a pending booking (§13.1), cancelling it and freeing its slot."""
+    instant = now or utc_now()
+    booking = await session.get(Booking, booking_id)
+    if booking is None:
+        raise NotFoundError(f"Booking {booking_id} does not exist.", code="booking_not_found")
+    booking.status = OccupancyStatus.cancelled
+    booking.released_at = instant
+    if approver_id is not None:
+        booking.approved_by = approver_id
+    await _set_occupancy_status(
+        session,
+        booking.id,
+        OccupancyStatus.cancelled,
+        note=reason or "rejected by approver",
+    )
+    await session.flush()
+    log.info("booking_rejected", booking_id=str(booking.id), approver_id=str(approver_id or ""))
+    return booking
 
 
 async def check_in(
@@ -430,6 +487,21 @@ async def _load_blackouts(
         )
     )
     return tuple(Slot(starts_at=row.starts_at, ends_at=row.ends_at) for row in result.scalars().all())
+
+
+async def _load_user_capabilities(
+    session: AsyncSession, user_id: uuid.UUID | None, now: datetime
+) -> frozenset[str]:
+    """Load non-expired capability codes granted to ``user_id`` (§13.1)."""
+    if user_id is None:
+        return frozenset()
+    result = await session.execute(
+        select(UserCapability.capability).where(
+            UserCapability.user_id == user_id,
+            or_(UserCapability.expires_at.is_(None), UserCapability.expires_at > now),
+        )
+    )
+    return frozenset(row for row in result.scalars().all() if row)
 
 
 async def _count_active_bookings(session: AsyncSession, user_id: uuid.UUID | None, now: datetime) -> int:

@@ -255,3 +255,39 @@ class ImportBatch(Base, UuidPkMixin, TimestampMixin):
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL")
     )
+
+
+class ExamPlan(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
+    """Generated exam seating plan (brief section 13.2).
+
+    Plans are deterministic for a given ``seed``, store room seat maps and
+    assignments, and support locking specific seats before re-planning.
+    """
+
+    __tablename__ = "exam_plan"
+    __table_args__ = (
+        CheckConstraint("ends_at > starts_at", name="exam_plan_window_ordered"),
+        Index("ix_exam_plan_campus_starts", "campus_id", "starts_at"),
+    )
+
+    campus_id: Mapped[SlugId] = mapped_column(
+        ForeignKey("campus.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    term_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("term.id", ondelete="SET NULL")
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    starts_at: Mapped[Utc] = mapped_column(nullable=False)
+    ends_at: Mapped[Utc] = mapped_column(nullable=False)
+    seed: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("42"))
+    #: "optimal" | "feasible" | "heuristic" | "infeasible"
+    status: Mapped[ShortText] = mapped_column(nullable=False)
+    settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    rooms_json: Mapped[list[Any] | None] = mapped_column(JSONB)
+    sessions_json: Mapped[list[Any] | None] = mapped_column(JSONB)
+    assignments_json: Mapped[list[Any] | None] = mapped_column(JSONB)
+    locked_seats_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL")
+    )

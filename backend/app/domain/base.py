@@ -345,6 +345,43 @@ class TeacherVisibilityMode(StrEnum):
     manual_status = "manual_status"
 
 
+class ScenarioStatus(StrEnum):
+    """Lifecycle of a what-if or timetable-optimiser scenario (brief sections 6.2, 13.4, 20.5)."""
+
+    draft = "draft"
+    proposed = "proposed"
+    approved = "approved"
+    rejected = "rejected"
+    committed = "committed"
+
+
+class AssetCondition(StrEnum):
+    """Physical condition of a tracked campus/lab asset (brief section 14.4)."""
+
+    good = "good"
+    fair = "fair"
+    needs_repair = "needs_repair"
+    retired = "retired"
+
+
+class AssetStatus(StrEnum):
+    """Operational availability of a tracked asset (brief section 14.4)."""
+
+    available = "available"
+    loaned = "loaned"
+    maintenance = "maintenance"
+    retired = "retired"
+
+
+class CleaningTaskStatus(StrEnum):
+    """Execution status of a scheduled cleaning task (brief section 14.3)."""
+
+    pending = "pending"
+    in_progress = "in_progress"
+    completed = "completed"
+    skipped = "skipped"
+
+
 # --------------------------------------------------------------------- SQL enums
 
 
@@ -388,3 +425,7 @@ LOST_FOUND_KIND = pg_enum(LostFoundKind, "lost_found_kind")
 LOST_FOUND_STATUS = pg_enum(LostFoundStatus, "lost_found_status")
 STUDY_GROUP_STATUS = pg_enum(StudyGroupStatus, "study_group_status")
 TEACHER_VISIBILITY_MODE = pg_enum(TeacherVisibilityMode, "teacher_visibility_mode")
+SCENARIO_STATUS = pg_enum(ScenarioStatus, "scenario_status")
+ASSET_CONDITION = pg_enum(AssetCondition, "asset_condition")
+ASSET_STATUS = pg_enum(AssetStatus, "asset_status")
+CLEANING_TASK_STATUS = pg_enum(CleaningTaskStatus, "cleaning_task_status")

@@ -4,6 +4,9 @@ Endpoints:
 * ``POST /tickets`` — create a ticket (or merge into an open duplicate within the
   24h window). Setting ``blocks_use=True`` places the room into ``out_of_service``.
 * ``GET /tickets`` — list tickets with optional filters.
+* ``GET /tickets/metrics`` — operational ticket metrics (time to triage, time to
+  resolve, SLA breaches, reopen rate).
+* ``POST /tickets/escalate-overdue`` — run SLA breach escalation on overdue tickets.
 * ``GET /tickets/{ticket_id}`` — get a ticket with its chronological event log.
 * ``PATCH /tickets/{ticket_id}/status`` — transition ticket status along the
   legal state machine (`new` -> `triaged` -> `assigned` -> `in_progress` ->
@@ -16,6 +19,7 @@ from __future__ import annotations
 import base64
 import tempfile
 import uuid
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -193,6 +197,46 @@ async def list_tickets(
     return {
         "count": len(rows),
         "tickets": [_serialize_ticket(r) for r in rows],
+    }
+
+
+@router.get(
+    "/metrics",
+    summary="Operational ticket metrics (§14.1)",
+)
+async def get_ticket_metrics(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+    building_id: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    _ = await ensure_principal_user(session, principal)
+    summary = await ticket_service.get_ticket_metrics(
+        session,
+        building_id=building_id,
+        category=category,
+    )
+    return asdict(summary)
+
+
+@router.post(
+    "/escalate-overdue",
+    summary="Escalate overdue tickets whose SLA deadline has passed (§14.1)",
+)
+async def escalate_overdue_tickets(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+) -> dict[str, Any]:
+    if not principal.has_role(Role.admin, Role.facilities, Role.staff):
+        raise PermissionDeniedError(
+            "Only facilities, staff, or admins may trigger SLA escalation.",
+            code="sla_escalation_forbidden",
+        )
+    escalated = await ticket_service.escalate_overdue_tickets(session)
+    await session.commit()
+    return {
+        "escalated_count": len(escalated),
+        "tickets": [_serialize_ticket(t) for t in escalated],
     }
 
 

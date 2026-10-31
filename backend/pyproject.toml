@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "campus-backend"
-version = "0.3.0"
+version = "0.4.0"
 description = "Campus Digital Twin backend for the Ajou University in Tashkent 3D campus map"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
@@ -41,6 +41,10 @@ dependencies = [
   "pillow==13.0.0",               # photo validation and EXIF metadata stripping
   "pywebpush==2.5.0",             # Web Push VAPID notifications
   "httpx==0.28.1",                # live upstream HTTP client for EduPage timetable sync
+  # --- Phase 4 (Layers 3 and 4). Versions verified against PyPI on 2026-10-31.
+  "ortools==9.15.6755",           # CP-SAT (exam seating, timetable optimiser) & VRP (cleaning routes)
+  "reportlab==5.1.0",             # Printable PDF exam seating plans, route sheets, and QR asset labels
+  "segno==1.6.6",                 # ISO-18004 QR code generation for attendance & asset labels
 ]
 
 [project.optional-dependencies]
@@ -112,6 +116,12 @@ module = [
   "rapidfuzz.*",
   "PIL.*",
   "pywebpush.*",
+  "ortools",
+  "ortools.*",
+  "reportlab",
+  "reportlab.*",
+  "segno",
+  "segno.*",
 ]
 ignore_missing_imports = true
 

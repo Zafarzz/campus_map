@@ -2,6 +2,61 @@
 
 Backend only. Nothing outside `backend/` has been modified.
 
+## [0.4.0] — 2026-10-31 — Phase 4: Academic Operations, Facilities & Scenario Engine
+
+`MASTER_PROMPT.md` §6.2, §13, and §14 in full. Layer 3 Academic Operations (lab & equipment
+booking prerequisites, OR-Tools CP-SAT exam seat planner, rotating HMAC-SHA256 QR attendance,
+and accessibility-aware CB-CTT timetable optimiser on the copy-on-write Scenario Engine) and
+Layer 4 Facilities (ticket SLA breach escalation & operational metrics, deterministic 0..100
+room health score, OR-Tools Routing smart cleaning planner with time windows, and QR-labelled
+asset registry with loans and preventive maintenance).
+
+### Added
+
+**Layer 3: Academic Operations (§13) & Scenario Engine (§6.2)**
+- `services/booking_service.py` & `services/academic_service.py` (§13.1): Automatic loading
+  of non-expired `UserCapability` prerequisites during booking validation, booking approval
+  and rejection (`approve_booking`, `reject_booking`), resource maintenance `Blackout`
+  creation, usage logs, and RFC 5545 iCalendar (`calendar.ics`) export.
+- `engines/exam_seating.py` (§13.2): Two-stage capacity-aware room split + OR-Tools CP-SAT
+  (`ortools.sat.python.cp_model`) seat assignment with configurable spacing, orthogonal/diagonal
+  same-course separation, accessible & front-row accommodations, deterministic seed, locked
+  seats re-planning, constructive consecutive-divide heuristic fallback, actionable
+  infeasibility diagnosis, and CSV, printable ReportLab PDF, and privacy-gated student slips.
+- `engines/attendance.py` (§13.3): Rotating HMAC-SHA256 QR token derivation and verification
+  (accepting current + previous window for clock skew; rejecting expired and future tokens),
+  enrolment verification (`EnrollmentRef` or `guest`), single-scan uniqueness, late threshold,
+  soft device binding (`UserDevice` -> `pending_review`), optional Haversine geofence weak
+  signal, live `Signal(checkin)` + `OccupancyEstimate` emission, `state_service` lesson
+  confirmation upgrade (`ConfirmationState.confirmed`), and Beta-Binomial `AttendanceRate`
+  posterior update on session close.
+- `engines/timetable_optimiser.py` (§6.2, §13.4): Curriculum-Based Course Timetabling (CB-CTT)
+  via OR-Tools CP-SAT with integer weights, `model.add_hint` warm-starting, `requires_step_free`
+  accessibility hard constraint, incremental mode, before/after metrics, and copy-on-write
+  `Scenario` & `ScenarioChange` persistence without mutating live `Meeting` or `MeetingRule` rows.
+
+**Layer 4: Facilities (§14)**
+- `engines/tickets.py` & `services/ticket_service.py` (§14.1): Automatic staff assignment rules
+  by category and building scope, `escalate_overdue_tickets` SLA breach priority promotion, and
+  `compute_ticket_metrics` (`time_to_triage`, `time_to_resolve`, `sla_breaches`, `reopen_rate`).
+- `engines/facilities.py` & `services/facilities_service.py` (§14.2–§14.4):
+  - Deterministic Room Health Score (`0..100`) with full component breakdown, provenance,
+    confidence, building roll-ups, and optional environmental CSV import hook.
+  - Smart Cleaning Planner computing room `dirt_score` and post-usage time windows, solving
+    routes per cleaner via OR-Tools Routing Solver (`ortools.constraint_solver.pywrapcp`) with
+    a `Time` dimension and nearest-neighbour fallback, persisting `CleaningTask` rows, and
+    exporting CSV and printable PDF route sheets.
+  - Asset Registry (`Asset`, `AssetLoan`) with printable QR code label PDF sheets (`segno` +
+    `reportlab`), checkout/return with due dates, usage hours logging, condition tracking,
+    overdue loan alerts, and preventive maintenance reminders.
+
+**Database & API**
+- Alembic migration `4a1c8f92e104`: Added 8 new tables (`user_capability`, `user_device`,
+  `exam_plan`, `scenario`, `scenario_change`, `asset`, `asset_loan`, `cleaning_task`) and 4
+  PostgreSQL enum types (`scenario_status`, `asset_condition`, `asset_status`,
+  `cleaning_task_status`). Total table count: 55.
+- Mounted routers in `app/api/v1/router.py`: `academic`, `facilities`.
+
 ## [0.3.0] — 2026-10-21 — Phase 3: Crowds, Student Life & Shared Platform Services
 
 `MASTER_PROMPT.md` §6.2, §11, and §12 in full. Shared notifications and ticket engine,

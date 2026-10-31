@@ -9,11 +9,13 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    academic,
     auth,
     bookings,
     busyness,
     campus,
     compat,
+    facilities,
     notifications,
     replay,
     rooms_search,
@@ -42,5 +44,7 @@ api_router.include_router(busyness.router)
 api_router.include_router(studentlife.router)
 api_router.include_router(tickets.router)
 api_router.include_router(notifications.router)
+api_router.include_router(academic.router)
+api_router.include_router(facilities.router)
 
 __all__ = ["api_router"]

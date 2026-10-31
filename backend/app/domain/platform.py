@@ -1,9 +1,13 @@
-"""Platform concerns: audit, API clients, and the seed ledger.
+"""Platform concerns: audit, API clients, notifications, and the scenario engine.
 
 ``audit_log`` exists because the brief requires an entry for every privileged
 action (section 9), and because some later features - break-glass access to named
 unaccounted people during a drill, campus-wide emergency broadcasts - are only
 defensible if they are logged immutably.
+
+``scenario`` and ``scenario_change`` implement the shared Scenario Engine
+(brief sections 6.2, 7, 13.4, and 20.5): a copy-on-write overlay of the timetable
+so the timetable optimiser and what-if sandbox never mutate live tables.
 """
 
 from __future__ import annotations
@@ -14,16 +18,19 @@ from typing import Any
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.domain.base import (
     NOTIFICATION_CHANNEL,
     NOTIFICATION_STATUS,
+    SCENARIO_STATUS,
     IsDemoMixin,
     NotificationChannel,
     NotificationStatus,
+    ScenarioStatus,
     ShortText,
+    SlugId,
     TimestampMixin,
     Utc,
     UuidPkMixin,
@@ -151,3 +158,76 @@ class PushSubscription(Base, UuidPkMixin, TimestampMixin):
     p256dh: Mapped[str] = mapped_column(String(256), nullable=False)
     auth: Mapped[str] = mapped_column(String(128), nullable=False)
     is_active: Mapped[bool] = mapped_column(nullable=False, server_default=text("true"))
+
+
+class Scenario(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
+    """Copy-on-write timetable overlay for the optimiser and what-if sandbox (brief sections 6.2, 13.4, 20.5).
+
+    Creating or evaluating a scenario never mutates live ``meeting`` or
+    ``meeting_rule`` rows.
+    """
+
+    __tablename__ = "scenario"
+    __table_args__ = (Index("ix_scenario_campus_status", "campus_id", "status"),)
+
+    campus_id: Mapped[SlugId] = mapped_column(
+        ForeignKey("campus.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    term_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("term.id", ondelete="SET NULL")
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    #: "timetable_optimiser" | "what_if" | "energy_plan" | "drill"
+    kind: Mapped[ShortText] = mapped_column(nullable=False, server_default=text("'timetable_optimiser'"))
+    status: Mapped[ScenarioStatus] = mapped_column(
+        SCENARIO_STATUS, nullable=False, server_default=text("'proposed'")
+    )
+    solver_status: Mapped[ShortText | None] = mapped_column()
+    baseline_metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    proposal_metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    tradeoffs_summary: Mapped[str | None] = mapped_column(Text)
+    parameters_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    approved_at: Mapped[Utc | None] = mapped_column()
+    committed_at: Mapped[Utc | None] = mapped_column()
+
+    changes: Mapped[list[ScenarioChange]] = relationship(
+        back_populates="scenario", cascade="all, delete-orphan"
+    )
+
+
+class ScenarioChange(Base, UuidPkMixin, TimestampMixin):
+    """One proposed modification inside a :class:`Scenario`."""
+
+    __tablename__ = "scenario_change"
+    __table_args__ = (Index("ix_scenario_change_scenario", "scenario_id"),)
+
+    scenario_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("scenario.id", ondelete="CASCADE"), nullable=False
+    )
+    #: "move" | "room_change" | "move_and_room_change" | "cancel" | "capacity_change" | "room_closure"
+    change_type: Mapped[ShortText] = mapped_column(nullable=False)
+    section_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("section.id", ondelete="SET NULL")
+    )
+    meeting_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("meeting.id", ondelete="SET NULL")
+    )
+    course_code: Mapped[ShortText | None] = mapped_column()
+    section_code: Mapped[ShortText | None] = mapped_column()
+    old_room_id: Mapped[SlugId | None] = mapped_column(ForeignKey("room.id", ondelete="SET NULL"))
+    new_room_id: Mapped[SlugId | None] = mapped_column(ForeignKey("room.id", ondelete="SET NULL"))
+    old_weekday: Mapped[int | None] = mapped_column(Integer)
+    new_weekday: Mapped[int | None] = mapped_column(Integer)
+    old_period: Mapped[int | None] = mapped_column(Integer)
+    new_period: Mapped[int | None] = mapped_column(Integer)
+    reason: Mapped[str | None] = mapped_column(Text)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
+    scenario: Mapped[Scenario] = relationship(back_populates="changes")

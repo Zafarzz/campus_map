@@ -21,7 +21,7 @@ from tests.conftest import _maintenance_url, _run_alembic
 
 pytestmark = pytest.mark.db
 
-EXPECTED_TABLE_COUNT = 47
+EXPECTED_TABLE_COUNT = 55
 
 
 async def _alembic(url: str, schema: str, *args: str) -> None:

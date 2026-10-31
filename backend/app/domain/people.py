@@ -180,3 +180,29 @@ class TeacherProfile(Base, TimestampMixin, IsDemoMixin):
     #: Structured weekly office hours:
     #: [{"weekday": 0, "starts_at": "14:00", "ends_at": "16:00", "room_id": "..."}]
     office_hours: Mapped[list[Any] | None] = mapped_column(JSONB)
+
+
+class UserCapability(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
+    """Safety certification or training prerequisite held by a user (brief section 13.1).
+
+    Checked by the booking engine when a lab or piece of equipment requires one
+    or more ``prerequisites`` in its ``BookingPolicy``.
+    """
+
+    __tablename__ = "user_capability"
+    __table_args__ = (
+        UniqueConstraint("user_id", "capability", name="uq_user_capability_user_id_capability"),
+        Index("ix_user_capability_user", "user_id"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    #: e.g. "laser_safety_cert", "chem_lab_101", "cnc_training"
+    capability: Mapped[ShortText] = mapped_column(nullable=False)
+    granted_by: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    granted_at: Mapped[Utc] = mapped_column(nullable=False)
+    expires_at: Mapped[Utc | None] = mapped_column()
+    notes: Mapped[str | None] = mapped_column(Text)

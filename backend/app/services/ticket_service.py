@@ -3,7 +3,11 @@
 Coordinates:
 * Duplicate detection ("me too" upvoting within the merge window).
 * EXIF stripping and storage for attached photos.
+* Automatic assignment rules by category and building scope.
 * Legal state transitions and append-only ``TicketEvent`` history.
+* Background SLA breach escalation (`escalate_overdue_tickets`).
+* Operational metrics (`get_ticket_metrics`: time to triage, time to resolve,
+  SLA breaches, reopen rate).
 * Synchronising ``Room.out_of_service`` whenever a blocking ticket is opened,
   updated, resolved, closed, or reopened (so the room-state precedence engine
   immediately reflects ``out_of_service`` at priority #1).
@@ -20,15 +24,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.storage import StorageAdapter, strip_image_exif
 from app.core.errors import ForbiddenError, NotFoundError, ValidationError
+from app.core.security import Role
 from app.domain.base import TicketPriority, TicketStatus
 from app.domain.operations import Ticket, TicketEvent
+from app.domain.people import UserRole
 from app.domain.spatial import Floor, Room
 from app.engines.tickets import (
     ACTIVE_TICKET_STATUSES,
     CandidateExistingTicket,
     InvalidTicketTransitionError,
+    TicketMetricSample,
+    TicketMetricsSummary,
     compute_sla_due_at,
+    compute_ticket_metrics,
     find_duplicate_ticket,
+    next_escalated_priority,
     validate_ticket_transition,
 )
 from app.services.notification_service import send_notification
@@ -36,12 +46,50 @@ from app.services.state_service import invalidate_state_cache
 
 __all__ = [
     "create_ticket",
+    "escalate_overdue_tickets",
+    "get_ticket_metrics",
     "get_ticket_with_events",
     "list_tickets",
     "rate_ticket",
     "sync_room_out_of_service",
     "transition_ticket",
 ]
+
+_CATEGORY_TO_STAFF_ROLE: dict[str, Role] = {
+    "av": Role.staff,
+    "projector": Role.staff,
+    "network": Role.staff,
+    "it": Role.staff,
+    "cleaning": Role.facilities,
+    "sanitation": Role.facilities,
+    "spill": Role.facilities,
+}
+
+
+async def _find_auto_assignee(
+    session: AsyncSession,
+    *,
+    category: str,
+    building_id: str | None,
+) -> uuid.UUID | None:
+    """Resolve an assignee from ``user_role`` based on category and building scope (§14.1)."""
+    norm_cat = category.strip().lower()
+    target_role = _CATEGORY_TO_STAFF_ROLE.get(norm_cat, Role.facilities)
+    rows = (
+        await session.execute(
+            select(UserRole).where(UserRole.role == target_role).order_by(UserRole.created_at.asc())
+        )
+    ).scalars().all()
+    if not rows:
+        return None
+    if building_id is not None:
+        for r in rows:
+            if r.scope == building_id or r.scope == norm_cat:
+                return r.user_id
+    for r in rows:
+        if r.scope is None or r.scope == norm_cat:
+            return r.user_id
+    return rows[0].user_id
 
 
 async def create_ticket(
@@ -149,9 +197,13 @@ async def create_ticket(
         stored = storage.put_bytes(key, clean_bytes, content_type=content_type)
         photo_key = stored.key
 
+    auto_assignee = await _find_auto_assignee(
+        session, category=category, building_id=building_id
+    )
     sla_due = compute_sla_due_at(instant, priority)
     ticket = Ticket(
         reporter_user_id=reporter_user_id,
+        assignee_user_id=auto_assignee,
         building_id=building_id,
         floor_id=floor_id,
         room_id=room_id,
@@ -272,6 +324,115 @@ async def transition_ticket(
             is_demo=ticket.is_demo,
         )
     return ticket
+
+
+async def escalate_overdue_tickets(
+    session: AsyncSession,
+    *,
+    now: datetime | None = None,
+    limit: int = 200,
+) -> list[Ticket]:
+    """Promote priority of active tickets that have breached ``sla_due_at`` (§14.1)."""
+    instant = now or datetime.now(UTC)
+    rows = (
+        await session.execute(
+            select(Ticket)
+            .where(
+                Ticket.status.in_(tuple(ACTIVE_TICKET_STATUSES)),
+                Ticket.sla_due_at.is_not(None),
+                Ticket.sla_due_at < instant,
+                Ticket.priority != TicketPriority.urgent,
+            )
+            .order_by(Ticket.sla_due_at.asc())
+            .limit(limit)
+        )
+    ).scalars().all()
+
+    escalated: list[Ticket] = []
+    for ticket in rows:
+        old_priority = ticket.priority
+        new_priority = next_escalated_priority(old_priority)
+        if new_priority == old_priority:
+            continue
+        ticket.priority = new_priority
+        ticket.sla_due_at = compute_sla_due_at(instant, new_priority)
+        session.add(
+            TicketEvent(
+                ticket_id=ticket.id,
+                actor_user_id=None,
+                event_type="sla_escalated",
+                from_status=ticket.status,
+                to_status=ticket.status,
+                note=f"SLA breached; priority escalated from {old_priority.value} to {new_priority.value}",
+                payload={
+                    "old_priority": old_priority.value,
+                    "new_priority": new_priority.value,
+                },
+                created_at=instant,
+            )
+        )
+        escalated.append(ticket)
+
+    if escalated:
+        await session.flush()
+    return escalated
+
+
+async def get_ticket_metrics(
+    session: AsyncSession,
+    *,
+    building_id: str | None = None,
+    category: str | None = None,
+    now: datetime | None = None,
+) -> TicketMetricsSummary:
+    """Compute operational ticket metrics (§14.1)."""
+    instant = now or datetime.now(UTC)
+    stmt = select(Ticket)
+    if building_id is not None:
+        stmt = stmt.where(Ticket.building_id == building_id)
+    if category is not None:
+        stmt = stmt.where(Ticket.category == category)
+
+    tickets = list((await session.execute(stmt)).scalars().all())
+    if not tickets:
+        return compute_ticket_metrics((), now=instant)
+
+    ticket_ids = [t.id for t in tickets]
+    events = (
+        await session.execute(
+            select(TicketEvent)
+            .where(TicketEvent.ticket_id.in_(ticket_ids))
+            .order_by(TicketEvent.created_at.asc())
+        )
+    ).scalars().all()
+
+    triaged_at_by_ticket: dict[uuid.UUID, datetime] = {}
+    reopen_count_by_ticket: dict[uuid.UUID, int] = {}
+    for ev in events:
+        if (
+            ev.to_status in {TicketStatus.triaged, TicketStatus.assigned, TicketStatus.in_progress}
+            and ev.ticket_id not in triaged_at_by_ticket
+        ):
+            triaged_at_by_ticket[ev.ticket_id] = ev.created_at
+        if ev.to_status == TicketStatus.reopened:
+            reopen_count_by_ticket[ev.ticket_id] = (
+                reopen_count_by_ticket.get(ev.ticket_id, 0) + 1
+            )
+
+    samples = [
+        TicketMetricSample(
+            ticket_id=t.id,
+            status=t.status,
+            priority=t.priority,
+            created_at=t.created_at or instant,
+            sla_due_at=t.sla_due_at,
+            triaged_at=triaged_at_by_ticket.get(t.id),
+            resolved_at=t.resolved_at,
+            reopened_count=reopen_count_by_ticket.get(t.id, 0),
+        )
+        for t in tickets
+    ]
+    return compute_ticket_metrics(samples, now=instant)
 
 
 async def sync_room_out_of_service(session: AsyncSession, room_id: str) -> bool:
