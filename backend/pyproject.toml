@@ -40,6 +40,7 @@ dependencies = [
   "rapidfuzz==3.14.6",            # fuzzy string matching for lost & found
   "pillow==13.0.0",               # photo validation and EXIF metadata stripping
   "pywebpush==2.5.0",             # Web Push VAPID notifications
+  "httpx==0.28.1",                # live upstream HTTP client for EduPage timetable sync
 ]
 
 [project.optional-dependencies]
@@ -47,7 +48,6 @@ dev = [
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
-  "httpx==0.28.1",
   "hypothesis==6.170.1",
   "faker==40.43.0",
   "ruff==0.17.1",
