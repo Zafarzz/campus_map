@@ -10,6 +10,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Suspense, useEffect } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
+import { useLighting } from '../../state/LightingProvider';
 import { useMap } from '../../state/MapProvider';
 import { CameraPathEditor } from '../../cinematic/CameraPathEditor';
 import { CinematicCameraController } from '../../cinematic/CinematicCameraController';
@@ -49,6 +50,21 @@ export function CampusMap() {
   const { geometry, selection, showReference } = useMap();
   const [initialPosition] = cameraFraming(geometry, {});
   const tuning = useVisualTuning();
+  const { atmosphere } = useLighting();
+
+  const effectiveBgColor = atmosphere.backgroundColor;
+  const effectiveFogColor = atmosphere.fogColor;
+  const effectiveFogNear = Math.min(tuning.fogNear, atmosphere.fogNear);
+  const effectiveFogFar = Math.min(tuning.fogFar, atmosphere.fogFar);
+  const effectiveSunPos = atmosphere.sunPosition;
+  const effectiveSunColor = atmosphere.sunColor;
+  const effectiveSunIntensity = atmosphere.sunIntensity * (tuning.sunIntensity / 1.85);
+  const effectiveAmbientColor = atmosphere.ambientColor;
+  const effectiveAmbientIntensity = atmosphere.ambientIntensity * (tuning.ambientIntensity / 0.54);
+  const effectiveHemiSkyColor = atmosphere.hemisphereSkyColor;
+  const effectiveHemiGroundColor = atmosphere.hemisphereGroundColor;
+  const effectiveHemiIntensity = atmosphere.hemisphereIntensity * (tuning.hemisphereIntensity / 0.5);
+  const effectiveExposure = (tuning.toneMappingExposure ?? 1.0) * (atmosphere.exposure / 1.05);
 
   return (
     <Canvas
@@ -57,11 +73,11 @@ export function CampusMap() {
       dpr={[1, 2]}
       gl={{ preserveDrawingBuffer: true }}
     >
-      <RendererExposure exposure={tuning.toneMappingExposure ?? 1.0} />
+      <RendererExposure exposure={effectiveExposure} />
 
-      <color attach="background" args={[tuning.backgroundColor]} />
+      <color attach="background" args={[effectiveBgColor]} />
       {tuning.fogEnabled && (
-        <fog attach="fog" args={[tuning.fogColor, tuning.fogNear, tuning.fogFar]} />
+        <fog attach="fog" args={[effectiveFogColor, effectiveFogNear, effectiveFogFar]} />
       )}
 
       {/* Drei Selective Performance Helpers */}
@@ -88,17 +104,17 @@ export function CampusMap() {
       )}
 
       {/* Atmospheric Ambient and Hemisphere Fill */}
-      <ambientLight intensity={tuning.ambientIntensity} color={tuning.ambientColor} />
+      <ambientLight intensity={effectiveAmbientIntensity} color={effectiveAmbientColor} />
       <hemisphereLight
-        args={[tuning.hemisphereSkyColor, tuning.hemisphereGroundColor, tuning.hemisphereIntensity]}
+        args={[effectiveHemiSkyColor, effectiveHemiGroundColor, effectiveHemiIntensity]}
       />
 
       {/* Natural Directional Sun Light */}
       <directionalLight
         castShadow={tuning.shadowsEnabled}
-        position={tuning.sunPosition}
-        intensity={tuning.sunIntensity}
-        color={tuning.sunColor}
+        position={effectiveSunPos}
+        intensity={effectiveSunIntensity}
+        color={effectiveSunColor}
         shadow-mapSize={[tuning.shadowMapSize, tuning.shadowMapSize]}
         shadow-camera-left={-195}
         shadow-camera-right={195}
@@ -115,9 +131,9 @@ export function CampusMap() {
 
       {/* Procedural Physical Sky (No external CDN network dependency) */}
       <Sky
-        sunPosition={tuning.sunPosition}
-        turbidity={tuning.skyTurbidity}
-        rayleigh={tuning.skyRayleigh}
+        sunPosition={effectiveSunPos}
+        turbidity={atmosphere.skyTurbidity}
+        rayleigh={atmosphere.skyRayleigh}
         mieCoefficient={tuning.skyMieCoefficient}
         mieDirectionalG={tuning.skyMieDirectionalG}
       />
@@ -133,9 +149,10 @@ export function CampusMap() {
         windStrength={tuning.windStrength}
       />
 
-      {/* Medium & Long-Range Environmental Detail */}
+      {/* Medium & Long-Range Environmental Detail with dynamic night street lamp lighting */}
       <CampusEnvironmentDetail
         geometry={geometry}
+        enableNightLights={atmosphere.streetLampsActive}
         campusPropsEnabled={tuning.campusPropsEnabled}
         skyLifeEnabled={tuning.skyLifeEnabled}
         windEnabled={tuning.windEnabled}

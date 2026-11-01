@@ -21,6 +21,7 @@ import { BlockDFacade } from './facades/BlockDFacade';
 import { BlockEFacade } from './facades/BlockEFacade';
 import { BlockFCourtyardFacade } from './facades/BlockFCourtyardFacade';
 import { SportsComplexRoof, SportsComplexFrontFacade } from './facades/SportsComplexFacade';
+import { useLighting } from '../../state/LightingProvider';
 import { getArchitecturalWallTextures, getWindowGlassTexture } from './materials/pbrMaterials';
 
 type Props = {
@@ -314,19 +315,23 @@ function BarrelVaultRoof({
  * Procedural instanced windows along all 4 building faces with 3D frames, sills, mullions, and reflective glass.
  */
 function InstancedWindows({
+  buildingId,
   width,
   depth,
   height,
   opacity,
   transparent,
   windowColor,
+  nightLightFactor = 0,
 }: {
+  buildingId: string;
   width: number;
   depth: number;
   height: number;
   opacity: number;
   transparent: boolean;
   windowColor: string;
+  nightLightFactor?: number;
 }) {
   const windowW = 1.35;
   const windowH = 1.85;
@@ -355,23 +360,50 @@ function InstancedWindows({
     const glassMaterial = new THREE.MeshStandardMaterial({
       color: '#0f172a',
       map: glassTex ?? null,
-      metalness: 0.78,
-      roughness: 0.12,
+      metalness: 0.72,
+      roughness: 0.15,
       envMapIntensity: 1.45,
       transparent: true,
       opacity: transparent ? opacity * 0.85 : 0.94,
       depthWrite: !transparent,
+      emissive: nightLightFactor > 0.1 ? '#fef08a' : '#000000',
+      emissiveIntensity: 0,
+    });
+
+    const lightedGlassMaterial = new THREE.MeshStandardMaterial({
+      color: '#fef3c7',
+      map: glassTex ?? null,
+      metalness: 0.1,
+      roughness: 0.3,
+      emissive: '#fde047',
+      emissiveIntensity: Math.min(2.2, 1.8 * nightLightFactor),
+      transparent: true,
+      opacity: transparent ? opacity * 0.85 : 0.96,
+      depthWrite: !transparent,
     });
 
     const frameMesh = new THREE.InstancedMesh(sharedWindowFrameGeo, frameMaterial, count);
-    const glassMesh = new THREE.InstancedMesh(sharedWindowGlassGeo, glassMaterial, count);
+    // Two glass instanced meshes: dark windows and lighted windows
+    const darkGlassMesh = new THREE.InstancedMesh(sharedWindowGlassGeo, glassMaterial, count);
+    const litGlassMesh = new THREE.InstancedMesh(sharedWindowGlassGeo, lightedGlassMaterial, count);
+
     frameMesh.castShadow = false;
     frameMesh.receiveShadow = true;
-    glassMesh.castShadow = false;
-    glassMesh.receiveShadow = false;
+    darkGlassMesh.castShadow = false;
+    darkGlassMesh.receiveShadow = false;
+    litGlassMesh.castShadow = false;
+    litGlassMesh.receiveShadow = false;
 
     const dummy = new THREE.Object3D();
     let idx = 0;
+    let litIdx = 0;
+    let darkIdx = 0;
+
+    // Seeded pseudo-random generator per building window
+    const pseudoRandom = (seed: number) => {
+      const x = Math.sin(seed * 9999.0) * 10000;
+      return x - Math.floor(x);
+    };
 
     const startY = 1.9;
     const spacingY = windowH + 1.25;
@@ -388,17 +420,29 @@ function InstancedWindows({
           // Front (+Z)
           dummy.position.set(px, y, depth / 2 + 0.036);
           dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(1, 1, 1);
           dummy.updateMatrix();
           frameMesh.setMatrixAt(idx, dummy.matrix);
-          glassMesh.setMatrixAt(idx, dummy.matrix);
+          const isLit1 = nightLightFactor > 0.05 && pseudoRandom(f * 131 + x * 37 + (buildingId.charCodeAt(0) || 1)) < 0.45;
+          if (isLit1) {
+            litGlassMesh.setMatrixAt(litIdx++, dummy.matrix);
+          } else {
+            darkGlassMesh.setMatrixAt(darkIdx++, dummy.matrix);
+          }
           idx++;
 
           // Back (-Z)
           dummy.position.set(px, y, -depth / 2 - 0.036);
           dummy.rotation.set(0, Math.PI, 0);
+          dummy.scale.set(1, 1, 1);
           dummy.updateMatrix();
           frameMesh.setMatrixAt(idx, dummy.matrix);
-          glassMesh.setMatrixAt(idx, dummy.matrix);
+          const isLit2 = nightLightFactor > 0.05 && pseudoRandom(f * 131 + x * 37 + 100 + (buildingId.charCodeAt(1) || 2)) < 0.38;
+          if (isLit2) {
+            litGlassMesh.setMatrixAt(litIdx++, dummy.matrix);
+          } else {
+            darkGlassMesh.setMatrixAt(darkIdx++, dummy.matrix);
+          }
           idx++;
         }
       }
@@ -412,33 +456,58 @@ function InstancedWindows({
           // Left (-X)
           dummy.position.set(-width / 2 - 0.036, y, pz);
           dummy.rotation.set(0, -Math.PI / 2, 0);
+          dummy.scale.set(1, 1, 1);
           dummy.updateMatrix();
           frameMesh.setMatrixAt(idx, dummy.matrix);
-          glassMesh.setMatrixAt(idx, dummy.matrix);
+          const isLit3 = nightLightFactor > 0.05 && pseudoRandom(f * 131 + z * 37 + 200 + (buildingId.charCodeAt(2) || 3)) < 0.35;
+          if (isLit3) {
+            litGlassMesh.setMatrixAt(litIdx++, dummy.matrix);
+          } else {
+            darkGlassMesh.setMatrixAt(darkIdx++, dummy.matrix);
+          }
           idx++;
 
           // Right (+X)
           dummy.position.set(width / 2 + 0.036, y, pz);
           dummy.rotation.set(0, Math.PI / 2, 0);
+          dummy.scale.set(1, 1, 1);
           dummy.updateMatrix();
           frameMesh.setMatrixAt(idx, dummy.matrix);
-          glassMesh.setMatrixAt(idx, dummy.matrix);
+          const isLit4 = nightLightFactor > 0.05 && pseudoRandom(f * 131 + z * 37 + 300 + (buildingId.charCodeAt(3) || 4)) < 0.42;
+          if (isLit4) {
+            litGlassMesh.setMatrixAt(litIdx++, dummy.matrix);
+          } else {
+            darkGlassMesh.setMatrixAt(darkIdx++, dummy.matrix);
+          }
           idx++;
         }
       }
     }
 
+    // Hide unassigned instances by setting scale to zero
+    dummy.position.set(0, -1000, 0);
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+    for (let k = litIdx; k < count; k++) {
+      litGlassMesh.setMatrixAt(k, dummy.matrix);
+    }
+    for (let k = darkIdx; k < count; k++) {
+      darkGlassMesh.setMatrixAt(k, dummy.matrix);
+    }
+
     frameMesh.instanceMatrix.needsUpdate = true;
-    glassMesh.instanceMatrix.needsUpdate = true;
-    return { frameMesh, glassMesh };
-  }, [count, numWindowsX, numWindowsZ, numFloors, width, depth, windowColor, glassTex, opacity, transparent]);
+    darkGlassMesh.instanceMatrix.needsUpdate = true;
+    litGlassMesh.instanceMatrix.needsUpdate = true;
+    return { frameMesh, darkGlassMesh, litGlassMesh };
+  }, [count, numWindowsX, numWindowsZ, numFloors, width, depth, windowColor, glassTex, opacity, transparent, buildingId, nightLightFactor]);
 
   if (!meshes) return null;
 
   return (
     <group>
       <primitive object={meshes.frameMesh} />
-      <primitive object={meshes.glassMesh} />
+      <primitive object={meshes.darkGlassMesh} />
+      <primitive object={meshes.litGlassMesh} />
     </group>
   );
 }
@@ -610,6 +679,7 @@ function ClassicalPortico({
 export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectBuilding }: Props) {
   const [hovered, setHovered] = useState(false);
   useCursor(hovered);
+  const { atmosphere } = useLighting();
   const usePbr = tuning?.pbrTexturesEnabled !== false;
   const wallPbr = useMemo(() => (usePbr ? getArchitecturalWallTextures() : null), [usePbr]);
   const glassTex = useMemo(() => (usePbr ? getWindowGlassTexture() : null), [usePbr]);
@@ -710,12 +780,14 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
             {appearance.hasWindows && !isCustomFacade && (
               <group position={[worldX, 0, worldZ]}>
                 <InstancedWindows
+                  buildingId={building.id}
                   width={width}
                   depth={depth}
                   height={wallHeight}
                   opacity={opacity}
                   transparent={transparent}
                   windowColor={appearance.windowColor ?? '#4b779e'}
+                  nightLightFactor={atmosphere.windowNightLightFactor}
                 />
               </group>
             )}

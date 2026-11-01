@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useLighting } from '../../state/LightingProvider';
 import { FountainWaterAnimation } from './fountain/FountainWaterAnimation';
 
 export const FOUNTAIN_DIMENSIONS = {
@@ -258,6 +259,8 @@ export function CampusFountain({
   scale = FOUNTAIN_DIMENSIONS.defaultScale,
   showPalms = false,
 }: CampusFountainProps) {
+  const { fountainLighting, atmosphere } = useLighting();
+
   const materials = useMemo(() => {
     // 1. Борт из ДПК
     const dpkBoardMat = new THREE.MeshStandardMaterial({
@@ -446,6 +449,9 @@ export function CampusFountain({
 
   // Непрерывный поток и пульсация воды (с мягким шагом кадра для экономии ресурсов CPU)
   const animFrameRef = useRef(0);
+  const fountainColorRef = useRef(new THREE.Color());
+  const blackColorRef = useRef(new THREE.Color('#000000'));
+
   useFrame((state) => {
     animFrameRef.current++;
     if (animFrameRef.current % 3 !== 0) return;
@@ -453,6 +459,16 @@ export function CampusFountain({
     materials.waterJetMat.emissiveIntensity = 0.32 + Math.sin(t * 8.0) * 0.08;
     materials.geyserMat.emissiveIntensity = 0.50 + Math.sin(t * 6.0) * 0.12;
     materials.poolWaterMat.opacity = 0.84 + Math.sin(t * 3.0) * 0.04;
+    if (fountainLighting.enabled && atmosphere.isNight) {
+      fountainColorRef.current.set(fountainLighting.color);
+      materials.poolWaterMat.emissive.copy(fountainColorRef.current);
+      materials.poolWaterMat.emissiveIntensity = 0.4 * fountainLighting.intensity;
+      materials.waterJetMat.emissive.copy(fountainColorRef.current);
+      materials.waterJetMat.emissiveIntensity = (0.5 + Math.sin(t * 8.0) * 0.15) * fountainLighting.intensity;
+    } else {
+      materials.poolWaterMat.emissive.copy(blackColorRef.current);
+      materials.poolWaterMat.emissiveIntensity = 0;
+    }
   });
 
   const d = FOUNTAIN_DIMENSIONS;
@@ -469,6 +485,33 @@ export function CampusFountain({
   return (
     <group position={position} rotation={rotation} scale={scale}>
       {/* ============================================================== */}
+      {/* Dynamic Night Illuminator for Fountain */}
+      {fountainLighting.enabled && atmosphere.isNight && (
+        <group>
+          <pointLight
+            position={[0, 3.2, 0]}
+            color={fountainLighting.color}
+            intensity={35 * fountainLighting.intensity}
+            distance={55}
+            decay={2}
+          />
+          <pointLight
+            position={[-18.5, 2.5, 0]}
+            color={fountainLighting.color}
+            intensity={20 * fountainLighting.intensity}
+            distance={35}
+            decay={2}
+          />
+          <pointLight
+            position={[18.5, 2.5, 0]}
+            color={fountainLighting.color}
+            intensity={20 * fountainLighting.intensity}
+            distance={35}
+            decay={2}
+          />
+        </group>
+      )}
+
       {/* 1. ОКРУЖАЮЩАЯ ПЛОЩАДЬ-ПРОМЕНАДА (ОТМЕТКА 0.000)                */}
       {/* ============================================================== */}
       {/* Базовый настил площади вокруг фонтана */}
