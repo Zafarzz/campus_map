@@ -459,5 +459,3 @@ class HDRLoader extends DataTextureLoader {
 }
 
 export { HDRLoader };
-
-

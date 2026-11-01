@@ -21,6 +21,7 @@ import { CampusEnvironmentDetail } from '../components/3d/environment/CampusEnvi
 import { getProceduralEnvironmentTexture } from '../components/3d/materials/pbrMaterials';
 import { useVisualTuning } from '../components/3d/tuning/useVisualTuning';
 import { defaultFloor } from '../domain/campus/campusIndex';
+import { useLighting } from '../state/LightingProvider';
 import { useMap } from '../state/MapProvider';
 import { sharedCampusAudio } from './audio/campusAudioEngine';
 import {
@@ -42,11 +43,16 @@ import {
   type PlayerInputState,
 } from './controls/DesktopControls';
 import { MobileControls } from './controls/MobileControls';
+import { InteractionHUD } from './interaction/InteractionHUD';
+import { InteractionProvider, useInteraction } from './interaction/InteractionContext';
+import { InteractionRaycaster } from './interaction/InteractionRaycaster';
+import { NPCManager } from './npc/NPCManager';
 import { FirstPersonController, type TeleportRequest } from './player/FirstPersonController';
 import { GameHUD } from './ui/GameHUD';
 import { GameMenu } from './ui/GameMenu';
 import type { WayfindingTarget } from './ui/Minimap';
 import { CampusColliders } from './world/CampusColliders';
+import { CampusInteractiveDoors } from './world/CampusInteractiveDoors';
 import { WayfindingPath } from './world/WayfindingPath';
 
 type GameStatus = 'start' | 'playing' | 'paused';
@@ -82,8 +88,24 @@ function RendererToneMapping({ exposure }: { exposure: number }) {
  * wind-animated foliage, and spatial Web Audio soundscape.
  */
 export function GameScene() {
+  return (
+    <InteractionProvider>
+      <GameSceneInner />
+    </InteractionProvider>
+  );
+}
+
+function GameSceneInner() {
   const { campus, index, geometry, lessons, roomStates } = useMap();
   const tuning = useVisualTuning();
+  const {
+    timeHours,
+    setTimeHours,
+    atmosphere: dynamicAtmosphere,
+    fountainLighting,
+    setFountainLighting,
+  } = useLighting();
+  const { activeTarget, triggerInteraction } = useInteraction();
 
   const [status, setStatus] = useState<GameStatus>('start');
   const [isMobile, setIsMobile] = useState<boolean>(detectMobileOrTouch);
@@ -91,6 +113,7 @@ export function GameScene() {
   const [qualityPreset, setQualityPreset] = useState<GraphicsQualityPresetId>(() =>
     detectMobileOrTouch() ? 'medium' : 'high',
   );
+  const [npcCount, setNpcCount] = useState<number>(8);
   const [audioMuted, setAudioMuted] = useState<boolean>(false);
   const [audioVolume, setAudioVolume] = useState<number>(0.65);
   const [showTuning, setShowTuning] = useState<boolean>(false);
@@ -183,11 +206,15 @@ export function GameScene() {
   );
 
   const handleInteractKey = useCallback(() => {
+    if (activeTarget) {
+      triggerInteraction();
+      return;
+    }
     const targetBldId = enteredBuildingIdRef.current ?? nearbyBuildingIdRef.current;
     if (targetBldId) {
       handleToggleEnterBuilding(targetBldId);
     }
-  }, [handleToggleEnterBuilding]);
+  }, [activeTarget, triggerInteraction, handleToggleEnterBuilding]);
 
   const handlePause = useCallback(() => {
     resetInputState(inputRef.current);
@@ -474,7 +501,7 @@ export function GameScene() {
         <CampusEnvironmentDetail
           key={`env-${qualityPreset}`}
           geometry={geometry}
-          enableNightLights={atmosphere.enableNightLights}
+          enableNightLights={dynamicAtmosphere.streetLampsActive || dynamicAtmosphere.isNight}
           campusPropsEnabled={quality.enableCampusProps && tuning.campusPropsEnabled !== false}
           skyLifeEnabled={quality.enableSkyLife && tuning.skyLifeEnabled !== false}
           windEnabled={quality.enableWindAnimation && tuning.windEnabled !== false}
@@ -485,6 +512,15 @@ export function GameScene() {
 
         {/* 3D Wayfinding Trail & Destination Beacon */}
         <WayfindingPath playerTransformRef={playerTransformRef} target={wayfindingTarget} />
+
+        {/* Dynamic Raycaster for Interactions */}
+        <InteractionRaycaster isPlaying={status === 'playing'} />
+
+        {/* Dynamic NPCs Wandering along Waypoint Graph */}
+        <NPCManager count={npcCount} isPlaying={status === 'playing'} />
+
+        {/* Interactive Doors with dynamic Rapier Colliders */}
+        <CampusInteractiveDoors />
 
         {/* Reused Campus Buildings & Inter-building Connectors */}
         <group>
@@ -538,6 +574,9 @@ export function GameScene() {
         </Suspense>
       </Canvas>
 
+      {/* Interaction prompt overlay */}
+      {status === 'playing' && <InteractionHUD />}
+
       {/* In-Game HUD & Touch Controls */}
       {status === 'playing' && (
         <>
@@ -547,7 +586,13 @@ export function GameScene() {
             geometry={geometry}
             playerTransformRef={playerTransformRef}
             timeOfDay={timeOfDay}
-            onChangeTimeOfDay={setTimeOfDay}
+            onChangeTimeOfDay={(tod) => {
+              setTimeOfDay(tod);
+              if (tod === 'morning') setTimeHours(7.5);
+              if (tod === 'day') setTimeHours(13.0);
+              if (tod === 'sunset') setTimeHours(18.5);
+              if (tod === 'night') setTimeHours(2.0);
+            }}
             qualityPreset={qualityPreset}
             onChangeQualityPreset={setQualityPreset}
             audioMuted={audioMuted}
@@ -566,6 +611,50 @@ export function GameScene() {
             onRespawn={handleRespawn}
             onReturnToMap={handleReturnToMap}
           />
+          {/* Quick HUD controls for fountain lighting and NPC count */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 14,
+              left: 14,
+              display: 'flex',
+              gap: 8,
+              zIndex: 30,
+            }}
+          >
+            <button
+              onClick={() => setFountainLighting((prev) => ({ ...prev, enabled: !prev.enabled }))}
+              style={{
+                backgroundColor: fountainLighting.enabled ? '#0284c7' : '#334155',
+                color: '#ffffff',
+                border: '1px solid rgba(255,255,255,0.2)',
+                padding: '6px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title="Переключить ночную подсветку фонтана"
+            >
+              ⛲ Фонтан: {fountainLighting.enabled ? 'ВКЛ' : 'ВЫКЛ'}
+            </button>
+            <button
+              onClick={() => setNpcCount((c) => (c >= 16 ? 4 : c + 4))}
+              style={{
+                backgroundColor: '#475569',
+                color: '#ffffff',
+                border: '1px solid rgba(255,255,255,0.2)',
+                padding: '6px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title="Количество студентов/преподавателей на кампусе"
+            >
+              👥 NPC: {npcCount}
+            </button>
+          </div>
           {isMobile && <MobileControls inputRef={inputRef} active={true} />}
         </>
       )}

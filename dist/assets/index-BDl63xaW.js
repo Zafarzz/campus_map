@@ -63,10 +63,10 @@ Error generating stack: `+e.message+`
 #endif`,aomap_fragment:`#ifdef USE_AOMAP
 	float ambientOcclusion = ( texture2D( aoMap, vAoMapUv ).r - 1.0 ) * aoMapIntensity + 1.0;
 	reflectedLight.indirectDiffuse *= ambientOcclusion;
-	#if defined( USE_CLEARCOAT ) 
+	#if defined( USE_CLEARCOAT )
 		clearcoatSpecularIndirect *= ambientOcclusion;
 	#endif
-	#if defined( USE_SHEEN ) 
+	#if defined( USE_SHEEN )
 		sheenSpecularIndirect *= ambientOcclusion;
 	#endif
 	#if defined( USE_ENVMAP ) && defined( STANDARD )
@@ -551,7 +551,7 @@ vec4 sRGBTransferOETF( in vec4 value ) {
 		#define ENV_WORLDPOS
 	#endif
 	#ifdef ENV_WORLDPOS
-		
+
 		varying vec3 vWorldPosition;
 	#else
 		varying vec3 vReflect;
@@ -1218,17 +1218,17 @@ void RE_Direct_Physical( const in IncidentLight directLight, const in vec3 geome
 		clearcoatSpecularDirect += ccIrradiance * BRDF_GGX_Clearcoat( directLight.direction, geometryViewDir, geometryClearcoatNormal, material );
 	#endif
 	#ifdef USE_SHEEN
- 
- 		sheenSpecularDirect += irradiance * BRDF_Sheen( directLight.direction, geometryViewDir, geometryNormal, material.sheenColor, material.sheenRoughness );
- 
- 		float sheenAlbedoV = IBLSheenBRDF( geometryNormal, geometryViewDir, material.sheenRoughness );
- 		float sheenAlbedoL = IBLSheenBRDF( geometryNormal, directLight.direction, material.sheenRoughness );
- 
- 		float sheenEnergyComp = 1.0 - max3( material.sheenColor ) * max( sheenAlbedoV, sheenAlbedoL );
- 
- 		irradiance *= sheenEnergyComp;
- 
- 	#endif
+
+		sheenSpecularDirect += irradiance * BRDF_Sheen( directLight.direction, geometryViewDir, geometryNormal, material.sheenColor, material.sheenRoughness );
+
+		float sheenAlbedoV = IBLSheenBRDF( geometryNormal, geometryViewDir, material.sheenRoughness );
+		float sheenAlbedoL = IBLSheenBRDF( geometryNormal, directLight.direction, material.sheenRoughness );
+
+		float sheenEnergyComp = 1.0 - max3( material.sheenColor ) * max( sheenAlbedoV, sheenAlbedoL );
+
+		irradiance *= sheenEnergyComp;
+
+	#endif
 	vec3 specularBRDF = BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );
 	#ifdef USE_RETROREFLECTION
 		vec3 retroViewDir = reflect( - geometryViewDir, geometryNormal );
@@ -1270,7 +1270,7 @@ void RE_IndirectSpecular_Physical( const in vec3 radiance, const in vec3 irradia
 	#endif
 	#ifdef USE_SHEEN
 		sheenSpecularIndirect += irradiance * material.sheenColor * IBLSheenBRDF( geometryNormal, geometryViewDir, material.sheenRoughness ) * RECIPROCAL_PI;
- 	#endif
+	#endif
 	vec3 singleScatteringDielectric = vec3( 0.0 );
 	vec3 multiScatteringDielectric = vec3( 0.0 );
 	vec3 singleScatteringMetallic = vec3( 0.0 );
@@ -1816,7 +1816,7 @@ float viewZToOrthographicDepth( const in float viewZ, const in float near, const
 }
 float orthographicDepthToViewZ( const in float depth, const in float near, const in float far ) {
 	#ifdef USE_REVERSED_DEPTH_BUFFER
-	
+
 		return depth * ( far - near ) - far;
 	#else
 		return depth * ( near - far ) - near;
@@ -1826,7 +1826,7 @@ float viewZToPerspectiveDepth( const in float viewZ, const in float near, const 
 	return ( ( near + viewZ ) * far ) / ( ( far - near ) * viewZ );
 }
 float perspectiveDepthToViewZ( const in float depth, const in float near, const in float far ) {
-	
+
 	#ifdef USE_REVERSED_DEPTH_BUFFER
 		return ( near * far ) / ( ( near - far ) * depth - near );
 	#else
@@ -1985,7 +1985,7 @@ gl_Position = projectionMatrix * mvPosition;`,dithering_fragment:`#ifdef DITHERI
 				#else
 					float hard_shadow = step( shadowCoord.z, mean );
 				#endif
-				
+
 				if ( hard_shadow == 1.0 ) {
 					shadow = 1.0;
 				} else {
@@ -3580,10 +3580,10 @@ void main() {
 	#include <transmission_fragment>
 	vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;
 	#ifdef USE_SHEEN
- 
+
 		outgoingLight = outgoingLight + sheenSpecularDirect + sheenSpecularIndirect;
- 
- 	#endif
+
+	#endif
 	#ifdef USE_CLEARCOAT
 		float dotNVcc = saturate( dot( geometryClearcoatNormal, geometryViewDir ) );
 		vec3 Fcc = F_Schlick( material.clearcoatF0, material.clearcoatF90, dotNVcc );
@@ -4443,40 +4443,40 @@ No matching component was found for:
             uniform sampler2D map;
         #endif
         // From: https://www.shadertoy.com/view/4tsBD7
-        float diskIntersectWithBackFaceCulling( vec3 ro, vec3 rd, vec3 c, vec3 n, float r ) 
+        float diskIntersectWithBackFaceCulling( vec3 ro, vec3 rd, vec3 c, vec3 n, float r )
         {
             float d = dot ( rd, n );
-            
+
             if( d > 0.0 ) { return 1e6; }
-            
+
             vec3  o = ro - c;
             float t = - dot( n, o ) / d;
             vec3  q = o + rd * t;
-            
+
             return ( dot( q, q ) < r * r ) ? t : 1e6;
         }
         // From: https://www.iquilezles.org/www/articles/intersectors/intersectors.htm
-        float sphereIntersect( vec3 ro, vec3 rd, vec3 ce, float ra ) 
+        float sphereIntersect( vec3 ro, vec3 rd, vec3 ce, float ra )
         {
             vec3 oc = ro - ce;
             float b = dot( oc, rd );
             float c = dot( oc, oc ) - ra * ra;
             float h = b * b - c;
-            
+
             if( h < 0.0 ) { return -1.0; }
-            
+
             h = sqrt( h );
-            
+
             return - b + h;
         }
-        vec3 project() 
+        vec3 project()
         {
             vec3 p = normalize( vWorldPosition );
             vec3 camPos = cameraPosition;
             camPos.y -= height;
             float intersection = sphereIntersect( camPos, p, vec3( 0.0 ), radius );
             if( intersection > 0.0 ) {
-                
+
                 vec3 h = vec3( 0.0, - height, 0.0 );
                 float intersection2 = diskIntersectWithBackFaceCulling( camPos, p, h, vec3( 0.0, 1.0, 0.0 ), radius );
                 p = ( camPos + min( intersection, intersection2 ) * p ) / radius;
@@ -4487,10 +4487,10 @@ No matching component was found for:
         }
         #include <common>
         #include <cube_uv_reflection_fragment>
-        void main() 
+        void main()
         {
             vec3 projectedWorldPosition = project();
-            
+
             #ifdef ENVMAP_TYPE_CUBE
                 vec3 outcolor = textureCube( map, projectedWorldPosition ).rgb;
             #else
@@ -4504,11 +4504,11 @@ No matching component was found for:
         }
         `,l={map:{value:e},height:{value:t?.height||15},radius:{value:t?.radius||100}},u=new Yc(1,16),d=new yl({uniforms:l,fragmentShader:c,vertexShader:`
         varying vec3 vWorldPosition;
-        void main() 
+        void main()
         {
             vec4 worldPosition = ( modelMatrix * vec4( position, 1.0 ) );
             vWorldPosition = worldPosition.xyz;
-            
+
             gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
         }
         `,side:2});super(u,d)}set radius(e){this.material.uniforms.radius.value=e}get radius(){return this.material.uniforms.radius.value}set height(e){this.material.uniforms.height.value=e}get height(){return this.material.uniforms.height.value}},Tb=class extends vu{constructor(e){super(e),this.type=le}parse(e){let t=function(e,t){switch(e){case 1:throw Error(`THREE.RGBELoader: Read Error: `+(t||``));case 2:throw Error(`THREE.RGBELoader: Write Error: `+(t||``));case 3:throw Error(`THREE.RGBELoader: Bad File Format: `+(t||``));default:case 4:throw Error(`THREE.RGBELoader: Memory Error: `+(t||``))}},n=function(e,t,n){t||=1024;let r=e.pos,i=-1,a=0,o=``,s=String.fromCharCode.apply(null,new Uint16Array(e.subarray(r,r+128)));for(;0>(i=s.indexOf(`
@@ -4995,7 +4995,7 @@ float findBlocker(sampler2D shadowMap, vec2 uv, float compare, float angle) {
   return -1.0;
 }
 
-        
+
 float vogelFilter(sampler2D shadowMap, vec2 uv, float zReceiver, float filterRadius, float angle) {
   float texelSize = 1.0 / float(textureSize(shadowMap, 0).x);
   float shadow = 0.0f;

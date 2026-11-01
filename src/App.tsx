@@ -7,11 +7,13 @@ import { BackendLivePanel } from './components/ui/BackendLivePanel';
 import { BuildingList } from './components/ui/BuildingList';
 import { FloorRoomList } from './components/ui/FloorRoomList';
 import { FloorSelector } from './components/ui/FloorSelector';
+import { LightingControlPanel } from './components/ui/LightingControlPanel';
 import { DataNotice, Legend, TimeControl } from './components/ui/MapControls';
 import { RoomDetails } from './components/ui/RoomDetails';
 import { SearchBox } from './components/ui/SearchBox';
 import { CinematicButton, CinematicOverlay, useCinematicClean } from './cinematic/CinematicMode';
 import { isGameRoute, navigateToGame } from './game/config/gameConfig';
+import { LightingProvider } from './state/LightingProvider';
 import { MapProvider, useMap } from './state/MapProvider';
 
 const LazyEditorPage = lazy(() =>
@@ -141,6 +143,7 @@ function AppLayout() {
         <footer className="footer">
           <BackendLivePanel />
           <TimeControl />
+          <LightingControlPanel />
           <Legend />
           <DataNotice />
         </footer>
@@ -179,18 +182,22 @@ export default function App() {
 
   if (inGame) {
     return (
-      <MapProvider fallback={<div className="loading">Loading campus world...</div>}>
-        <Suspense fallback={<div className="loading">Initializing 3D Physics...</div>}>
-          <Leva hidden={true} />
-          <LazyGameScene />
-        </Suspense>
-      </MapProvider>
+      <LightingProvider>
+        <MapProvider fallback={<div className="loading">Loading campus world...</div>}>
+          <Suspense fallback={<div className="loading">Initializing 3D Physics...</div>}>
+            <Leva hidden={true} />
+            <LazyGameScene />
+          </Suspense>
+        </MapProvider>
+      </LightingProvider>
     );
   }
 
   return (
-    <MapProvider fallback={<div className="loading">Loading campus data...</div>}>
-      <AppLayout />
-    </MapProvider>
+    <LightingProvider>
+      <MapProvider fallback={<div className="loading">Loading campus data...</div>}>
+        <AppLayout />
+      </MapProvider>
+    </LightingProvider>
   );
 }

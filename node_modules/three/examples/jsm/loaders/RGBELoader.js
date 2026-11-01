@@ -14,5 +14,3 @@ class RGBELoader extends HDRLoader {
 }
 
 export { RGBELoader };
-
-

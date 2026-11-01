@@ -1,13 +1,13 @@
 import {
- 	BackSide,
- 	BoxGeometry,
- 	InstancedMesh,
- 	Mesh,
+	BackSide,
+	BoxGeometry,
+	InstancedMesh,
+	Mesh,
 	MeshLambertMaterial,
- 	MeshStandardMaterial,
- 	PointLight,
- 	Scene,
- 	Object3D,
+	MeshStandardMaterial,
+	PointLight,
+	Scene,
+	Object3D,
 } from 'three';
 
 /**
