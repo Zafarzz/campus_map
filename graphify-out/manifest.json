@@ -1618,14 +1618,14 @@
   },
   "backend/docker/initdb/10-roles-and-schema.sql": {
     "mtime": 1793446845.5013049,
-    "seen": 1793449630.4106143,
-    "ast_hash": "",
+    "seen": 1793561352.9750009,
+    "ast_hash": "7030289da5f9fa7e05626fe9d78f6ae4",
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
     "mtime": 1793446845.509305,
-    "seen": 1793449630.410828,
-    "ast_hash": "",
+    "seen": 1793561352.975043,
+    "ast_hash": "7c0ad8ce7a719442dc9f121cd791416d",
     "semantic_hash": ""
   },
   ".claude/CLAUDE.md": {
@@ -2082,102 +2082,6 @@
     "mtime": 1793538771.8294668,
     "seen": 1793539149.239335,
     "ast_hash": "22f835a1f82c43f05b2150ab3db3f159",
-    "semantic_hash": ""
-  },
-  "todo_list.md": {
-    "mtime": 1793535835.3333066,
-    "seen": 1793537441.440546,
-    "ast_hash": "6a23b90156673b6081a3e9e6a7760256",
-    "semantic_hash": ""
-  },
-  "image-1.png": {
-    "mtime": 1793535424.8970368,
-    "seen": 1793537441.44058,
-    "ast_hash": "99b930f91d534a5cd8da4966781c438c",
-    "semantic_hash": ""
-  },
-  "image-2.png": {
-    "mtime": 1793535644.7967317,
-    "seen": 1793537441.4405813,
-    "ast_hash": "7d81e714cb74e80410166bd8522cc13d",
-    "semantic_hash": ""
-  },
-  "image.png": {
-    "mtime": 1793535237.390772,
-    "seen": 1793537441.4405825,
-    "ast_hash": "5772bfd3e902eae40f7be94eaba1c7b1",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-08-35.jpg": {
-    "mtime": 1793535031.5389209,
-    "seen": 1793537441.4405835,
-    "ast_hash": "d6c5cd7425d4f6d5b6aa39f31be6e44f",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-08-39.jpg": {
-    "mtime": 1793535031.540921,
-    "seen": 1793537441.4405844,
-    "ast_hash": "5994643bac94c95f9e49bc240b7aebc9",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-08-41.jpg": {
-    "mtime": 1793535031.541921,
-    "seen": 1793537441.4405856,
-    "ast_hash": "7088b980140fe5d222b261a3370ec24d",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-08-43.jpg": {
-    "mtime": 1793535031.543256,
-    "seen": 1793537441.4405868,
-    "ast_hash": "b1ae8a355f297ca1dc38647471cf2ecf",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-17-47.jpg": {
-    "mtime": 1793535496.7592027,
-    "seen": 1793537441.4405878,
-    "ast_hash": "da5dc2dd0574a296aaae1ec433c992bf",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-17-54.jpg": {
-    "mtime": 1793535496.7604456,
-    "seen": 1793537441.4405887,
-    "ast_hash": "4e0966b00d6fe5bb93177be23859c87d",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-17-57.jpg": {
-    "mtime": 1793535496.7617443,
-    "seen": 1793537441.44059,
-    "ast_hash": "3961f930ac9f0c29c41d958a7d1ec862",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-18-57.jpg": {
-    "mtime": 1793535581.3968492,
-    "seen": 1793537441.4405913,
-    "ast_hash": "2f00b89334a2606fb9193ff1c5e558fa",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-19-03.jpg": {
-    "mtime": 1793535581.3969097,
-    "seen": 1793537441.440592,
-    "ast_hash": "e0f878428e473e68e40a57abb8ae15b2",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-19-07.jpg": {
-    "mtime": 1793535581.3980045,
-    "seen": 1793537441.4405932,
-    "ast_hash": "87de28be6e98a3c42d613ba2c8423fd7",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-19-11.jpg": {
-    "mtime": 1793535581.3985689,
-    "seen": 1793537441.440594,
-    "ast_hash": "c3339ba63c6dec90c4a12f7da2a40211",
-    "semantic_hash": ""
-  },
-  "photo_2026-11-01_17-23-31.jpg": {
-    "mtime": 1793535834.0996685,
-    "seen": 1793537441.440595,
-    "ast_hash": "89566c38dc5a2905507fe3cf9a2775eb",
     "semantic_hash": ""
   },
   "src/__tests__/blockAFacade.test.ts": {
