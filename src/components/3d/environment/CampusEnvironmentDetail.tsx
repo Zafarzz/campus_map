@@ -76,10 +76,10 @@ function isInsideBuildingMargin(
     }
   }
   // Explicit world-space bounds for 3D sports facilities in SportsFacilities.tsx:
-  // - Small Soccer Pitch & Multi-Sport / Tennis Courts (x in [10, 75], z in [-11, 43])
-  if (x >= 10.0 && x <= 75.0 && z >= -11.0 && z <= 43.0) return true;
-  // - Regulation Grand Football Stadium (x in [-115, -20], z in [-35, 95])
-  if (x >= -115.0 && x <= -20.0 && z >= -35.0 && z <= 95.0) return true;
+  // - Small Soccer Pitch & Multi-Sport / Tennis Courts (x in [11.5, 73.5], z in [-9.6, 41.4])
+  if (x >= 11.5 && x <= 73.5 && z >= -9.6 && z <= 41.4) return true;
+  // - Regulation Grand Football Stadium (x in [-105.0, -49.0], z in [-131.0, -26.0])
+  if (x >= -105.0 && x <= -49.0 && z >= -131.0 && z <= -26.0) return true;
   // Keep clear of fountain water basins
   if (x > -39.0 && x < 34.0 && z > 6.2 && z < 25.6) return true;
   if (x > -6.5 && x < 17.5 && z > -29.1 && z < -17.1) return true;

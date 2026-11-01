@@ -1143,9 +1143,9 @@
     "semantic_hash": "9c70cb73a073f41daa9b454a173264ba"
   },
   "src/components/3d/environment/CampusEnvironmentDetail.tsx": {
-    "mtime": 1793554462.6849852,
-    "seen": 1793554647.5919251,
-    "ast_hash": "791cf5a8882bf6492ac481e3b6ba55b1",
+    "mtime": 1793562388.0436451,
+    "seen": 1793562442.369351,
+    "ast_hash": "967414aee0c961597677a74fb2a3317e",
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockBFacade.tsx": {
@@ -1619,13 +1619,13 @@
   "backend/docker/initdb/10-roles-and-schema.sql": {
     "mtime": 1793446845.5013049,
     "seen": 1793561352.9750009,
-    "ast_hash": "7030289da5f9fa7e05626fe9d78f6ae4",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
     "mtime": 1793446845.509305,
     "seen": 1793561352.975043,
-    "ast_hash": "7c0ad8ce7a719442dc9f121cd791416d",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   ".claude/CLAUDE.md": {
