@@ -7,7 +7,7 @@ import { search } from '../services/search/searchService';
 
 describe('Campus Building Connectors & Block C Hall (ADR-020)', () => {
   it('defines connectorsPx touching connected buildings in pixel space', () => {
-    expect(connectorsPx.length).toBe(2);
+    expect(connectorsPx.length).toBe(3);
 
     const bToC = connectorsPx.find((c) => c.id === 'conn-bld-g-bld-i');
     expect(bToC).toBeDefined();
@@ -20,17 +20,23 @@ describe('Campus Building Connectors & Block C Hall (ADR-020)', () => {
     expect(aToC?.buildingIds).toEqual(['bld-h', 'bld-i']);
     expect(aToC?.floorCount).toBe(2); // Two storeys (ADR-029)
     expect(aToC?.kind).toBe('enclosed-corridor');
+
+    const fToE = connectorsPx.find((c) => c.id === 'conn-bld-d-bld-b');
+    expect(fToE).toBeDefined();
+    expect(fToE?.buildingIds).toEqual(['bld-d', 'bld-b']);
+    expect(fToE?.floorCount).toBe(1); // One storey connector hall
+    expect(fToE?.kind).toBe('enclosed-corridor');
   });
 
   it('generates ConnectorGeometry in CampusGeometry via geometryProvider', () => {
     const campusGeom = geometryProvider.build(demoCampus);
     expect(campusGeom.connectors).toBeDefined();
-    expect(campusGeom.connectors.length).toBe(2);
+    expect(campusGeom.connectors.length).toBe(3);
 
     for (const conn of campusGeom.connectors) {
       expect(conn.kind).toBe('enclosed-corridor');
       expect(conn.elevation).toBe(0); // Ground level
-      expect(conn.height).toBe(7.2); // 2-floor standard height (3.6m * 2, ADR-029)
+      expect([3.6, 7.2]).toContain(conn.height);
       expect(conn.precision).toBe('approximate');
       expect(conn.footprint.type).toBe('rect');
       if (conn.footprint.type === 'rect') {

@@ -55,6 +55,7 @@ export function CampusMap() {
       shadows={{ type: THREE.PCFSoftShadowMap }}
       camera={{ position: initialPosition, fov: mapConfig.camera.fov, near: 1, far: 3000 }}
       dpr={[1, 2]}
+      gl={{ preserveDrawingBuffer: true }}
     >
       <RendererExposure exposure={tuning.toneMappingExposure ?? 1.0} />
 

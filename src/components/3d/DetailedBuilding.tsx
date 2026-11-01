@@ -15,6 +15,11 @@ import { isClick } from './pointer';
 import { BlockCFacade } from './facades/BlockCFacade';
 import { BlockBFacade } from './facades/BlockBFacade';
 import { BlockBSouthFacade } from './facades/BlockBSouthFacade';
+import { BlockAFacade } from './facades/BlockAFacade';
+import { BlockFFacade } from './facades/BlockFFacade';
+import { BlockDFacade } from './facades/BlockDFacade';
+import { BlockEFacade } from './facades/BlockEFacade';
+import { BlockFCourtyardFacade } from './facades/BlockFCourtyardFacade';
 import { SportsComplexRoof, SportsComplexFrontFacade } from './facades/SportsComplexFacade';
 import { getArchitecturalWallTextures, getWindowGlassTexture } from './materials/pbrMaterials';
 
@@ -633,25 +638,38 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
     >
       {geometry.parts.map((footprint, i) => {
         const outline = footprintOutline(footprint);
+        const { worldX, worldZ, width, depth } = getFootprintMetrics(footprint);
+        const isBlockFMain =
+          appearance.customFacade === 'block-f' && (geometry.parts.length === 1 ? i === 0 : i === 1);
         const isCustomFacade =
-          (appearance.customFacade === 'block-c' ||
+          ((appearance.customFacade === 'block-c' ||
             appearance.customFacade === 'block-b' ||
+            appearance.customFacade === 'block-a' ||
+            appearance.customFacade === 'block-d' ||
+            appearance.customFacade === 'block-e' ||
             appearance.customFacade === 'sports-complex' ||
             building.id === 'bld-e') &&
-          i === 0;
+            i === 0) ||
+          appearance.customFacade === 'block-f';
         const wallHeight =
           appearance.customFacade === 'block-c' && i === 0
             ? 10.8
             : appearance.customFacade === 'block-b' && i === 0
             ? 14.4
+            : appearance.customFacade === 'block-a' && i === 0
+            ? 8.2
+            : appearance.customFacade === 'block-d' && i === 0
+            ? 8.05
+            : appearance.customFacade === 'block-e' && i === 0
+            ? 14.35
+            : appearance.customFacade === 'block-f'
+            ? 8.05
             : appearance.hasCornice
             ? geometry.height - 0.5
             : geometry.height;
         const parapetHeight = appearance.customFacade === 'block-c' ? 2.7 : 0.8;
         const wallGeo = useExtrudedGeometry(outline, wallHeight);
         const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
-
-        const { worldX, worldZ, width, depth } = getFootprintMetrics(footprint);
 
         return (
           <group key={i}>
@@ -762,6 +780,148 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
                   roofColor={appearance.roofColor}
                 />
               </group>
+            )}
+
+            {/* Dedicated Architectural Elevation for Block A (bld-h, Main Academic Block per CAD elevation) */}
+            {appearance.customFacade === 'block-a' && i === 0 && (
+              <group position={[worldX, 0, worldZ]}>
+                {/* South Facade facing perimeter fence with entrance group on right touching corridor A=>C */}
+                <BlockAFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="south"
+                  wallHeight={8.2}
+                  roofHeight={appearance.roofHeight ?? 3.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+                {/* North Facade facing inner campus */}
+                <BlockAFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="north"
+                  wallHeight={8.2}
+                  roofHeight={appearance.roofHeight ?? 3.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+              </group>
+            )}
+
+            {/* Dedicated Architectural Elevation for Block D (bld-c, 2-storey Academic Building facing lawn & fountain) */}
+            {appearance.customFacade === 'block-d' && i === 0 && (
+              <group position={[worldX, 0, worldZ]}>
+                {/* South Facade facing lawn and grand fountain */}
+                <BlockDFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="south"
+                  wallHeight={8.05}
+                  roofHeight={appearance.roofHeight ?? 1.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+                {/* North Facade facing inner campus rear */}
+                <BlockDFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="north"
+                  wallHeight={8.05}
+                  roofHeight={appearance.roofHeight ?? 1.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+              </group>
+            )}
+
+            {/* Dedicated Architectural Elevation for Block E (bld-b, 4-storey Architecture & Design Block facing Block F) */}
+            {appearance.customFacade === 'block-e' && i === 0 && (
+              <group position={[worldX, 0, worldZ]}>
+                {/* South Facade facing Block F & Suwon Hall */}
+                <BlockEFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="south"
+                  wallHeight={14.35}
+                  roofHeight={appearance.roofHeight ?? 3.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+                {/* North Facade facing rear */}
+                <BlockEFacade
+                  buildingWidth={width}
+                  buildingDepth={depth}
+                  facing="north"
+                  wallHeight={14.35}
+                  roofHeight={appearance.roofHeight ?? 3.6}
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+              </group>
+            )}
+
+            {/* Dedicated Architectural Elevation for Block F (bld-d) */}
+            {isBlockFMain && (
+              <>
+                {/* East Facade facing perimeter fence with classical entablature & inscriptions */}
+                <group position={[worldX, 0, worldZ]}>
+                  <BlockFFacade
+                    buildingWidth={width}
+                    buildingDepth={depth}
+                    facing="east"
+                    wallHeight={9.8}
+                    opacity={opacity}
+                    transparent={transparent}
+                    wallColor={wallColor}
+                    trimColor={appearance.corniceColor}
+                    plinthColor={appearance.plinthColor}
+                    frameColor={appearance.windowColor}
+                  />
+                </group>
+
+                {/* Authentic Courtyard Ensemble matching reference photo media_1793558789621.jpg:
+                    West Facade (10 window bays + basement lightwell hoods + drainpipes),
+                    1-Storey Corner Entrance Vestibule, and South End Facade */}
+                <BlockFCourtyardFacade
+                  opacity={opacity}
+                  transparent={transparent}
+                  wallColor={wallColor}
+                  trimColor={appearance.corniceColor}
+                  plinthColor={appearance.plinthColor}
+                  frameColor={appearance.windowColor}
+                  roofColor={appearance.roofColor}
+                />
+              </>
             )}
 
             {/* Dedicated Architectural Front Facade (Sports Complex bld-e) */}

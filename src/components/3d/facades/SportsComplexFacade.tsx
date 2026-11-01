@@ -410,29 +410,57 @@ export function SportsComplexFrontFacade({
           />
         </group>
       ))}
+    </group>
+  );
+}
 
-      {/* ========================================================
-          3. COMMEMORATIVE STELA (Стела «CONFERENCE HALL ANHOR»)
-         ======================================================== */}
-      {/* Located at 9.5m from left corner (X = -width / 2 + 9.5) */}
-      <group position={[-width / 2 + 9.5, 0, -0.6]}>
-        {/* Dark Granite Stepped Base */}
-        <mesh position={[0, 0.15, 0]} material={materials.graniteMat} receiveShadow>
-          <boxGeometry args={[1.4, 0.3, 0.8]} />
-        </mesh>
-        <mesh position={[0, 0.4, 0]} material={materials.graniteMat} castShadow>
-          <boxGeometry args={[1.1, 0.25, 0.6]} />
-        </mesh>
+/**
+ * Commemorative Monument / Stela («CONFERENCE HALL ANHOR») with stepped granite pedestal.
+ * Placed outside by the tennis courts and sports plaza per user specification.
+ */
+export function CommemorativeStela({
+  position = [0, 0, 0],
+  rotationY = 0,
+}: {
+  position?: [number, number, number];
+  rotationY?: number;
+}) {
+  const materials = useMemo(() => {
+    const graniteMat = new THREE.MeshStandardMaterial({
+      color: '#1e293b',
+      roughness: 0.35,
+      metalness: 0.15,
+    });
+    const stelaMat = new THREE.MeshStandardMaterial({
+      color: '#f1f5f9',
+      roughness: 0.65,
+    });
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: '#d97706',
+      roughness: 0.4,
+      metalness: 0.8,
+    });
+    return { graniteMat, stelaMat, frameMat };
+  }, []);
 
-        {/* Vertical Stone Monument Tablet */}
-        <mesh position={[0, 1.35, 0]} material={materials.stelaMat} castShadow>
-          <boxGeometry args={[0.95, 1.5, 0.24]} />
-        </mesh>
-        {/* Inscribed Bronze/Gold Plaque */}
-        <mesh position={[0, 1.45, -0.13]} material={materials.frameMat}>
-          <boxGeometry args={[0.7, 0.55, 0.02]} />
-        </mesh>
-      </group>
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      {/* Dark Granite Stepped Base */}
+      <mesh position={[0, 0.15, 0]} material={materials.graniteMat} receiveShadow>
+        <boxGeometry args={[1.4, 0.3, 0.8]} />
+      </mesh>
+      <mesh position={[0, 0.4, 0]} material={materials.graniteMat} castShadow>
+        <boxGeometry args={[1.1, 0.25, 0.6]} />
+      </mesh>
+
+      {/* Vertical Stone Monument Tablet */}
+      <mesh position={[0, 1.35, 0]} material={materials.stelaMat} castShadow>
+        <boxGeometry args={[0.95, 1.5, 0.24]} />
+      </mesh>
+      {/* Inscribed Bronze/Gold Plaque */}
+      <mesh position={[0, 1.45, -0.13]} material={materials.frameMat}>
+        <boxGeometry args={[0.7, 0.55, 0.02]} />
+      </mesh>
     </group>
   );
 }

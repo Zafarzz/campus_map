@@ -102,31 +102,27 @@ export function SolarCanopies({ positions }: SolarCanopiesProps) {
     };
   }, []);
 
-  // 4 Solar canopies in 2x2 grid matching media_1792882021253.png
+  // 2 Solar canopies in western half (relocated to southern parking area per user markup media_1793556132349.png)
   const canopies: CanopySpec[] = useMemo(() => {
-    if (positions && positions.length >= 4) {
-      return positions.map((p) => ({ pos: p, length: 25.0, width: 6.0 }));
+    if (positions && positions.length >= 2) {
+      return positions.map((p) => ({ pos: p, length: 25.0, width: 6.5 }));
     }
     return [
-      // Row 1 (North row)
-      { pos: [-68.5, 0, 137.5], length: 25.0, width: 6.0 }, // NW
-      { pos: [-40.0, 0, 137.5], length: 25.0, width: 6.0 }, // NE
-      // Row 2 (South row)
-      { pos: [-68.5, 0, 149.5], length: 25.0, width: 6.0 }, // SW
-      { pos: [-40.0, 0, 149.5], length: 25.0, width: 6.0 }, // SE
+      // Row 1 (North row in southern parking)
+      { pos: [-66.0, 0, 164.0], length: 25.0, width: 6.5 },
+      // Row 2 (South row in southern parking)
+      { pos: [-66.0, 0, 180.0], length: 25.0, width: 6.5 },
     ];
   }, [positions]);
 
-  // Custom polygon geometry for parking slab perfectly bounded by the diagonal fence & curbs
+  // Custom polygon geometry for halved parking slab bounded by diagonal fence & X = -50.0m (starting at Z=153.0m)
   const parkingGeo = useMemo(() => {
     const shape = new THREE.Shape();
     // Counter-clockwise winding in (X, -Z) plane so normal points up (+Y)
-    shape.moveTo(-88.0, -165.5);
-    shape.lineTo(-32.0, -180.0);
-    shape.lineTo(-25.0, -181.8);
-    shape.lineTo(-17.5, -182.5);
-    shape.lineTo(-17.5, -133.5);
-    shape.lineTo(-88.0, -133.5);
+    shape.moveTo(-88.0, -153.0);
+    shape.lineTo(-50.0, -153.0);
+    shape.lineTo(-50.0, -193.5);
+    shape.lineTo(-88.0, -201.5);
     shape.closePath();
     return new THREE.ShapeGeometry(shape);
   }, []);
@@ -144,20 +140,19 @@ export function SolarCanopies({ positions }: SolarCanopiesProps) {
         receiveShadow
       />
       {/* Surrounding Concrete Curbs */}
-      <mesh position={[-52.75, 0.04, 133.5]} material={materials.curbMat} receiveShadow>
-        <boxGeometry args={[70.5, 0.06, 0.2]} />
+      <mesh position={[-69.0, 0.04, 153.0]} material={materials.curbMat} receiveShadow>
+        <boxGeometry args={[38.0, 0.06, 0.2]} />
       </mesh>
-      <mesh position={[-88.0, 0.04, 149.5]} material={materials.curbMat} receiveShadow>
-        <boxGeometry args={[0.2, 0.06, 32.0]} />
+      <mesh position={[-88.0, 0.04, 177.25]} material={materials.curbMat} receiveShadow>
+        <boxGeometry args={[0.2, 0.06, 48.5]} />
+      </mesh>
+      <mesh position={[-50.0, 0.04, 173.25]} material={materials.curbMat} receiveShadow>
+        <boxGeometry args={[0.2, 0.06, 40.5]} />
       </mesh>
 
       {/* Decorative Manicured Hedge Border along North Parking Edge */}
-      <mesh position={[-71.0, 0.25, 133.0]} castShadow receiveShadow>
-        <boxGeometry args={[28.0, 0.5, 0.8]} />
-        <meshStandardMaterial color="#2d5a27" roughness={0.8} />
-      </mesh>
-      <mesh position={[-35.0, 0.25, 133.0]} castShadow receiveShadow>
-        <boxGeometry args={[28.0, 0.5, 0.8]} />
+      <mesh position={[-69.0, 0.25, 152.5]} castShadow receiveShadow>
+        <boxGeometry args={[36.0, 0.5, 0.8]} />
         <meshStandardMaterial color="#2d5a27" roughness={0.8} />
       </mesh>
 
@@ -261,19 +256,19 @@ export function SolarCanopies({ positions }: SolarCanopiesProps) {
       })}
 
       {/* ============================================================== */}
-      {/* 3. SOUTH UTILITY GARAGES / SHEDS ALONG SOUTHERN FENCE          */}
+      {/* 3. SOUTH UTILITY GARAGES / SHEDS ALONG DIAGONAL FENCE          */}
       {/* ============================================================== */}
-      <group position={[-74.0, 0, 163.5]} rotation={[0, -0.25, 0]}>
-        {/* Garage 1: 12m x 6.5m (largest western garage with hipped roof) */}
+      <group position={[-75.0, 0, 198.5]} rotation={[0, 0.2186, 0]}>
+        {/* Garage 1: 11m x 6.5m (western garage with hipped roof) */}
         <mesh position={[0, 1.6, 0]} material={materials.garageWallMat} castShadow receiveShadow>
-          <boxGeometry args={[12.0, 3.2, 6.5]} />
+          <boxGeometry args={[11.0, 3.2, 6.5]} />
         </mesh>
         <mesh position={[0, 3.8, 0]} material={materials.garageRoofMat} castShadow>
-          <boxGeometry args={[12.6, 1.2, 7.1]} />
+          <boxGeometry args={[11.6, 1.2, 7.1]} />
         </mesh>
       </group>
 
-      <group position={[-60.0, 0, 166.5]} rotation={[0, -0.25, 0]}>
+      <group position={[-63.5, 0, 196.0]} rotation={[0, 0.2186, 0]}>
         {/* Garage 2: 8.5m x 5.5m (middle garage) */}
         <mesh position={[0, 1.4, 0]} material={materials.garageWallMat} castShadow receiveShadow>
           <boxGeometry args={[8.5, 2.8, 5.5]} />
@@ -283,7 +278,7 @@ export function SolarCanopies({ positions }: SolarCanopiesProps) {
         </mesh>
       </group>
 
-      <group position={[-49.5, 0, 169.0]} rotation={[0, -0.25, 0]}>
+      <group position={[-54.0, 0, 194.0]} rotation={[0, 0.2186, 0]}>
         {/* Garage 3: 6.5m x 5m (eastern utility shed) */}
         <mesh position={[0, 1.3, 0]} material={materials.garageWallMat} castShadow receiveShadow>
           <boxGeometry args={[6.5, 2.6, 5.0]} />

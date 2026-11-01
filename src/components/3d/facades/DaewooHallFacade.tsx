@@ -7,6 +7,8 @@ export type DaewooHallFacadeProps = {
   rotationY?: number;
   opacity?: number;
   transparent?: boolean;
+  /** Whether to render the white birch trees along the front apron per blueprint */
+  includeTrees?: boolean;
 };
 
 /**
@@ -176,6 +178,7 @@ export function DaewooHallFacade({
   rotationY = 0,
   opacity = 1,
   transparent = false,
+  includeTrees = false,
 }: DaewooHallFacadeProps) {
   const facadeWidth = width;
   const numBays = 7;
@@ -446,44 +449,23 @@ export function DaewooHallFacade({
       ))}
 
       {/* ========================================================
-          5. ATTIC FRIEZE & PARAPET (Аттиковый фриз: +6.80 to +8.20m, 1.4m high)
+          5. ATTIC FRIEZE & ARCHITECTURAL SIGNAGE UNDER EAVES (Y: +5.80 to +7.15m)
          ======================================================== */}
       {/* Light-gray composite fascia panel */}
-      <mesh position={[0, 7.5, 0.04]} material={materials.friezeMat} castShadow receiveShadow>
-        <boxGeometry args={[facadeWidth + 0.1, 1.4, 0.28]} />
+      <mesh position={[0, 6.45, 0.04]} material={materials.friezeMat} castShadow receiveShadow>
+        <boxGeometry args={[facadeWidth + 0.1, 1.3, 0.28]} />
       </mesh>
-      {/* Lower Decorative Cornice Reveal at Y = 6.80 */}
-      <mesh position={[0, 6.82, 0.12]} material={materials.frameMat}>
+      {/* Lower Decorative Cornice Reveal at Y = 5.80 */}
+      <mesh position={[0, 5.82, 0.12]} material={materials.frameMat}>
         <boxGeometry args={[facadeWidth + 0.15, 0.06, 0.14]} />
       </mesh>
-      {/* Upper Parapet Coping Trim at Y = 8.20 */}
-      <mesh position={[0, 8.2, 0.06]} material={materials.frameMat} castShadow>
+      {/* Upper Architrave Trim under Eaves at Y = 7.12 */}
+      <mesh position={[0, 7.12, 0.06]} material={materials.frameMat} castShadow>
         <boxGeometry args={[facadeWidth + 0.2, 0.08, 0.36]} />
       </mesh>
 
-      {/* ========================================================
-          6. ROOFTOP 3D VOLUMETRIC LETTERS «DAEWOO HALL» ON METAL FRAME
-         ======================================================== */}
-      {/* Horizontal Steel Support Truss Frame at Y = 8.24 */}
-      <group position={[0, 8.24, 0.06]}>
-        {/* Bottom mounting rail */}
-        <mesh position={[0, 0.04, 0]} material={materials.frameMat}>
-          <boxGeometry args={[8.6, 0.04, 0.06]} />
-        </mesh>
-        {/* Top stabilizer rail */}
-        <mesh position={[0, 0.45, -0.06]} material={materials.frameMat}>
-          <boxGeometry args={[8.6, 0.03, 0.04]} />
-        </mesh>
-        {/* 6 Vertical Support Stanchions */}
-        {[-4.0, -2.4, -0.8, 0.8, 2.4, 4.0].map((rx, idx) => (
-          <mesh key={`roof-post-${idx}`} position={[rx, 0.38, -0.03]} material={materials.frameMat}>
-            <cylinderGeometry args={[0.02, 0.02, 0.72, 8]} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* 3D Extruded Capital Letters «DAEWOO HALL» */}
-      <group position={[0, 8.7, 0.08]}>
+      {/* 3D Extruded Capital Letters «DAEWOO HALL» mounted directly on frieze */}
+      <group position={[0, 6.35, 0.20]}>
         {letterLayout.map(({ char, x }, idx) => {
           const geom = letterGeometries[char as keyof typeof letterGeometries];
           if (!geom) return null;
@@ -498,6 +480,74 @@ export function DaewooHallFacade({
           );
         })}
       </group>
+
+      {/* Birch Trees Group in front of the glazed curtain wall per blueprint media_1793539586758.jpg */}
+      {includeTrees && <BirchTreesGroup facadeWidth={facadeWidth} />}
+    </group>
+  );
+}
+
+/**
+ * Slender white birch trees planted in front of the Daewoo Hall glazed apron,
+ * reconstructed directly from blueprint «ФАСАД УЧЕБНОГО КОРПУСА С ВХОДНОЙ ГРУППОЙ «DAEWOO HALL» (2D ЧЕРТЕЖ-РАЗВЕРТКА)».
+ */
+function BirchTreesGroup({ facadeWidth }: { facadeWidth: number }) {
+  const treeMaterials = useMemo(() => {
+    // White birch bark with subtle dark rings
+    const barkWhiteMat = new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+    const barkDarkMat = new THREE.MeshStandardMaterial({
+      color: '#334155',
+      roughness: 0.9,
+    });
+    const leafMat = new THREE.MeshStandardMaterial({
+      color: '#4d7c0f', // Birch leafy green
+      roughness: 0.75,
+      metalness: 0.05,
+    });
+    return { barkWhiteMat, barkDarkMat, leafMat };
+  }, []);
+
+  // 5 Birch trees positioned along the apron in front of Daewoo Hall per blueprint media_1793539586758.jpg
+  const trees = useMemo(() => {
+    return [
+      { x: -facadeWidth * 0.28, z: 0.9, height: 6.2, r: 0.065 },
+      { x: -facadeWidth * 0.16, z: 1.1, height: 7.0, r: 0.075 },
+      { x: -facadeWidth * 0.02, z: 0.85, height: 7.6, r: 0.08 },
+      { x: facadeWidth * 0.22, z: 1.05, height: 6.6, r: 0.07 },
+      { x: facadeWidth * 0.36, z: 0.8, height: 6.1, r: 0.065 },
+    ];
+  }, [facadeWidth]);
+
+  return (
+    <group name="daewoo-birch-trees">
+      {trees.map((t, idx) => (
+        <group key={`birch-${idx}`} position={[t.x, 0, t.z]}>
+          {/* Main slender white trunk */}
+          <mesh position={[0, t.height / 2, 0]} material={treeMaterials.barkWhiteMat} castShadow>
+            <cylinderGeometry args={[t.r * 0.7, t.r, t.height, 10]} />
+          </mesh>
+          {/* Characteristic dark birch bark horizontal rings */}
+          {[1.2, 2.4, 3.6, 4.8].map((ry) => (
+            <mesh key={`ring-${ry}`} position={[0, ry, 0]} material={treeMaterials.barkDarkMat}>
+              <cylinderGeometry args={[t.r * 0.95, t.r * 0.95, 0.08, 10]} />
+            </mesh>
+          ))}
+          {/* Airy green canopy clusters near top */}
+          <mesh position={[0, t.height - 0.5, 0]} material={treeMaterials.leafMat} castShadow>
+            <sphereGeometry args={[0.95, 10, 8]} />
+          </mesh>
+          <mesh position={[0.2, t.height + 0.2, 0.1]} material={treeMaterials.leafMat} castShadow>
+            <sphereGeometry args={[0.75, 8, 6]} />
+          </mesh>
+          <mesh position={[-0.25, t.height - 1.2, -0.1]} material={treeMaterials.leafMat} castShadow>
+            <sphereGeometry args={[0.8, 8, 6]} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }

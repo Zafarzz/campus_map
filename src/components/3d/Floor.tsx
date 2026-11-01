@@ -4,6 +4,7 @@ import type { Footprint, FloorGeometry, RoomGeometry } from '../../domain/geomet
 import type { RoomScheduleState } from '../../domain/schedule/types';
 import { ExtrudedFootprint } from './ExtrudedFootprint';
 import { Room } from './Room';
+import { BlockCorridor3D } from './BlockCorridor3D';
 
 type Props = {
   floor: FloorData;
@@ -44,6 +45,13 @@ export function Floor({
           interactive={false}
         />
       ))}
+      {active && (floor.id.startsWith('bld-b') || floor.id.startsWith('bld-g')) && (
+        <BlockCorridor3D
+          floorId={floor.id}
+          floorElevation={floorGeometry.elevation}
+          parts={parts}
+        />
+      )}
       {active &&
         floor.rooms.map((room) => {
           const geometry = roomGeometries[room.id];

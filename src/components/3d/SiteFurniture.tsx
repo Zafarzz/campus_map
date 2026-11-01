@@ -341,13 +341,8 @@ export function SiteFurniture() {
       [102.0, 0, 70.0, -Math.PI / 2, 6.0],
       [104.5, 0, 95.0, -Math.PI / 2, 6.0],
       [104.5, 0, 120.0, -Math.PI / 2, 6.0],
-      // Central Pedestrian Promenade
-      [17.5, 0, -5.0, -Math.PI / 2, 4.5],
-      [17.5, 0, 15.0, -Math.PI / 2, 4.5],
-      [17.5, 0, 35.0, -Math.PI / 2, 4.5],
+      // Central Pedestrian Promenade (outside sports courts)
       [17.5, 0, 55.0, -Math.PI / 2, 4.5],
-      [8.5, 0, 15.0, Math.PI / 2, 4.5],
-      [8.5, 0, 35.0, Math.PI / 2, 4.5],
       // Block A & Amphitheater Front Promenades
       [22.0, 0, 78.0, 0, 4.5],
       [36.0, 0, 78.0, 0, 4.5],
