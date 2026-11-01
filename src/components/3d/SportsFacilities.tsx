@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { getSportsMeshTexture } from './facades/facadeTextures';
+import { CommemorativeStela } from './facades/SportsComplexFacade';
 
 /**
  * 3D Sports Perimeter Mesh Fence Enclosure (сетчатые стены высотой 5.8м)
@@ -602,6 +603,9 @@ export function SportsFacilities() {
 
         {/* 5.8m High Sports Perimeter Ball-Stop Mesh Fence (Сетчатое ограждение +1м) */}
         <SportsMeshEnclosure width={apronW + 0.2} depth={apronD + 0.2} height={5.8} />
+
+        {/* Commemorative Monument / Stela placed outside near tennis courts (Item 6) */}
+        <CommemorativeStela position={[-apronW / 2 - 1.8, -0.095, 0]} rotationY={Math.PI / 2} />
       </group>
 
       {/* ========================================================

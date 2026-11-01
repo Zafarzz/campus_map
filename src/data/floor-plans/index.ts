@@ -96,29 +96,34 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
     buildingId: 'bld-g',
     level: 1,
     rooms: [
-      // North wing (vSpan: [0.05, 0.45])
-      { id: 'bld-g-f1-b105', number: 'B-105', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.17], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r6' },
-      { id: 'bld-g-f1-b104', number: 'B-104', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.24, 0.48], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r4' },
-      { id: 'bld-g-f1-b103', number: 'B-103', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.52, 0.76], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r3' },
-      { id: 'bld-g-f1-b102', number: 'B-102', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.83, 0.97], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r2' },
+      // North wing (vSpan: [0.05, 0.45]) per blueprint media_1793538203924.png
+      { id: 'bld-g-f1-b105', number: 'B-105', name: 'Classroom (105-B)', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.17], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r6' },
+      { id: 'bld-g-f1-wc-m', number: 'Toilet-M', name: 'Restroom (Men)', kind: 'other', capacity: 6, uSpan: [0.18, 0.23], vSpan: [0.05, 0.45] },
+      { id: 'bld-g-f1-b104', number: 'B-104', name: 'Classroom (104-B)', kind: 'classroom', capacity: 36, uSpan: [0.24, 0.48], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r4' },
+      { id: 'bld-g-f1-b103', number: 'B-103', name: 'Classroom (103-B)', kind: 'classroom', capacity: 36, uSpan: [0.52, 0.76], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r3' },
+      { id: 'bld-g-f1-wc-f', number: 'Toilet-F', name: 'Restroom (Women)', kind: 'other', capacity: 6, uSpan: [0.77, 0.82], vSpan: [0.05, 0.45] },
+      { id: 'bld-g-f1-b102', number: 'B-102', name: 'Classroom (102-B)', kind: 'classroom', capacity: 36, uSpan: [0.83, 0.97], vSpan: [0.05, 0.45], legacyId: 'bld-g-f1-r2' },
       // South wing (vSpan: [0.55, 0.95])
-      { id: 'bld-g-f1-b106', number: 'B-106', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.19], vSpan: [0.55, 0.95], legacyId: 'bld-g-f1-r5' },
+      { id: 'bld-g-f1-b106', number: 'B-106', name: 'Classroom (106-B)', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.19], vSpan: [0.55, 0.95], legacyId: 'bld-g-f1-r5' },
       { id: 'bld-g-f1-lobby', number: 'B-Lobby', name: 'Lobby & Exhibition Hall', kind: 'hall', capacity: 100, uSpan: [0.22, 0.78], vSpan: [0.55, 0.95], legacyId: 'bld-g-f1-r7' },
-      { id: 'bld-g-f1-b101', number: 'B-101', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.81, 0.97], vSpan: [0.55, 0.95], legacyId: 'bld-g-f1-r1' },
+      { id: 'bld-g-f1-b101', number: 'B-101', name: 'Classroom (101-B)', kind: 'classroom', capacity: 36, uSpan: [0.81, 0.97], vSpan: [0.55, 0.95], legacyId: 'bld-g-f1-r1' },
     ],
   },
   {
     buildingId: 'bld-g',
     level: 2,
     rooms: [
-      // North wing (vSpan: [0.05, 0.45])
-      { id: 'bld-g-f2-b205', number: 'B-205', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.17], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r5' },
-      { id: 'bld-g-f2-b204', number: 'B-204', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.24, 0.48], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r4' },
-      { id: 'bld-g-f2-b203', number: 'B-203', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.52, 0.76], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r3' },
-      { id: 'bld-g-f2-b202', number: 'B-202', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.83, 0.97], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r2' },
+      // North wing (vSpan: [0.05, 0.45]) per blueprint media_1793538203924.png
+      { id: 'bld-g-f2-b205', number: 'B-205', name: 'Classroom (205-B)', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.17], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r5' },
+      { id: 'bld-g-f2-wc-m', number: 'Toilet-M', name: 'Restroom (Men)', kind: 'other', capacity: 6, uSpan: [0.18, 0.23], vSpan: [0.05, 0.45] },
+      { id: 'bld-g-f2-b204', number: 'B-204', name: 'Classroom (204-B)', kind: 'classroom', capacity: 36, uSpan: [0.24, 0.48], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r4' },
+      { id: 'bld-g-f2-b203', number: 'B-203', name: 'Classroom (203-B)', kind: 'classroom', capacity: 36, uSpan: [0.52, 0.76], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r3' },
+      { id: 'bld-g-f2-wc-f', number: 'Toilet-F', name: 'Restroom (Women)', kind: 'other', capacity: 6, uSpan: [0.77, 0.82], vSpan: [0.05, 0.45] },
+      { id: 'bld-g-f2-b202', number: 'B-202', name: 'Classroom (202-B)', kind: 'classroom', capacity: 36, uSpan: [0.83, 0.97], vSpan: [0.05, 0.45], legacyId: 'bld-g-f2-r2' },
       // South wing (vSpan: [0.55, 0.95])
-      { id: 'bld-g-f2-b206', number: 'B-206', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.19], vSpan: [0.55, 0.95], legacyId: 'bld-g-f2-r6' },
-      { id: 'bld-g-f2-b201', number: 'B-201', name: 'Classroom', kind: 'classroom', capacity: 36, uSpan: [0.81, 0.97], vSpan: [0.55, 0.95], legacyId: 'bld-g-f2-r1' },
+      { id: 'bld-g-f2-b206', number: 'B-206', name: 'Classroom (206-B)', kind: 'classroom', capacity: 36, uSpan: [0.03, 0.19], vSpan: [0.55, 0.95], legacyId: 'bld-g-f2-r6' },
+      { id: 'bld-g-f2-lobby', number: 'B-Lobby', name: 'Lobby & Exhibition Hall', kind: 'hall', capacity: 100, uSpan: [0.22, 0.78], vSpan: [0.55, 0.95] },
+      { id: 'bld-g-f2-b201', number: 'B-201', name: 'Classroom (201-B)', kind: 'classroom', capacity: 36, uSpan: [0.81, 0.97], vSpan: [0.55, 0.95], legacyId: 'bld-g-f2-r1' },
     ],
   },
   // ==========================================
@@ -169,6 +174,20 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
       { id: 'bld-b-f1-e104', number: 'E-104', name: 'Plotter Room', kind: 'lab', capacity: 20, uSpan: [0.02, 0.26], vSpan: [0.62, 0.95], legacyId: 'bld-b-f1-r4' },
       { id: 'bld-b-f1-e105', number: 'E-105', name: 'Digital Design Room', kind: 'lab', capacity: 40, uSpan: [0.35, 0.65], vSpan: [0.62, 0.95], legacyId: 'bld-b-f1-r5' },
       { id: 'bld-b-f1-e106', number: 'E-106', name: 'Model Room', kind: 'lab', capacity: 25, uSpan: [0.74, 0.98], vSpan: [0.62, 0.95], legacyId: 'bld-b-f1-r6' },
+    ],
+  },
+  {
+    buildingId: 'bld-b',
+    level: 2,
+    rooms: [
+      // North wing - Lecture Rooms & Studios
+      { id: 'bld-b-f2-e201', number: 'E-201', name: 'Lecture Room (70p)', kind: 'classroom', capacity: 70, uSpan: [0.02, 0.35], vSpan: [0.07, 0.47], legacyId: 'bld-b-f2-r1' },
+      { id: 'bld-b-f2-e202', number: 'E-202', name: 'Design Studio 2-A', kind: 'classroom', capacity: 50, uSpan: [0.38, 0.68], vSpan: [0.07, 0.47], legacyId: 'bld-b-f2-r2' },
+      { id: 'bld-b-f2-e203', number: 'E-203', name: 'Design Studio 2-B', kind: 'classroom', capacity: 40, uSpan: [0.72, 0.98], vSpan: [0.07, 0.47], legacyId: 'bld-b-f2-r3' },
+      // South wing
+      { id: 'bld-b-f2-e204', number: 'E-204', name: 'Computer Lab 2-A', kind: 'lab', capacity: 35, uSpan: [0.02, 0.30], vSpan: [0.62, 0.95], legacyId: 'bld-b-f2-r4' },
+      { id: 'bld-b-f2-e205', number: 'E-205', name: 'Classroom', kind: 'classroom', capacity: 35, uSpan: [0.35, 0.65], vSpan: [0.62, 0.95], legacyId: 'bld-b-f2-r5' },
+      { id: 'bld-b-f2-e206', number: 'E-206', name: 'Classroom', kind: 'classroom', capacity: 30, uSpan: [0.70, 0.98], vSpan: [0.62, 0.95], legacyId: 'bld-b-f2-r6' },
     ],
   },
   {

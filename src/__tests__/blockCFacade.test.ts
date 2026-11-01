@@ -19,7 +19,8 @@ describe('Block C Architectural Facade & Appearance', () => {
   });
 
   it('preserves BLOCK_C_FRONT preset constants and default properties', () => {
-    expect(BLOCK_C_FRONT.roofType).toBe('flat');
+    expect(BLOCK_C_FRONT.roofType).toBe('hip');
+    expect(BLOCK_C_FRONT.roofColor).toBe('#991b1b');
     expect(BLOCK_C_FRONT.plinthColor).toBe('#7b4a3a');
     expect(BLOCK_C_FRONT.corniceColor).toBe('#f1e6cf');
     expect(BLOCK_C_FRONT.hasWindows).toBe(true);
@@ -60,20 +61,20 @@ describe('Block C Architectural Facade & Appearance', () => {
     expect(untuned.wallColor).toBe('#e2c391');
   });
 
-  it('scales Block C footprint depth to 39.6m (+10% from 35.9m blueprint)', async () => {
+  it('scales Block C footprint depth to 60.6m per user calibration (orange eto c block)', async () => {
     const bldIRects = demoCampus.buildings.find((b) => b.id === 'bld-i');
     expect(bldIRects).toBeDefined();
     const campusGeom = (await import('../services/geometry')).geometryProvider.build(demoCampus);
     const bldGeom = campusGeom.buildings['bld-i'];
     expect(bldGeom).toBeDefined();
 
-    // Primary footprint part depth: 132px * 0.3 = 39.6m (+10.3% over 35.9m CAD base)
+    // Primary footprint part depth: 202px * 0.3 = 60.6m
     const part = bldGeom.parts[0];
     expect(part.type).toBe('rect');
     if (part.type === 'rect') {
       const [w, d] = part.size;
       expect(w).toBeCloseTo(24.0, 1);
-      expect(d).toBeCloseTo(39.6, 1);
+      expect(d).toBeCloseTo(60.6, 1);
     }
   });
 });

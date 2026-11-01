@@ -6,6 +6,7 @@ import {
   getAtticBannerTexture,
   getCanopySignTexture,
 } from './facadeTextures';
+import { AjouLogoMedallion } from './AjouLogoMedallion';
 
 type BlockCFacadeProps = {
   /** Width of the building mass along X (m) */
@@ -51,8 +52,9 @@ export function BlockCFacade({
   frameColor = '#4a5561',
 }: BlockCFacadeProps) {
   const BASE_CAD_LENGTH = 35.9;
+  const isExtended = buildingDepth > 45.0;
   const facadeLength = Math.max(BASE_CAD_LENGTH, buildingDepth);
-  const scaleZ = facadeLength / BASE_CAD_LENGTH;
+  const scaleZ = isExtended ? 1.0 : facadeLength / BASE_CAD_LENGTH;
   const isEast = facing === 'east';
   const sign = isEast ? 1 : -1;
   const wallX = sign * (buildingWidth / 2);
@@ -159,11 +161,13 @@ export function BlockCFacade({
   // Mirrored coordinate mapping:
   // pz = +facadeLength / 2 - offset
   // Puts Axis 1 on the left, and axes 12-15 (entrance pavilion & logo) on the RIGHT!
-  const pilasterAxes = [0, 3, 6, 9, 12, 15, 18, 21, 24, 27];
-  // Bays 1..8 (axes 1–9): every bay has OK-1 on the ground floor and ONE tall
-  // double-height window on the 2nd floor (building is 2-storey; the upper
-  // storey is double height +3.600…+10.800).
-  const tallWindowBays = [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5];
+  const bayCount = isExtended ? Math.max(8, Math.floor((facadeLength - 10.0) / 3.0)) : 8;
+  const pilasterAxes = isExtended
+    ? Array.from({ length: bayCount + 2 }, (_, i) => i * 3.0)
+    : [0, 3, 6, 9, 12, 15, 18, 21, 24, 27];
+  const tallWindowBays = isExtended
+    ? Array.from({ length: bayCount }, (_, i) => 1.5 + i * 3.0)
+    : [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5];
   const jointRows = Array.from({ length: 23 }, (_, i) => 0.45 + i * 0.45);
 
   const toZ = (offset: number) => facadeLength / 2 - offset * scaleZ;
@@ -268,7 +272,7 @@ export function BlockCFacade({
       })}
 
       {/* Bay 9: OK-4 (1200 x 1200 mm, center Y = 1.8m, between axes 10 and 11) */}
-      <group position={[sign * 0.08, 1.8, toZ(25.5)]}>
+      <group position={[sign * 0.08, 1.8, toZ(isExtended ? (bayCount + 0.5) * 3.0 : 25.5)]}>
         <mesh material={frameMat}>
           <boxGeometry args={[0.06, 1.2, 1.2 * scaleZ]} />
         </mesh>
@@ -289,10 +293,10 @@ export function BlockCFacade({
       {[
         ...tallWindowBays.map((offset) => ({ offset, width: 1.8 * scaleZ, bottom: 4.0, top: 10.3 })),
         // Bay 9 (axes 10–11): narrow tall window
-        { offset: 25.5, width: 1.2 * scaleZ, bottom: 4.0, top: 10.3 },
+        { offset: isExtended ? (bayCount + 0.5) * 3.0 : 25.5, width: 1.2 * scaleZ, bottom: 4.0, top: 10.3 },
         // Above the entrance pavilion (axes 12–14): two narrow tall windows
-        { offset: 28.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
-        { offset: 30.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
+        { offset: isExtended ? (bayCount + 1.6) * 3.0 : 28.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
+        { offset: isExtended ? (bayCount + 2.3) * 3.0 : 30.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
       ].map(({ offset, width, bottom, top }, idx) => {
         const h = top - bottom;
         const wz = toZ(offset);
@@ -332,7 +336,7 @@ export function BlockCFacade({
       {/* 6. ENTRANCE PAVILION ON THE RIGHT (Axes 12 to 15, width = 8.4m)*/}
       {/* ============================================================== */}
       {(() => {
-        const pavilionZ = toZ(31.7);
+        const pavilionZ = toZ(isExtended ? (bayCount + 2.5) * 3.0 : 31.7);
         const pavWidth = 8.4 * scaleZ;
         const pavDepth = 2.8; // Protrusion forward
         const pavHeight = 4.1;
@@ -430,22 +434,14 @@ export function BlockCFacade({
       {/* ============================================================== */}
       {/* 7. OFFICIAL CIRCULAR UNIVERSITY MEDALLION LOGO ON RIGHT        */}
       {/* ============================================================== */}
-      {logoTexture && (
-        <mesh
-          position={[sign * 0.14, 8.0, toZ(33.9)]}
-          rotation={[0, rotY, 0]}
-        >
-          <circleGeometry args={[1.2, 36]} />
-          <meshStandardMaterial
-            map={logoTexture}
-            roughness={0.2}
-            metalness={0.05}
-            transparent
-            opacity={opacity}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+      <AjouLogoMedallion
+        position={[sign * 0.14, 8.0, toZ(isExtended ? (bayCount + 3.2) * 3.0 : 33.9)]}
+        rotation={[0, rotY, 0]}
+        radius={1.2}
+        showText={false}
+        opacity={opacity}
+        transparent={transparent}
+      />
 
       {/* ============================================================== */}
       {/* 8. CORNICE, ATTIC & PARAPET (+10.800 to +13.500)               */}
@@ -467,7 +463,7 @@ export function BlockCFacade({
       {/* Attic Signboard: "TOSHKENT SHAHRIDAGI ADJU UNIVERSITETI" */}
       {atticTexture && (
         <mesh
-          position={[sign * 0.14, wallHeight + 1.7, toZ(16.5)]}
+          position={[sign * 0.14, wallHeight + 1.7, toZ(isExtended ? (bayCount * 1.5) : 16.5)]}
           rotation={[0, rotY, 0]}
         >
           <planeGeometry args={[15.0 * scaleZ, 1.35]} />

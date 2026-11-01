@@ -126,6 +126,8 @@ export type CampusFountainProps = {
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number | [number, number, number];
+  /** Whether to render decorative palms along fountain promenade (default: false per user request) */
+  showPalms?: boolean;
 };
 
 /**
@@ -254,6 +256,7 @@ export function CampusFountain({
   position = [0, 0, 0],
   rotation = [0, 0, 0],
   scale = FOUNTAIN_DIMENSIONS.defaultScale,
+  showPalms = false,
 }: CampusFountainProps) {
   const materials = useMemo(() => {
     // 1. Борт из ДПК
@@ -438,8 +441,8 @@ export function CampusFountain({
     return { g0, g1 };
   }, []);
 
-  // Кэшированная предварительно объединенная 3D-геометрия пышной пальмовой кроны (19 ветвей в 1 вызов отрисовки)
-  const palmCrownGeo = useMemo(() => createMergedPalmCrownGeometry(), []);
+  // Кэшированная предварительно объединенная 3D-геометрия пальмовой кроны (только если showPalms=true)
+  const palmCrownGeo = useMemo(() => (showPalms ? createMergedPalmCrownGeometry() : null), [showPalms]);
 
   // Непрерывный поток и пульсация воды (с мягким шагом кадра для экономии ресурсов CPU)
   const animFrameRef = useRef(0);
@@ -716,9 +719,9 @@ export function CampusFountain({
       ))}
 
       {/* ============================================================== */}
-      {/* 6. ОЗЕЛЕНЕНИЕ: 14 АРХИТЕКТУРНЫХ ПАЛЬМ ВДОЛЬ СЕВЕРНОГО И ЮЖНОГО БОРТОВ */}
+      {/* 6. ОЗЕЛЕНЕНИЕ (выключено по умолчанию по запросу пользователя: "в фонтане какие то зеленые ветки") */}
       {/* ============================================================== */}
-      {[-1, 1].map((sideMultiplier, sIdx) => {
+      {showPalms && palmCrownGeo && [-1, 1].map((sideMultiplier, sIdx) => {
         const sideZ = sideMultiplier * (d.basinWidth / 2 + 1.25);
         const sidePrefix = sideMultiplier > 0 ? 'south' : 'north';
 
