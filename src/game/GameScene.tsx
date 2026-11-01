@@ -5,25 +5,32 @@ import {
   Sky,
   SoftShadows,
   Stats,
-} from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
-import { Physics } from '@react-three/rapier';
-import { Leva } from 'leva';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { Building, type BuildingMode } from '../components/3d/Building';
-import { CampusConnectors } from '../components/3d/CampusConnectors';
-import { AmphitheaterHall } from '../components/3d/amphitheater/AmphitheaterHall';
-import { AMPHITHEATER_BUILDING } from '../data/amphitheater-hall';
-import { ContextLayer } from '../components/3d/ContextLayer';
-import { Vegetation } from '../components/3d/Vegetation';
-import { CampusEnvironmentDetail } from '../components/3d/environment/CampusEnvironmentDetail';
-import { getProceduralEnvironmentTexture } from '../components/3d/materials/pbrMaterials';
-import { useVisualTuning } from '../components/3d/tuning/useVisualTuning';
-import { defaultFloor } from '../domain/campus/campusIndex';
-import { useLighting } from '../state/LightingProvider';
-import { useMap } from '../state/MapProvider';
-import { sharedCampusAudio } from './audio/campusAudioEngine';
+} from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import { Physics } from "@react-three/rapier";
+import { Leva } from "leva";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import * as THREE from "three";
+import { Building, type BuildingMode } from "../components/3d/Building";
+import { CampusConnectors } from "../components/3d/CampusConnectors";
+import { AmphitheaterHall } from "../components/3d/amphitheater/AmphitheaterHall";
+import { AMPHITHEATER_BUILDING } from "../data/amphitheater-hall";
+import { ContextLayer } from "../components/3d/ContextLayer";
+import { Vegetation } from "../components/3d/Vegetation";
+import { CampusEnvironmentDetail } from "../components/3d/environment/CampusEnvironmentDetail";
+import { getProceduralEnvironmentTexture } from "../components/3d/materials/pbrMaterials";
+import { useVisualTuning } from "../components/3d/tuning/useVisualTuning";
+import { defaultFloor } from "../domain/campus/campusIndex";
+import { useLighting } from "../state/LightingProvider";
+import { useMap } from "../state/MapProvider";
+import { sharedCampusAudio } from "./audio/campusAudioEngine";
 import {
   GRAPHICS_QUALITY_PRESETS,
   TIME_OF_DAY_PRESETS,
@@ -33,7 +40,7 @@ import {
   type PlayerTransformState,
   type TeleportDestination,
   type TimeOfDayPresetId,
-} from './config/gameConfig';
+} from "./config/gameConfig";
 import {
   attachDesktopControls,
   createInitialInputState,
@@ -41,21 +48,27 @@ import {
   requestCanvasPointerLock,
   resetInputState,
   type PlayerInputState,
-} from './controls/DesktopControls';
-import { MobileControls } from './controls/MobileControls';
-import { InteractionHUD } from './interaction/InteractionHUD';
-import { InteractionProvider, useInteraction } from './interaction/InteractionContext';
-import { InteractionRaycaster } from './interaction/InteractionRaycaster';
-import { NPCManager } from './npc/NPCManager';
-import { FirstPersonController, type TeleportRequest } from './player/FirstPersonController';
-import { GameHUD } from './ui/GameHUD';
-import { GameMenu } from './ui/GameMenu';
-import type { WayfindingTarget } from './ui/Minimap';
-import { CampusColliders } from './world/CampusColliders';
-import { CampusInteractiveDoors } from './world/CampusInteractiveDoors';
-import { WayfindingPath } from './world/WayfindingPath';
+} from "./controls/DesktopControls";
+import { MobileControls } from "./controls/MobileControls";
+import { InteractionHUD } from "./interaction/InteractionHUD";
+import {
+  InteractionProvider,
+  useInteraction,
+} from "./interaction/InteractionContext";
+import { InteractionRaycaster } from "./interaction/InteractionRaycaster";
+import { NPCManager } from "./npc/NPCManager";
+import {
+  FirstPersonController,
+  type TeleportRequest,
+} from "./player/FirstPersonController";
+import { GameHUD } from "./ui/GameHUD";
+import { GameMenu } from "./ui/GameMenu";
+import type { WayfindingTarget } from "./ui/Minimap";
+import { CampusColliders } from "./world/CampusColliders";
+import { CampusInteractiveDoors } from "./world/CampusInteractiveDoors";
+import { WayfindingPath } from "./world/WayfindingPath";
 
-type GameStatus = 'start' | 'playing' | 'paused';
+type GameStatus = "start" | "playing" | "paused";
 
 const noop = () => {};
 
@@ -69,7 +82,9 @@ function RendererToneMapping({ exposure }: { exposure: number }) {
       scene.environment = envTex;
       scene.environmentIntensity = 0.82;
     }
-    (window as unknown as { __getRenderStats?: () => unknown }).__getRenderStats = () => ({
+    (
+      window as unknown as { __getRenderStats?: () => unknown }
+    ).__getRenderStats = () => ({
       calls: gl.info.render.calls,
       triangles: gl.info.render.triangles,
       geometries: gl.info.memory.geometries,
@@ -107,20 +122,25 @@ function GameSceneInner() {
   } = useLighting();
   const { activeTarget, triggerInteraction } = useInteraction();
 
-  const [status, setStatus] = useState<GameStatus>('start');
+  const [status, setStatus] = useState<GameStatus>("start");
   const [isMobile, setIsMobile] = useState<boolean>(detectMobileOrTouch);
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDayPresetId>('day');
-  const [qualityPreset, setQualityPreset] = useState<GraphicsQualityPresetId>(() =>
-    detectMobileOrTouch() ? 'medium' : 'high',
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDayPresetId>("day");
+  const [qualityPreset, setQualityPreset] = useState<GraphicsQualityPresetId>(
+    () => (detectMobileOrTouch() ? "medium" : "high"),
   );
   const [npcCount, setNpcCount] = useState<number>(8);
   const [audioMuted, setAudioMuted] = useState<boolean>(false);
   const [audioVolume, setAudioVolume] = useState<number>(0.65);
   const [showTuning, setShowTuning] = useState<boolean>(false);
   const [nearbyBuildingId, setNearbyBuildingId] = useState<string | null>(null);
-  const [enteredBuildingId, setEnteredBuildingId] = useState<string | null>(null);
-  const [activeFloorId, setActiveFloorId] = useState<string | undefined>(undefined);
-  const [wayfindingTarget, setWayfindingTarget] = useState<WayfindingTarget | null>(null);
+  const [enteredBuildingId, setEnteredBuildingId] = useState<string | null>(
+    null,
+  );
+  const [activeFloorId, setActiveFloorId] = useState<string | undefined>(
+    undefined,
+  );
+  const [wayfindingTarget, setWayfindingTarget] =
+    useState<WayfindingTarget | null>(null);
 
   const [teleportRequest, setTeleportRequest] = useState<TeleportRequest>({
     position: [
@@ -141,7 +161,7 @@ function GameSceneInner() {
   });
 
   const isPlayingRef = useRef<boolean>(false);
-  isPlayingRef.current = status === 'playing';
+  isPlayingRef.current = status === "playing";
 
   const nearbyBuildingIdRef = useRef<string | null>(null);
   nearbyBuildingIdRef.current = nearbyBuildingId;
@@ -163,7 +183,7 @@ function GameSceneInner() {
       let n = 0;
       for (const f of b.floors) {
         for (const r of f.rooms) {
-          if (roomStates.get(r.id)?.status === 'CURRENT') n++;
+          if (roomStates.get(r.id)?.status === "CURRENT") n++;
         }
       }
       counts.set(b.id, n);
@@ -179,13 +199,13 @@ function GameSceneInner() {
     const handleFirstTouch = () => {
       setIsMobile(true);
     };
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    window.addEventListener('touchstart', handleFirstTouch, { passive: true });
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    window.addEventListener("touchstart", handleFirstTouch, { passive: true });
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-      window.removeEventListener('touchstart', handleFirstTouch);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+      window.removeEventListener("touchstart", handleFirstTouch);
     };
   }, []);
 
@@ -210,7 +230,8 @@ function GameSceneInner() {
       triggerInteraction();
       return;
     }
-    const targetBldId = enteredBuildingIdRef.current ?? nearbyBuildingIdRef.current;
+    const targetBldId =
+      enteredBuildingIdRef.current ?? nearbyBuildingIdRef.current;
     if (targetBldId) {
       handleToggleEnterBuilding(targetBldId);
     }
@@ -218,16 +239,16 @@ function GameSceneInner() {
 
   const handlePause = useCallback(() => {
     resetInputState(inputRef.current);
-    if (typeof document !== 'undefined' && document.pointerLockElement) {
+    if (typeof document !== "undefined" && document.pointerLockElement) {
       document.exitPointerLock?.();
     }
-    setStatus((prev) => (prev === 'playing' ? 'paused' : prev));
+    setStatus((prev) => (prev === "playing" ? "paused" : prev));
   }, []);
 
   const handleStartOrResume = useCallback(() => {
     sharedCampusAudio.resumeFromUserGesture();
     resetInputState(inputRef.current);
-    setStatus('playing');
+    setStatus("playing");
     requestCanvasPointerLock();
   }, []);
 
@@ -244,7 +265,7 @@ function GameSceneInner() {
       yaw: gameConfig.player.spawnYaw,
       seq: prev.seq + 1,
     }));
-    setStatus('playing');
+    setStatus("playing");
     requestCanvasPointerLock();
   }, []);
 
@@ -265,7 +286,7 @@ function GameSceneInner() {
         yaw: dest.yaw,
         seq: prev.seq + 1,
       }));
-      setStatus('playing');
+      setStatus("playing");
       requestCanvasPointerLock();
     },
     [index],
@@ -280,7 +301,7 @@ function GameSceneInner() {
         setActiveFloorId(target.floorId);
       }
       resetInputState(inputRef.current);
-      setStatus('playing');
+      setStatus("playing");
       requestCanvasPointerLock();
     },
     [],
@@ -340,47 +361,62 @@ function GameSceneInner() {
 
   const atmosphere = TIME_OF_DAY_PRESETS[timeOfDay];
   const quality = GRAPHICS_QUALITY_PRESETS[qualityPreset];
-  const isOriginalBaseline = qualityPreset === 'original';
+  const isOriginalBaseline = qualityPreset === "original";
 
   const effectiveTuning = useMemo(
     () => ({
       ...tuning,
       pbrTexturesEnabled:
-        !isOriginalBaseline && quality.enablePbrTextures && tuning.pbrTexturesEnabled !== false,
+        !isOriginalBaseline &&
+        quality.enablePbrTextures &&
+        tuning.pbrTexturesEnabled !== false,
     }),
     [tuning, isOriginalBaseline, quality.enablePbrTextures],
   );
 
-  const effectiveShadowMapSize = Math.min(tuning.shadowMapSize, quality.shadowMapSize);
-  const effectiveSoftSamples = Math.min(tuning.softShadowSamples, quality.softShadowSamples);
-  const effectiveExposure = atmosphere.exposure * (tuning.toneMappingExposure ?? 1.0);
+  const effectiveShadowMapSize = Math.min(
+    tuning.shadowMapSize,
+    quality.shadowMapSize,
+  );
+  const effectiveSoftSamples = Math.min(
+    tuning.softShadowSamples,
+    quality.softShadowSamples,
+  );
+  const effectiveExposure =
+    atmosphere.exposure * (tuning.toneMappingExposure ?? 1.0);
 
   const nearbyBuilding = nearbyBuildingId
-    ? nearbyBuildingId === 'amph-hall'
+    ? nearbyBuildingId === "amph-hall"
       ? AMPHITHEATER_BUILDING
-      : index.buildings.get(nearbyBuildingId) ?? null
+      : (index.buildings.get(nearbyBuildingId) ?? null)
     : null;
   const activeCountBuildingId = enteredBuildingId ?? nearbyBuildingId;
   const nearbyBuildingLiveCount = activeCountBuildingId
-    ? liveCountByBuilding.get(activeCountBuildingId) ?? 0
+    ? (liveCountByBuilding.get(activeCountBuildingId) ?? 0)
     : 0;
 
   return (
     <div
       style={{
-        position: 'relative',
-        width: '100vw',
-        height: '100dvh',
-        overflow: 'hidden',
+        position: "relative",
+        width: "100vw",
+        height: "100dvh",
+        overflow: "hidden",
         background: atmosphere.backgroundColor,
-        touchAction: 'none',
-        userSelect: 'none',
+        touchAction: "none",
+        userSelect: "none",
       }}
     >
-      <Leva hidden={!showTuning} collapsed={false} titleBar={{ title: '🎛️ Campus 3D Tuning' }} />
+      <Leva
+        hidden={!showTuning}
+        collapsed={false}
+        titleBar={{ title: "🎛️ Campus 3D Tuning" }}
+      />
 
       <Canvas
-        shadows={tuning.shadowsEnabled ? { type: THREE.PCFSoftShadowMap } : false}
+        shadows={
+          tuning.shadowsEnabled ? { type: THREE.PCFSoftShadowMap } : false
+        }
         camera={{
           position: [
             gameConfig.player.spawnPosition[0],
@@ -436,7 +472,10 @@ function GameSceneInner() {
           )}
 
         {/* Atmospheric & Directional Sun Lighting (driven by Time-of-Day preset) */}
-        <ambientLight intensity={atmosphere.ambientIntensity} color={atmosphere.ambientColor} />
+        <ambientLight
+          intensity={atmosphere.ambientIntensity}
+          color={atmosphere.ambientColor}
+        />
         <hemisphereLight
           args={[
             atmosphere.hemisphereSkyColor,
@@ -468,9 +507,24 @@ function GameSceneInner() {
         {/* Evening / Sunset architectural accent lights on Fountain, Art Object, and Entrance Gate */}
         {atmosphere.enableNightLights && (
           <group>
-            <pointLight position={[-2.45, 5.5, 15.9]} intensity={45} distance={75} color="#38bdf8" />
-            <pointLight position={[106.5, 3.2, 15.9]} intensity={25} distance={35} color="#fde047" />
-            <pointLight position={[130.0, 5.0, 15.9]} intensity={35} distance={45} color="#fef08a" />
+            <pointLight
+              position={[-2.45, 5.5, 15.9]}
+              intensity={45}
+              distance={75}
+              color="#38bdf8"
+            />
+            <pointLight
+              position={[106.5, 3.2, 15.9]}
+              intensity={25}
+              distance={35}
+              color="#fde047"
+            />
+            <pointLight
+              position={[130.0, 5.0, 15.9]}
+              intensity={35}
+              distance={45}
+              color="#fef08a"
+            />
           </group>
         )}
 
@@ -489,7 +543,9 @@ function GameSceneInner() {
           key={`veg-${qualityPreset}`}
           geometry={geometry}
           windEnabled={
-            !isOriginalBaseline && quality.enableWindAnimation && tuning.windEnabled !== false
+            !isOriginalBaseline &&
+            quality.enableWindAnimation &&
+            tuning.windEnabled !== false
           }
           windSpeed={tuning.windSpeed}
           windStrength={tuning.windStrength}
@@ -501,26 +557,34 @@ function GameSceneInner() {
         <CampusEnvironmentDetail
           key={`env-${qualityPreset}`}
           geometry={geometry}
-          enableNightLights={dynamicAtmosphere.streetLampsActive || dynamicAtmosphere.isNight}
-          campusPropsEnabled={quality.enableCampusProps && tuning.campusPropsEnabled !== false}
-          skyLifeEnabled={quality.enableSkyLife && tuning.skyLifeEnabled !== false}
-          windEnabled={quality.enableWindAnimation && tuning.windEnabled !== false}
+          enableNightLights={
+            dynamicAtmosphere.streetLampsActive || dynamicAtmosphere.isNight
+          }
+          campusPropsEnabled={
+            quality.enableCampusProps && tuning.campusPropsEnabled !== false
+          }
+          skyLifeEnabled={
+            quality.enableSkyLife && tuning.skyLifeEnabled !== false
+          }
+          windEnabled={
+            quality.enableWindAnimation && tuning.windEnabled !== false
+          }
           windSpeed={tuning.windSpeed}
           windStrength={tuning.windStrength}
           quality={qualityPreset}
         />
 
         {/* 3D Wayfinding Trail & Destination Beacon */}
-        <WayfindingPath playerTransformRef={playerTransformRef} target={wayfindingTarget} />
+        <WayfindingPath
+          playerTransformRef={playerTransformRef}
+          target={wayfindingTarget}
+        />
 
         {/* Dynamic Raycaster for Interactions */}
-        <InteractionRaycaster isPlaying={status === 'playing'} />
+        <InteractionRaycaster isPlaying={status === "playing"} />
 
         {/* Dynamic NPCs Wandering along Waypoint Graph */}
-        <NPCManager count={npcCount} isPlaying={status === 'playing'} />
-
-        {/* Interactive Doors with dynamic Rapier Colliders */}
-        <CampusInteractiveDoors />
+        <NPCManager count={npcCount} isPlaying={status === "playing"} />
 
         {/* Reused Campus Buildings & Inter-building Connectors */}
         <group>
@@ -528,12 +592,12 @@ function GameSceneInner() {
             connectors={geometry.connectors}
             selectedBuildingId={enteredBuildingId ?? undefined}
           />
-          <AmphitheaterHall selected={enteredBuildingId === 'amph-hall'} />
+          <AmphitheaterHall selected={enteredBuildingId === "amph-hall"} />
           {campus.buildings.map((building) => {
             const g = geometry.buildings[building.id];
             if (!g) return null;
             const isEntered = enteredBuildingId === building.id;
-            const mode: BuildingMode = isEntered ? 'interior' : 'normal';
+            const mode: BuildingMode = isEntered ? "interior" : "normal";
             return (
               <Building
                 key={building.id}
@@ -558,13 +622,21 @@ function GameSceneInner() {
 
         {/* Physics World & First-Person Controller */}
         <Suspense fallback={null}>
-          <Physics gravity={gameConfig.physics.gravity} paused={status !== 'playing'}>
-            <CampusColliders geometry={geometry} enteredBuildingId={enteredBuildingId} />
+          <Physics
+            gravity={gameConfig.physics.gravity}
+            paused={status !== "playing"}
+          >
+            <CampusColliders
+              geometry={geometry}
+              enteredBuildingId={enteredBuildingId}
+            />
+            {/* Interactive Doors with dynamic Rapier Colliders */}
+            <CampusInteractiveDoors />
             <FirstPersonController
               inputRef={inputRef}
               playerTransformRef={playerTransformRef}
               geometry={geometry}
-              isPlaying={status === 'playing'}
+              isPlaying={status === "playing"}
               teleportRequest={teleportRequest}
               enteredBuildingId={enteredBuildingId}
               timeOfDay={timeOfDay}
@@ -575,10 +647,10 @@ function GameSceneInner() {
       </Canvas>
 
       {/* Interaction prompt overlay */}
-      {status === 'playing' && <InteractionHUD />}
+      {status === "playing" && <InteractionHUD />}
 
       {/* In-Game HUD & Touch Controls */}
-      {status === 'playing' && (
+      {status === "playing" && (
         <>
           <GameHUD
             isMobile={isMobile}
@@ -588,10 +660,10 @@ function GameSceneInner() {
             timeOfDay={timeOfDay}
             onChangeTimeOfDay={(tod) => {
               setTimeOfDay(tod);
-              if (tod === 'morning') setTimeHours(7.5);
-              if (tod === 'day') setTimeHours(13.0);
-              if (tod === 'sunset') setTimeHours(18.5);
-              if (tod === 'night') setTimeHours(2.0);
+              if (tod === "morning") setTimeHours(7.5);
+              if (tod === "day") setTimeHours(13.0);
+              if (tod === "sunset") setTimeHours(18.5);
+              if (tod === "night") setTimeHours(2.0);
             }}
             qualityPreset={qualityPreset}
             onChangeQualityPreset={setQualityPreset}
@@ -614,41 +686,48 @@ function GameSceneInner() {
           {/* Quick HUD controls for fountain lighting and NPC count */}
           <div
             style={{
-              position: 'absolute',
+              position: "absolute",
               top: 14,
               left: 14,
-              display: 'flex',
+              display: "flex",
               gap: 8,
               zIndex: 30,
             }}
           >
             <button
-              onClick={() => setFountainLighting((prev) => ({ ...prev, enabled: !prev.enabled }))}
+              onClick={() =>
+                setFountainLighting((prev) => ({
+                  ...prev,
+                  enabled: !prev.enabled,
+                }))
+              }
               style={{
-                backgroundColor: fountainLighting.enabled ? '#0284c7' : '#334155',
-                color: '#ffffff',
-                border: '1px solid rgba(255,255,255,0.2)',
-                padding: '6px 10px',
+                backgroundColor: fountainLighting.enabled
+                  ? "#0284c7"
+                  : "#334155",
+                color: "#ffffff",
+                border: "1px solid rgba(255,255,255,0.2)",
+                padding: "6px 10px",
                 borderRadius: 6,
                 fontSize: 11,
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: "pointer",
               }}
               title="Переключить ночную подсветку фонтана"
             >
-              ⛲ Фонтан: {fountainLighting.enabled ? 'ВКЛ' : 'ВЫКЛ'}
+              ⛲ Фонтан: {fountainLighting.enabled ? "ВКЛ" : "ВЫКЛ"}
             </button>
             <button
               onClick={() => setNpcCount((c) => (c >= 16 ? 4 : c + 4))}
               style={{
-                backgroundColor: '#475569',
-                color: '#ffffff',
-                border: '1px solid rgba(255,255,255,0.2)',
-                padding: '6px 10px',
+                backgroundColor: "#475569",
+                color: "#ffffff",
+                border: "1px solid rgba(255,255,255,0.2)",
+                padding: "6px 10px",
                 borderRadius: 6,
                 fontSize: 11,
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: "pointer",
               }}
               title="Количество студентов/преподавателей на кампусе"
             >
@@ -660,9 +739,9 @@ function GameSceneInner() {
       )}
 
       {/* Start / Pause Menu Overlay */}
-      {status !== 'playing' && (
+      {status !== "playing" && (
         <GameMenu
-          mode={status === 'paused' ? 'paused' : 'start'}
+          mode={status === "paused" ? "paused" : "start"}
           isMobile={isMobile}
           index={index}
           geometry={geometry}
