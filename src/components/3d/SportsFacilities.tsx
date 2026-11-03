@@ -372,19 +372,20 @@ export function SportsFacilities() {
     [],
   );
 
-  // Football Pitch: center X = 22.8, Z = 15.9, width = 22.5 (reduced by 25%), depth = 51.0
-  const pitchX = 22.8;
-  const pitchZ = 15.9;
-  const pitchW = 22.5;
-  const pitchD = 51.0;
+  // Football Pitch: center X = 21.55, Z = 13.4, width = 20.0m, depth = 40.0m ([390, 490, 456.67, 623.33])
+  const pitchX = 21.55;
+  const pitchZ = 13.4;
+  const pitchW = 20.0;
+  const pitchD = 40.0;
 
-  // Multi-Sport / Tennis Court: center X = 55.5, Z = 15.9, width = 36.0, depth = 51.0 (orange markup extended to West)
-  const courtX = 55.5;
-  const courtZ = 15.9;
-  const apronW = 36.0; // Total hardcourt slab width (extended West towards football pitch per orange markup)
-  const apronD = 51.0; // Total hardcourt slab length
-  const courtW = 31.0; // Playable court width (leaves 2.5m green border on sides)
-  const courtD = 42.0; // Playable court length
+  // Multi-Sport / Tennis Court: center X = 52.65, Z = 13.4, width = 30.0m, depth = 40.0m ([477, 490, 577, 623.33])
+  // Tennis section playable area: ~27.3m width ([486, 490, 577, 623.33])
+  const courtX = 52.65;
+  const courtZ = 13.4;
+  const apronW = 30.0; // Total multi-sport hardcourt slab width (30m)
+  const apronD = 40.0; // Total multi-sport hardcourt slab length (40m)
+  const courtW = 27.3; // Tennis playable section width (~27.3m)
+  const courtD = 36.0; // Playable court length within 40m slab
 
   // Grand Football Stadium: shifted West clear of North Building (Dormitory)
   // bld-a wall is at X = -45.45. With stadiumX = -77.0 and stadiumW = 54.0,

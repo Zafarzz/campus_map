@@ -831,15 +831,15 @@
     "semantic_hash": ""
   },
   "src/__tests__/blockBFacade.test.ts": {
-    "mtime": 1792614420.7076652,
-    "seen": 1793449143.9420767,
-    "ast_hash": "21fdfddfe8ef98725a40d535131b8d8d",
-    "semantic_hash": "21fdfddfe8ef98725a40d535131b8d8d"
+    "mtime": 1793720884.4744608,
+    "seen": 1793721025.8246186,
+    "ast_hash": "5b8ad85dbed91a5c614e5926cdaa48e3",
+    "semantic_hash": ""
   },
   "src/__tests__/blockCFacade.test.ts": {
-    "mtime": 1793715683.0465424,
-    "seen": 1793716405.9577494,
-    "ast_hash": "652027496bae8e12dde2d3816796fd01",
+    "mtime": 1793720889.486483,
+    "seen": 1793721025.8246202,
+    "ast_hash": "e6230c968dd7b648d5bf7ca6c12f04d3",
     "semantic_hash": ""
   },
   "src/__tests__/cinematic.test.ts": {
@@ -849,9 +849,9 @@
     "semantic_hash": "d3224850f549d562c928911e3c8d8d87"
   },
   "src/__tests__/connectors.test.ts": {
-    "mtime": 1793715683.0465424,
-    "seen": 1793716405.9577591,
-    "ast_hash": "fac869294bcd93e4e74732bb6c9dfe4d",
+    "mtime": 1793720978.9018826,
+    "seen": 1793721025.824674,
+    "ast_hash": "547b6e1df3bbe6a467e03734f9c12dc5",
     "semantic_hash": ""
   },
   "src/__tests__/daewooHallFacade.test.ts": {
@@ -873,10 +873,10 @@
     "semantic_hash": "ddec7434ca64daeef8ecc234874c0e3f"
   },
   "src/__tests__/fountain.test.ts": {
-    "mtime": 1792939304.1230528,
-    "seen": 1793449143.9423409,
-    "ast_hash": "b2cbed238b38772946a9ab1035bc1753",
-    "semantic_hash": "b2cbed238b38772946a9ab1035bc1753"
+    "mtime": 1793720893.8405025,
+    "seen": 1793721025.8247268,
+    "ast_hash": "57cc57406533893a11ed9b66ac5f5722",
+    "semantic_hash": ""
   },
   "src/__tests__/fountainWaterAnimation.test.ts": {
     "mtime": 1792614420.7079477,
@@ -999,9 +999,9 @@
     "semantic_hash": "62da92efda96f52bcd20e43b5363453c"
   },
   "src/components/3d/BlockFLibraryInterior.tsx": {
-    "mtime": 1793717851.3504958,
-    "seen": 1793718033.504093,
-    "ast_hash": "22000dc4f66be4d20186102dbc4bc745",
+    "mtime": 1793720811.826136,
+    "seen": 1793721025.8251345,
+    "ast_hash": "53d5036b506c94fa1e690c56637cb04e",
     "semantic_hash": ""
   },
   "src/components/3d/Building.tsx": {
@@ -1065,9 +1065,9 @@
     "semantic_hash": ""
   },
   "src/components/3d/DetailedBuilding.tsx": {
-    "mtime": 1793717499.5366688,
-    "seen": 1793718033.5042636,
-    "ast_hash": "5fc2fe0a09fb44e5467378f84028e663",
+    "mtime": 1793720616.2272632,
+    "seen": 1793721025.8253398,
+    "ast_hash": "a32680276708c742dd0e561e0ba84e63",
     "semantic_hash": ""
   },
   "src/components/3d/ExtrudedFootprint.tsx": {
@@ -1101,9 +1101,9 @@
     "semantic_hash": ""
   },
   "src/components/3d/SiteFurniture.tsx": {
-    "mtime": 1793715683.0495424,
-    "seen": 1793716405.9587095,
-    "ast_hash": "5c2170d0f50f1c8b5e52b24adf406c26",
+    "mtime": 1793720806.8111136,
+    "seen": 1793721025.8254333,
+    "ast_hash": "047056073f0c6ff369a90c6d5b7f44dc",
     "semantic_hash": ""
   },
   "src/components/3d/SolarCanopies.tsx": {
@@ -1113,9 +1113,9 @@
     "semantic_hash": ""
   },
   "src/components/3d/SportsFacilities.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9587138,
-    "ast_hash": "80982b1ecf3272f40b8ce7f85305e7e2",
+    "mtime": 1793720804.205102,
+    "seen": 1793721025.8254528,
+    "ast_hash": "79bf71fcf8d7b56d605068d46113d60b",
     "semantic_hash": ""
   },
   "src/components/3d/TennisCourt.tsx": {
@@ -1305,9 +1305,9 @@
     "semantic_hash": ""
   },
   "src/data/reference-footprints.ts": {
-    "mtime": 1793715683.0515423,
-    "seen": 1793716405.9595776,
-    "ast_hash": "089d12a5c6454ba530135b43dc7281bd",
+    "mtime": 1793720926.611649,
+    "seen": 1793721025.8262157,
+    "ast_hash": "ce1a24fc50f557522a97a20456b3ecd1",
     "semantic_hash": ""
   },
   "src/domain/appearance/index.ts": {
@@ -1473,10 +1473,10 @@
     "semantic_hash": "c326a24522718d17277eecdb2c32c311"
   },
   "src/game/config/gameConfig.ts": {
-    "mtime": 1792941258.5347242,
-    "seen": 1793449143.9470565,
-    "ast_hash": "bc3957d693228d30453f5d84a7013bfb",
-    "semantic_hash": "bc3957d693228d30453f5d84a7013bfb"
+    "mtime": 1793720816.8471584,
+    "seen": 1793721025.826737,
+    "ast_hash": "5cf339e65fdbf01594a01bbb4bbe901d",
+    "semantic_hash": ""
   },
   "src/game/controls/DesktopControls.ts": {
     "mtime": 1792614420.7256286,
@@ -1619,13 +1619,13 @@
   "backend/docker/initdb/10-roles-and-schema.sql": {
     "mtime": 1793446845.5013049,
     "seen": 1793719465.6766672,
-    "ast_hash": "7030289da5f9fa7e05626fe9d78f6ae4",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
     "mtime": 1793446845.509305,
     "seen": 1793719465.6767094,
-    "ast_hash": "7c0ad8ce7a719442dc9f121cd791416d",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   ".claude/CLAUDE.md": {
@@ -2127,9 +2127,9 @@
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockFCourtyardFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9590223,
-    "ast_hash": "768c238457b9154d2466574e5d0130e2",
+    "mtime": 1793720706.2906644,
+    "seen": 1793721025.8257172,
+    "ast_hash": "166ab94947301b8c6c1300bea99032b6",
     "semantic_hash": ""
   },
   "src/__tests__/uiAndPerformance.test.ts": {

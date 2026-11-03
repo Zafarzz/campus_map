@@ -686,10 +686,13 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
       : appearance.customFacade === 'block-e' && i === 0
       ? 14.35
       : appearance.customFacade === 'block-f'
-      ? 8.05
+      ? partsCount > 1 && i === 0
+        ? 4.0
+        : 8.05
       : appearance.hasCornice
       ? geometryHeight - 0.5
       : geometryHeight;
+  const isBlockFVestibule = appearance.customFacade === 'block-f' && partsCount > 1 && i === 0;
   const parapetHeight = appearance.customFacade === 'block-c' ? 2.7 : 0.8;
   const wallGeo = useExtrudedGeometry(outline, wallHeight);
   const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
@@ -1015,7 +1018,7 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
       )}
 
       {/* 8. Roof Structure */}
-      {appearance.roofType === 'hip' ? (
+      {appearance.roofType === 'hip' && !isBlockFVestibule ? (
         <group position={[worldX, wallHeight, worldZ]}>
           <HipRoof
             width={width + (appearance.roofOverhang ?? 1.2)}
