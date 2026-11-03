@@ -1,37 +1,57 @@
-"""University student authentication, official roster, and password policy.
+"""Unified university authentication for Students and Staff/Admins.
 
-Implements student-only sign-in backed by the official Ajou University in
-Tashkent student group list:
+Supports the two-tab sign-in flow (Student tab + Staff/Admin tab) through one
+unified service:
 
-* Only students whose ``student_id`` is registered in the university roster
-  (or provisioned as a student ``AppUser``) may sign in.
-* Initial credentials: ``login = student_id`` and ``password = student_id``
-  (for example ``202590207`` / ``202590207``).
-* While a student is still using their default initial password (equal to their
-  ``student_id``), the login and profile responses flag
-  ``must_change_password = True`` so the client can prompt an immediate password
-  change.
-* Changing or resetting the password enforces standard password strength rules:
-  at least 6 characters, at least one uppercase letter, at least one lowercase
-  letter, at least one digit, at least one special character, and not equal to
-  the student ID or current password.
+1. **Students** (``account_type = "student"``):
+   * Backed by the official Ajou University in Tashkent student group list
+     (112 students from "New students Group List 2025.9.7").
+   * Initial credentials: ``login = student_id`` and ``password = student_id``
+     (e.g. ``202590207`` / ``202590207``).
+   * Only registered university students may sign in.
+
+2. **Staff & Admins** (``account_type = "staff"``):
+   * Authenticates staff, teachers, facilities, safety officers, analysts, and
+     superusers (``Role.admin``, which implies every role in the platform) by
+     email or staff handle (e.g. ``admin@dev.local`` / ``admin@ajou.uz``).
+   * Pre-configured staff accounts start with default password ``devpassword``
+     and ``must_change_password = True`` until updated.
+
+3. **Password Change / Reset** (for both Students and Staff/Admins):
+   * Enforces standard security requirements: minimum 6 characters, at least
+     one uppercase letter, one lowercase letter, one number, one special
+     character, and distinct from the user's login identifier and current
+     password.
 """
 
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from sqlalchemy import select
+from typing import Literal
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.errors import AuthenticationError, NotFoundError, ValidationError
-from app.core.security import Role, create_access_token, hash_password, verify_password
+from app.core.security import (
+    ROLE_IMPLIES,
+    Role,
+    create_access_token,
+    hash_password,
+    verify_password,
+)
 from app.core.time import now
 from app.domain.people import AppUser, UserRole
 from app.domain.platform import AuditLog
 
+AccountType = Literal["student", "staff"]
+
 STUDENT_REF_PREFIX = "student:"
+STAFF_REF_PREFIX = "staff:"
+DEFAULT_STAFF_PASSWORD = "devpassword"
+
 MIN_PASSWORD_LENGTH = 6
 MAX_PASSWORD_LENGTH = 256
 
@@ -41,7 +61,7 @@ PASSWORD_REQUIREMENTS: tuple[str, ...] = (
     "At least one lowercase letter (a-z)",
     "At least one number (0-9)",
     "At least one special character (e.g. !@#$%^&*)",
-    "Must not be the same as your Student ID",
+    "Must not be the same as your Student ID or login email",
 )
 
 
@@ -64,6 +84,70 @@ class StudentRosterEntry:
     @property
     def external_ref(self) -> str:
         return f"{STUDENT_REF_PREFIX}{self.student_id}"
+
+
+@dataclass(frozen=True, slots=True)
+class StaffRosterEntry:
+    """Pre-configured staff / admin account definition."""
+
+    handle: str
+    email: str
+    aliases: tuple[str, ...]
+    display_name: str
+    department: str
+    roles: tuple[Role, ...]
+
+    @property
+    def external_ref(self) -> str:
+        return f"{STAFF_REF_PREFIX}{self.handle}"
+
+
+OFFICIAL_STAFF_ACCOUNTS: tuple[StaffRosterEntry, ...] = (
+    StaffRosterEntry(
+        handle="admin",
+        email="admin@dev.local",
+        aliases=("admin@dev.local", "admin@ajou.uz", "admin"),
+        display_name="Campus Administrator",
+        department="Administration",
+        roles=(Role.admin,),
+    ),
+    StaffRosterEntry(
+        handle="teacher",
+        email="teacher@dev.local",
+        aliases=("teacher@dev.local", "teacher@ajou.uz", "teacher"),
+        display_name="Faculty Professor",
+        department="Academic Affairs",
+        roles=(Role.teacher,),
+    ),
+    StaffRosterEntry(
+        handle="facilities",
+        email="facilities@dev.local",
+        aliases=("facilities@dev.local", "facilities@ajou.uz", "facilities"),
+        display_name="Facilities Manager",
+        department="Campus Facilities",
+        roles=(Role.facilities, Role.staff),
+    ),
+    StaffRosterEntry(
+        handle="safety",
+        email="safety@dev.local",
+        aliases=("safety@dev.local", "safety@ajou.uz", "safety"),
+        display_name="Campus Safety Officer",
+        department="Campus Security & Safety",
+        roles=(Role.safety_officer, Role.staff),
+    ),
+    StaffRosterEntry(
+        handle="analyst",
+        email="analyst@dev.local",
+        aliases=("analyst@dev.local", "analyst@ajou.uz", "analyst"),
+        display_name="Campus Operations Analyst",
+        department="Institutional Planning",
+        roles=(Role.analyst, Role.staff),
+    ),
+)
+
+STAFF_BY_ALIAS: dict[str, StaffRosterEntry] = {
+    alias.lower(): entry for entry in OFFICIAL_STAFF_ACCOUNTS for alias in entry.aliases
+}
 
 
 # Official student roster from "New students Group List (2025.9.7)" (Pages 1-3).
@@ -200,11 +284,14 @@ OFFICIAL_STUDENT_ROSTER: dict[str, StudentRosterEntry] = {
 
 
 @dataclass(frozen=True, slots=True)
-class StudentProfileInfo:
-    """Resolved student profile metadata."""
+class UserProfileInfo:
+    """Resolved profile metadata for either a Student or Staff/Admin caller."""
 
     user_id: uuid.UUID
-    student_id: str
+    account_type: AccountType
+    is_admin: bool
+    email: str | None
+    student_id: str | None
     display_name: str
     first_name: str
     last_name: str
@@ -214,26 +301,49 @@ class StudentProfileInfo:
     examination_no: str | None
     must_change_password: bool
     roles: tuple[str, ...]
+    effective_roles: tuple[str, ...]
+
+
+# Alias preserved for backwards compatibility
+StudentProfileInfo = UserProfileInfo
 
 
 @dataclass(frozen=True, slots=True)
 class StudentAuthResult:
-    """Outcome of student login or password change."""
+    """Outcome of unified login or password change."""
 
     access_token: str
     expires_in: int
-    profile: StudentProfileInfo
+    profile: UserProfileInfo
 
 
-# A dummy hash computed once at import time so unknown-student-ID login
+# A dummy hash computed once at import time so unknown-account login
 # attempts perform the same PBKDF2 work as valid ones (preventing timing leaks).
 _DUMMY_PASSWORD_HASH: str = hash_password("dummy-timing-guard-password")
+
+
+def _compute_effective_roles(role_set: frozenset[Role]) -> tuple[str, ...]:
+    effective = set(role_set)
+    for r in role_set:
+        effective |= ROLE_IMPLIES.get(r, frozenset())
+    return tuple(sorted(r.value for r in effective))
+
+
+def detect_account_type(identifier: str, explicit_type: AccountType | None = None) -> AccountType:
+    """Determine whether ``identifier`` targets the Student tab or Staff/Admin tab."""
+    if explicit_type in ("student", "staff"):
+        return explicit_type
+    clean = identifier.strip().lower()
+    if "@" in clean or clean in STAFF_BY_ALIAS:
+        return "staff"
+    return "student"
 
 
 def validate_password_strength(
     new_password: str,
     *,
     student_id: str | None = None,
+    forbidden_identifiers: tuple[str, ...] = (),
     confirm_password: str | None = None,
 ) -> list[str]:
     """Check password complexity rules and return a list of violation messages.
@@ -244,19 +354,15 @@ def validate_password_strength(
     3. At least one lowercase letter (a-z).
     4. At least one digit (0-9).
     5. At least one special character (non-alphanumeric symbol).
-    6. Must not equal the student's ``student_id``.
+    6. Must not equal the user's Student ID or login email/handle.
     7. Must match ``confirm_password`` when provided.
     """
     violations: list[str] = []
 
     if len(new_password) < MIN_PASSWORD_LENGTH:
-        violations.append(
-            f"Password must be at least {MIN_PASSWORD_LENGTH} characters long."
-        )
+        violations.append(f"Password must be at least {MIN_PASSWORD_LENGTH} characters long.")
     if len(new_password) > MAX_PASSWORD_LENGTH:
-        violations.append(
-            f"Password must not exceed {MAX_PASSWORD_LENGTH} characters."
-        )
+        violations.append(f"Password must not exceed {MAX_PASSWORD_LENGTH} characters.")
     if not any(ch.isupper() for ch in new_password):
         violations.append("Password must contain at least one uppercase letter (A-Z).")
     if not any(ch.islower() for ch in new_password):
@@ -264,33 +370,44 @@ def validate_password_strength(
     if not any(ch.isdigit() for ch in new_password):
         violations.append("Password must contain at least one number (0-9).")
     if not any(not ch.isalnum() and not ch.isspace() for ch in new_password):
-        violations.append(
-            "Password must contain at least one special character (e.g. !@#$%^&*)."
-        )
-    if student_id and new_password.strip() == student_id.strip():
+        violations.append("Password must contain at least one special character (e.g. !@#$%^&*).")
+
+    stripped_pw = new_password.strip().lower()
+    if student_id and stripped_pw == student_id.strip().lower():
         violations.append("New password cannot be the same as your Student ID.")
+    for ident in forbidden_identifiers:
+        if ident and stripped_pw == ident.strip().lower():
+            violations.append("New password cannot be the same as your login email or username.")
+            break
+
     if confirm_password is not None and new_password != confirm_password:
         violations.append("Password confirmation does not match the new password.")
 
     return violations
 
 
-def _build_profile(
+def _build_student_profile(
     user: AppUser,
     student_id: str,
     *,
     must_change_password: bool,
-) -> StudentProfileInfo:
+) -> UserProfileInfo:
     entry = OFFICIAL_STUDENT_ROSTER.get(student_id)
     role_scope = next(
         (r.scope for r in user.roles if r.role is Role.student and r.scope),
         None,
     )
-    roles = tuple(sorted(r.value for r in (user.role_set or frozenset({Role.student}))))
+    role_set = user.role_set or frozenset({Role.student})
+    roles = tuple(sorted(r.value for r in role_set))
+    effective = _compute_effective_roles(role_set)
+    is_admin = Role.admin in role_set
 
     if entry is not None:
-        return StudentProfileInfo(
+        return UserProfileInfo(
             user_id=user.id,
+            account_type="student",
+            is_admin=is_admin,
+            email=user.email,
             student_id=student_id,
             display_name=user.display_name or entry.full_name,
             first_name=entry.first_name,
@@ -301,14 +418,18 @@ def _build_profile(
             examination_no=entry.examination_no,
             must_change_password=must_change_password,
             roles=roles,
+            effective_roles=effective,
         )
 
     parts = (user.display_name or student_id).split(" ", 2)
     last_name = parts[0] if len(parts) >= 1 else ""
     first_name = parts[1] if len(parts) >= 2 else ""
     fathers_name = parts[2] if len(parts) >= 3 else ""
-    return StudentProfileInfo(
+    return UserProfileInfo(
         user_id=user.id,
+        account_type="student",
+        is_admin=is_admin,
+        email=user.email,
         student_id=student_id,
         display_name=user.display_name or student_id,
         first_name=first_name,
@@ -319,6 +440,45 @@ def _build_profile(
         examination_no=None,
         must_change_password=must_change_password,
         roles=roles,
+        effective_roles=effective,
+    )
+
+
+def _build_staff_profile(
+    user: AppUser,
+    *,
+    staff_entry: StaffRosterEntry | None = None,
+    must_change_password: bool,
+) -> UserProfileInfo:
+    role_set = user.role_set or (frozenset(staff_entry.roles) if staff_entry else frozenset({Role.staff}))
+    roles = tuple(sorted(r.value for r in role_set))
+    effective = _compute_effective_roles(role_set)
+    is_admin = Role.admin in role_set
+
+    display = user.display_name or (
+        staff_entry.display_name if staff_entry else (user.email or "Staff Member")
+    )
+    parts = display.split(" ", 1)
+    first_name = parts[0] if parts else display
+    last_name = parts[1] if len(parts) > 1 else ""
+    department = staff_entry.department if staff_entry else "University Staff"
+
+    return UserProfileInfo(
+        user_id=user.id,
+        account_type="staff",
+        is_admin=is_admin,
+        email=user.email or (staff_entry.email if staff_entry else None),
+        student_id=None,
+        display_name=display,
+        first_name=first_name,
+        last_name=last_name,
+        fathers_name="",
+        department=department,
+        group_no="",
+        examination_no=None,
+        must_change_password=must_change_password,
+        roles=roles,
+        effective_roles=effective,
     )
 
 
@@ -353,27 +513,74 @@ async def _ensure_student_user(
     session.add(user)
     await session.flush()
 
-    role_row = UserRole(
-        user_id=user.id,
-        role=Role.student,
-        scope=entry.group_no,
+    session.add(
+        UserRole(
+            user_id=user.id,
+            role=Role.student,
+            scope=entry.group_no,
+        )
     )
-    session.add(role_row)
     await session.flush()
     await session.refresh(user)
+    await session.refresh(user, ["roles"])
     return user
 
 
-async def seed_student_roster(session: AsyncSession) -> dict[str, int]:
-    """Idempotently seed all official university students into ``app_user``.
-
-    Existing accounts keep their current ``password_hash`` so a student who has
-    already changed their password is never reset back to the default ID.
+async def _ensure_staff_user(
+    session: AsyncSession,
+    identifier: str,
+) -> tuple[AppUser | None, StaffRosterEntry | None]:
+    """Look up a staff/admin user by email or alias, auto-provisioning official
+    staff/admin accounts on first sign-in if not yet stored in ``app_user``.
     """
-    existing_rows = (
-        await session.scalars(
-            select(AppUser).where(AppUser.external_ref.like(f"{STUDENT_REF_PREFIX}%"))
+    clean = identifier.strip().lower()
+    if not clean:
+        return None, None
+
+    staff_entry = STAFF_BY_ALIAS.get(clean)
+
+    # 1. Check direct email match in app_user first
+    res = await session.execute(select(AppUser).where(func.lower(AppUser.email) == clean))
+    user = res.scalar_one_or_none()
+    if user is not None:
+        return user, staff_entry
+
+    # 2. If alias maps to an official staff account, check by canonical email or external_ref
+    if staff_entry is not None:
+        res_canon = await session.execute(
+            select(AppUser).where(
+                (func.lower(AppUser.email) == staff_entry.email.lower())
+                | (AppUser.external_ref == staff_entry.external_ref)
+            )
         )
+        user = res_canon.scalar_one_or_none()
+        if user is not None:
+            return user, staff_entry
+
+        user = AppUser(
+            external_ref=staff_entry.external_ref,
+            email=staff_entry.email,
+            display_name=staff_entry.display_name,
+            password_hash=hash_password(DEFAULT_STAFF_PASSWORD),
+            is_active=True,
+            is_demo=True,
+        )
+        session.add(user)
+        await session.flush()
+        for role in staff_entry.roles:
+            session.add(UserRole(user_id=user.id, role=role))
+        await session.flush()
+        await session.refresh(user)
+        await session.refresh(user, ["roles"])
+        return user, staff_entry
+
+    return None, None
+
+
+async def seed_student_roster(session: AsyncSession) -> dict[str, int]:
+    """Idempotently seed all official university students into ``app_user``."""
+    existing_rows = (
+        await session.scalars(select(AppUser).where(AppUser.external_ref.like(f"{STUDENT_REF_PREFIX}%")))
     ).all()
     by_ref = {u.external_ref: u for u in existing_rows if u.external_ref}
 
@@ -411,6 +618,106 @@ async def seed_student_roster(session: AsyncSession) -> dict[str, int]:
     }
 
 
+async def authenticate_unified(
+    session: AsyncSession,
+    *,
+    identifier: str,
+    password: str,
+    account_type: AccountType | None = None,
+    settings: Settings | None = None,
+    request_id: str | None = None,
+) -> StudentAuthResult:
+    """Unified sign-in supporting both the Student tab and the Staff/Admin tab."""
+    cfg = settings or get_settings()
+    clean_ident = identifier.strip()
+    resolved_type = detect_account_type(clean_ident, account_type)
+
+    if resolved_type == "staff":
+        user, staff_entry = await _ensure_staff_user(session, clean_ident)
+        if user is None or not user.password_hash:
+            verify_password(password, _DUMMY_PASSWORD_HASH)
+            session.add(
+                AuditLog(
+                    at=now(),
+                    action="auth.staff_login.failed",
+                    actor_label=clean_ident or "unknown",
+                    outcome="denied",
+                    request_id=request_id,
+                    details={"reason": "unknown_staff_account"},
+                )
+            )
+            await session.commit()
+            hint = (
+                " Switch to the Student tab to sign in with your Student ID."
+                if clean_ident in OFFICIAL_STUDENT_ROSTER
+                else ""
+            )
+            raise AuthenticationError(
+                f"Invalid staff email or password.{hint}",
+                code="invalid_credentials",
+            )
+
+        password_ok = verify_password(password, user.password_hash)
+        if not user.is_active or not password_ok:
+            session.add(
+                AuditLog(
+                    at=now(),
+                    actor_id=user.id,
+                    actor_label=clean_ident,
+                    action="auth.staff_login.failed",
+                    outcome="denied",
+                    request_id=request_id,
+                    details={"reason": "invalid_password_or_inactive"},
+                )
+            )
+            await session.commit()
+            raise AuthenticationError(
+                "Invalid staff email or password.",
+                code="invalid_credentials",
+            )
+
+        must_change_password = password == DEFAULT_STAFF_PASSWORD
+        role_set = user.role_set or (frozenset(staff_entry.roles) if staff_entry else frozenset({Role.staff}))
+        profile = _build_staff_profile(
+            user,
+            staff_entry=staff_entry,
+            must_change_password=must_change_password,
+        )
+        token = create_access_token(str(user.id), role_set, settings=cfg)
+
+        user.last_seen_at = now()
+        session.add(
+            AuditLog(
+                at=now(),
+                actor_id=user.id,
+                actor_label=profile.email or clean_ident,
+                action="auth.staff_login.succeeded",
+                target_type="app_user",
+                target_id=str(user.id),
+                request_id=request_id,
+                details={
+                    "roles": list(profile.roles),
+                    "must_change_password": must_change_password,
+                },
+            )
+        )
+        await session.commit()
+        return StudentAuthResult(
+            access_token=token,
+            expires_in=cfg.jwt_access_ttl_seconds,
+            profile=profile,
+        )
+
+    # Student tab login
+    return await authenticate_student(
+        session,
+        student_id=clean_ident,
+        password=password,
+        settings=cfg,
+        request_id=request_id,
+    )
+
+
 async def authenticate_student(
     session: AsyncSession,
     *,
@@ -437,8 +744,13 @@ async def authenticate_student(
             )
         )
         await session.commit()
+        hint = (
+            " Switch to the Staff/Admin tab to sign in with a staff account."
+            if ("@" in clean_id or clean_id.lower() in STAFF_BY_ALIAS)
+            else " Only registered university students can sign in."
+        )
         raise AuthenticationError(
-            "Invalid Student ID or password. Only registered university students can sign in.",
+            f"Invalid Student ID or password.{hint}",
             code="invalid_credentials",
         )
 
@@ -461,11 +773,9 @@ async def authenticate_student(
             code="invalid_credentials",
         )
 
-    # Since password_ok is True, the student is still on their default password
-    # if and only if the password they just authenticated with equals their student_id.
     must_change_password = password == clean_id
     roles = user.role_set or frozenset({Role.student})
-    profile = _build_profile(user, clean_id, must_change_password=must_change_password)
+    profile = _build_student_profile(user, clean_id, must_change_password=must_change_password)
 
     token = create_access_token(
         str(user.id),
@@ -511,71 +821,110 @@ async def change_student_password(
     settings: Settings | None = None,
     request_id: str | None = None,
 ) -> StudentAuthResult:
-    """Change or reset a student's password after enforcing password policy."""
+    """Change or reset a student or staff/admin password after enforcing complexity policy."""
     cfg = settings or get_settings()
     user: AppUser | None = None
-    resolved_student_id: str = (student_id or "").strip()
+    resolved_ident: str = (student_id or "").strip()
+    is_staff = False
+    staff_entry: StaffRosterEntry | None = None
 
     if authenticated_user_id is not None:
         user = await session.get(AppUser, authenticated_user_id)
         if user is None or not user.is_active:
             raise NotFoundError("Authenticated user account was not found.", code="user_not_found")
         if user.external_ref and user.external_ref.startswith(STUDENT_REF_PREFIX):
-            resolved_student_id = user.external_ref[len(STUDENT_REF_PREFIX) :]
-        if current_password is not None:
-            if not user.password_hash or not verify_password(current_password, user.password_hash):
-                raise AuthenticationError(
-                    "Current password is incorrect.",
-                    code="invalid_credentials",
-                )
-    else:
-        if not resolved_student_id:
-            raise ValidationError(
-                "Either an Authorization token or a student_id is required to change the password.",
-                code="missing_student_id",
-            )
-        user = await _ensure_student_user(session, resolved_student_id)
-        if user is None or not user.is_active or not user.password_hash:
-            verify_password(current_password or "x", _DUMMY_PASSWORD_HASH)
-            raise AuthenticationError(
-                "Invalid Student ID or current password.",
-                code="invalid_credentials",
-            )
+            resolved_ident = user.external_ref[len(STUDENT_REF_PREFIX) :]
+            is_staff = False
+        else:
+            is_staff = True
+            resolved_ident = user.email or ""
+            if user.external_ref and user.external_ref.startswith(STAFF_REF_PREFIX):
+                handle = user.external_ref[len(STAFF_REF_PREFIX) :]
+                staff_entry = STAFF_BY_ALIAS.get(handle.lower())
+            elif user.email:
+                staff_entry = STAFF_BY_ALIAS.get(user.email.lower())
 
-        roster_entry = OFFICIAL_STUDENT_ROSTER.get(resolved_student_id)
-        verified = False
-        if current_password is not None and verify_password(current_password, user.password_hash):
-            verified = True
-        elif (
-            examination_no is not None
-            and roster_entry is not None
-            and examination_no.strip() == roster_entry.examination_no
+        if current_password is not None and (
+            not user.password_hash or not verify_password(current_password, user.password_hash)
         ):
-            verified = True
-        elif current_password is None and verify_password(resolved_student_id, user.password_hash):
-            # First-time password change when account still has the default student_id password
-            verified = True
-
-        if not verified:
-            session.add(
-                AuditLog(
-                    at=now(),
-                    actor_id=user.id,
-                    actor_label=resolved_student_id,
-                    action="auth.student_password.change_failed",
-                    outcome="denied",
-                    request_id=request_id,
-                )
-            )
-            await session.commit()
             raise AuthenticationError(
                 "Current password is incorrect.",
                 code="invalid_credentials",
             )
+    else:
+        if not resolved_ident:
+            raise ValidationError(
+                "Either an Authorization token or a login identifier (student_id or email) is required.",
+                code="missing_student_id",
+            )
+        if detect_account_type(resolved_ident) == "staff":
+            is_staff = True
+            user, staff_entry = await _ensure_staff_user(session, resolved_ident)
+            if user is None or not user.is_active or not user.password_hash:
+                verify_password(current_password or "x", _DUMMY_PASSWORD_HASH)
+                raise AuthenticationError(
+                    "Invalid staff email or current password.",
+                    code="invalid_credentials",
+                )
+            if current_password is None or not verify_password(current_password, user.password_hash):
+                raise AuthenticationError(
+                    "Current password is incorrect.",
+                    code="invalid_credentials",
+                )
+        else:
+            user = await _ensure_student_user(session, resolved_ident)
+            if user is None or not user.is_active or not user.password_hash:
+                verify_password(current_password or "x", _DUMMY_PASSWORD_HASH)
+                raise AuthenticationError(
+                    "Invalid Student ID or current password.",
+                    code="invalid_credentials",
+                )
+
+            roster_entry = OFFICIAL_STUDENT_ROSTER.get(resolved_ident)
+            verified = bool(
+                (current_password is not None and verify_password(current_password, user.password_hash))
+                or (
+                    examination_no is not None
+                    and roster_entry is not None
+                    and examination_no.strip() == roster_entry.examination_no
+                )
+                or (current_password is None and verify_password(resolved_ident, user.password_hash))
+            )
+
+            if not verified:
+                session.add(
+                    AuditLog(
+                        at=now(),
+                        actor_id=user.id,
+                        actor_label=resolved_ident,
+                        action="auth.student_password.change_failed",
+                        outcome="denied",
+                        request_id=request_id,
+                    )
+                )
+                await session.commit()
+                raise AuthenticationError(
+                    "Current password is incorrect.",
+                    code="invalid_credentials",
+                )
+
+    forbidden_extra: tuple[str, ...] = ()
+    if is_staff:
+        forbidden_extra = tuple(
+            x
+            for x in (
+                resolved_ident,
+                user.email or "",
+                staff_entry.handle if staff_entry else "",
+                DEFAULT_STAFF_PASSWORD,
+            )
+            if x
+        )
 
     violations = validate_password_strength(
         new_password,
-        student_id=resolved_student_id or None,
+        student_id=None if is_staff else (resolved_ident or None),
+        forbidden_identifiers=forbidden_extra,
         confirm_password=confirm_password,
     )
     if not violations and user.password_hash and verify_password(new_password, user.password_hash):
@@ -594,12 +943,24 @@ async def change_student_password(
     user.password_hash = hash_password(new_password)
     user.last_seen_at = now()
 
-    roles = user.role_set or frozenset({Role.student})
-    profile = _build_profile(user, resolved_student_id, must_change_password=False)
+    if is_staff:
+        role_set = user.role_set or (frozenset(staff_entry.roles) if staff_entry else frozenset({Role.staff}))
+        profile = _build_staff_profile(
+            user,
+            staff_entry=staff_entry,
+            must_change_password=False,
+        )
+    else:
+        role_set = user.role_set or frozenset({Role.student})
+        profile = _build_student_profile(
+            user,
+            resolved_ident,
+            must_change_password=False,
+        )
 
     token = create_access_token(
         str(user.id),
-        roles,
+        role_set,
         settings=cfg,
     )
 
@@ -607,12 +968,12 @@ async def change_student_password(
         AuditLog(
             at=now(),
             actor_id=user.id,
-            actor_label=resolved_student_id or str(user.id),
-            action="auth.student_password.changed",
+            actor_label=resolved_ident or str(user.id),
+            action="auth.password.changed",
             target_type="app_user",
             target_id=str(user.id),
             request_id=request_id,
-            details={"student_id": resolved_student_id},
+            details={"account_type": profile.account_type},
         )
     )
     await session.commit()
@@ -624,18 +985,37 @@ async def change_student_password(
     )
 
 
-async def get_student_profile_for_user(
+async def get_user_profile_for_principal(
     session: AsyncSession,
     user_id: uuid.UUID,
-) -> StudentProfileInfo | None:
-    """Return student profile metadata for an authenticated ``user_id``, if applicable."""
+) -> UserProfileInfo | None:
+    """Return resolved profile metadata for an authenticated Student or Staff/Admin."""
     user = await session.get(AppUser, user_id)
-    if user is None or not user.external_ref:
+    if user is None:
         return None
-    if not user.external_ref.startswith(STUDENT_REF_PREFIX):
-        return None
-    student_id = user.external_ref[len(STUDENT_REF_PREFIX) :]
-    must_change = bool(
-        user.password_hash and verify_password(student_id, user.password_hash)
-    )
-    return _build_profile(user, student_id, must_change_password=must_change)
+
+    if user.external_ref and user.external_ref.startswith(STUDENT_REF_PREFIX):
+        student_id = user.external_ref[len(STUDENT_REF_PREFIX) :]
+        must_change = bool(user.password_hash and verify_password(student_id, user.password_hash))
+        return _build_student_profile(user, student_id, must_change_password=must_change)
+
+    staff_entry: StaffRosterEntry | None = None
+    if user.external_ref and user.external_ref.startswith(STAFF_REF_PREFIX):
+        handle = user.external_ref[len(STAFF_REF_PREFIX) :]
+        staff_entry = STAFF_BY_ALIAS.get(handle.lower())
+    elif user.email:
+        staff_entry = STAFF_BY_ALIAS.get(user.email.lower())
+
+    if user.email or staff_entry is not None or user.role_set:
+        must_change = bool(user.password_hash and verify_password(DEFAULT_STAFF_PASSWORD, user.password_hash))
+        return _build_staff_profile(
+            user,
+            staff_entry=staff_entry,
+            must_change_password=must_change,
+        )
+
+    return None
+
+
+# Backwards-compatible alias
+get_student_profile_for_user = get_user_profile_for_principal

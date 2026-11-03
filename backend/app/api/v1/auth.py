@@ -1,26 +1,27 @@
-"""Authentication endpoints.
+"""Authentication endpoints (Unified Two-Tab Student & Staff/Admin Sign-In).
 
 Provides:
 
-* ``POST /api/v1/auth/login`` (and alias ``/api/v1/auth/student-login``) -
-  University student sign-in using ``student_id`` and ``password`` (initially
-  both equal to the student's university ID, e.g. ``202590207``). Only students
-  registered in the official university roster can log in.
-* ``POST /api/v1/auth/change-password`` (and alias ``/api/v1/auth/reset-password``) -
-  Changes or resets a student's password while enforcing complexity requirements
-  (minimum 6 characters, uppercase letter, lowercase letter, number, special
-  character, and distinct from the Student ID and current password).
-* ``GET /api/v1/auth/password-requirements`` - Returns the password policy rules
-  for client-side display.
-* ``GET /api/v1/auth/me`` - Inspects the authenticated caller and returns
-  student profile metadata when signed in as a student.
+* ``POST /api/v1/auth/login`` - Unified login supporting Option 1 (two tabs:
+  ``account_type="student"`` for university Student IDs and
+  ``account_type="staff"`` for Staff/Admin accounts, or automatic detection when
+  ``account_type`` is omitted).
+* ``POST /api/v1/auth/student-login`` - Dedicated student-only login alias.
+* ``POST /api/v1/auth/staff-login`` - Dedicated staff/admin-only login alias.
+* ``POST /api/v1/auth/change-password`` & ``POST /api/v1/auth/reset-password`` -
+  Changes or resets a student or staff/admin password while enforcing complexity
+  rules (minimum 6 characters, uppercase, lowercase, number, special character).
+* ``GET /api/v1/auth/login-config`` & ``GET /api/v1/auth/password-requirements`` -
+  Returns UI tab metadata (labels, placeholders, hints) and password policy rules.
+* ``GET /api/v1/auth/me`` - Inspects the authenticated caller and returns full
+  Student or Staff/Admin profile metadata.
 * ``POST /api/v1/auth/dev-token`` - Development-only local account exchange.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -43,12 +44,15 @@ from app.domain.people import AppUser
 from app.domain.platform import AuditLog
 from app.services.student_auth_service import (
     MIN_PASSWORD_LENGTH,
+    OFFICIAL_STAFF_ACCOUNTS,
     OFFICIAL_STUDENT_ROSTER,
     PASSWORD_REQUIREMENTS,
+    AccountType,
     StudentAuthResult,
     authenticate_student,
+    authenticate_unified,
     change_student_password,
-    get_student_profile_for_user,
+    get_user_profile_for_principal,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -57,50 +61,67 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
-class StudentLoginRequest(BaseModel):
-    """Flexible student sign-in request accepting ``student_id``, ``login``, or ``username``."""
+class UnifiedLoginRequest(BaseModel):
+    """Unified login payload supporting both the Student tab and Staff/Admin tab."""
 
     model_config = ConfigDict(extra="ignore")
 
+    account_type: AccountType | None = Field(
+        default=None,
+        description=(
+            "Optional active tab selector ('student' or 'staff'). "
+            "When omitted, automatically inferred from the identifier."
+        ),
+    )
     student_id: str | None = Field(
         default=None,
-        description="University Student ID (e.g. '202590207').",
+        description="University Student ID (e.g. '202590207') from the Student tab.",
+    )
+    email: str | None = Field(
+        default=None,
+        description=(
+            "Staff or Admin email (e.g. 'admin@dev.local' or 'admin@ajou.uz') from the Staff/Admin tab."
+        ),
     )
     login: str | None = Field(
         default=None,
-        description="Alias for student_id if client sends 'login'.",
+        description="Unified login identifier (Student ID, staff email, or staff username).",
     )
     username: str | None = Field(
         default=None,
-        description="Alias for student_id if client sends 'username'.",
+        description="Alias for login identifier.",
     )
     password: str = Field(
         min_length=1,
         max_length=256,
-        description="Student password (initially equal to the Student ID).",
+        description="Account password (initially Student ID for students).",
     )
 
     @property
-    def resolved_student_id(self) -> str:
-        raw = self.student_id or self.login or self.username or ""
+    def resolved_identifier(self) -> str:
+        raw = self.student_id or self.email or self.login or self.username or ""
         return raw.strip()
 
     @model_validator(mode="after")
-    def _ensure_identifier_present(self) -> StudentLoginRequest:
-        if not self.resolved_student_id:
-            raise ValueError("student_id (or login) is required.")
+    def _ensure_identifier_present(self) -> UnifiedLoginRequest:
+        if not self.resolved_identifier:
+            raise ValueError("student_id, email, or login is required.")
         return self
 
 
 class StudentAuthResponse(BaseModel):
-    """Returned after successful student login or password change."""
+    """Returned after successful Student or Staff/Admin sign-in or password change."""
 
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+    account_type: Literal["student", "staff"]
+    is_admin: bool
     roles: list[str]
+    effective_roles: list[str]
     user_id: str
-    student_id: str
+    email: str | None = None
+    student_id: str | None = None
     display_name: str
     first_name: str
     last_name: str
@@ -112,7 +133,7 @@ class StudentAuthResponse(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    """Request payload for changing or resetting a student's password."""
+    """Request payload for changing or resetting a Student or Staff/Admin password."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -120,13 +141,17 @@ class ChangePasswordRequest(BaseModel):
         default=None,
         description="University Student ID (optional when Authorization Bearer token is provided).",
     )
+    email: str | None = Field(
+        default=None,
+        description="Staff/Admin email (optional when Authorization Bearer token is provided).",
+    )
     login: str | None = Field(
         default=None,
-        description="Alias for student_id.",
+        description="Unified login identifier (Student ID or staff email).",
     )
     username: str | None = Field(
         default=None,
-        description="Alias for student_id.",
+        description="Alias for login identifier.",
     )
     current_password: str | None = Field(
         default=None,
@@ -138,7 +163,7 @@ class ChangePasswordRequest(BaseModel):
     )
     examination_no: str | None = Field(
         default=None,
-        description="Optional examination number from university roster for password reset verification.",
+        description="Optional examination number from university roster for student password reset.",
     )
     new_password: str = Field(
         min_length=1,
@@ -151,13 +176,22 @@ class ChangePasswordRequest(BaseModel):
     )
 
     @property
-    def resolved_student_id(self) -> str | None:
-        raw = self.student_id or self.login or self.username
+    def resolved_identifier(self) -> str | None:
+        raw = self.student_id or self.email or self.login or self.username
         return raw.strip() if raw else None
 
     @property
     def resolved_current_password(self) -> str | None:
         return self.current_password if self.current_password is not None else self.old_password
+
+
+class LoginTabDescriptor(BaseModel):
+    id: Literal["student", "staff"]
+    title: str
+    default_selected: bool
+    input_label: str
+    input_placeholder: str
+    helper_text: str
 
 
 class PasswordRequirementsResponse(BaseModel):
@@ -169,6 +203,8 @@ class PasswordRequirementsResponse(BaseModel):
     disallow_student_id: bool = True
     requirements: list[str]
     total_registered_students: int
+    total_staff_roles: int
+    tabs: list[LoginTabDescriptor]
 
 
 class DevTokenRequest(BaseModel):
@@ -186,11 +222,14 @@ class TokenResponse(BaseModel):
 
 
 class PrincipalResponse(BaseModel):
-    """Who the caller is, plus student profile metadata when applicable."""
+    """Who the caller is, plus Student or Staff/Admin profile metadata."""
 
     subject: str
     roles: list[str]
     effective_roles: list[str]
+    account_type: Literal["student", "staff"] | None = None
+    is_admin: bool = False
+    email: str | None = None
     student_id: str | None = None
     display_name: str | None = None
     first_name: str | None = None
@@ -210,8 +249,12 @@ def _to_auth_response(
     return StudentAuthResponse(
         access_token=result.access_token,
         expires_in=result.expires_in,
+        account_type=p.account_type,
+        is_admin=p.is_admin,
         roles=list(p.roles),
+        effective_roles=list(p.effective_roles),
         user_id=str(p.user_id),
+        email=p.email,
         student_id=p.student_id,
         display_name=p.display_name,
         first_name=p.first_name,
@@ -224,31 +267,99 @@ def _to_auth_response(
     )
 
 
+def _login_tabs() -> list[LoginTabDescriptor]:
+    return [
+        LoginTabDescriptor(
+            id="student",
+            title="Student",
+            default_selected=True,
+            input_label="Student ID",
+            input_placeholder="e.g. 202590207",
+            helper_text="First time? Use your 9-digit Student ID as both login and password.",
+        ),
+        LoginTabDescriptor(
+            id="staff",
+            title="Staff / Admin",
+            default_selected=False,
+            input_label="Staff Email",
+            input_placeholder="e.g. admin@ajou.uz",
+            helper_text="Sign in with your university staff or administrator account.",
+        ),
+    ]
+
+
 @router.post(
     "/login",
     response_model=StudentAuthResponse,
     status_code=status.HTTP_200_OK,
-    summary="Sign in with university Student ID and password",
+    summary="Unified sign-in for both Students (Student ID) and Staff/Admins (Email)",
     responses={
-        401: {"description": "Unknown Student ID or wrong password."},
+        401: {"description": "Unknown account or wrong password."},
     },
 )
+async def unified_login(
+    payload: UnifiedLoginRequest,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> StudentAuthResponse:
+    result = await authenticate_unified(
+        session,
+        identifier=payload.resolved_identifier,
+        password=payload.password,
+        account_type=payload.account_type,
+        settings=settings,
+        request_id=get_request_id(),
+    )
+    msg = (
+        "Please change your initial password for security purposes."
+        if result.profile.must_change_password
+        else "Signed in successfully."
+    )
+    return _to_auth_response(result, message=msg)
+
+
 @router.post(
     "/student-login",
     response_model=StudentAuthResponse,
     status_code=status.HTTP_200_OK,
-    summary="Sign in with university Student ID and password (alias)",
-    include_in_schema=False,
+    summary="Sign in exclusively as a Student using Student ID",
 )
-async def student_login(
-    payload: StudentLoginRequest,
+async def student_only_login(
+    payload: UnifiedLoginRequest,
     session: SessionDep,
     settings: SettingsDep,
 ) -> StudentAuthResponse:
     result = await authenticate_student(
         session,
-        student_id=payload.resolved_student_id,
+        student_id=payload.resolved_identifier,
         password=payload.password,
+        settings=settings,
+        request_id=get_request_id(),
+    )
+    msg = (
+        "Please change your initial password for security purposes."
+        if result.profile.must_change_password
+        else "Signed in successfully."
+    )
+    return _to_auth_response(result, message=msg)
+
+
+@router.post(
+    "/staff-login",
+    response_model=StudentAuthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sign in exclusively as Staff or Admin",
+)
+async def staff_only_login(
+    payload: UnifiedLoginRequest,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> StudentAuthResponse:
+    result = await authenticate_unified(
+        session,
+        identifier=payload.resolved_identifier,
+        password=payload.password,
+        account_type="staff",
         settings=settings,
         request_id=get_request_id(),
     )
@@ -264,7 +375,7 @@ async def student_login(
     "/change-password",
     response_model=StudentAuthResponse,
     status_code=status.HTTP_200_OK,
-    summary="Change or reset student password with complexity validation",
+    summary="Change or reset Student or Staff/Admin password with complexity validation",
     responses={
         401: {"description": "Invalid current password or unauthenticated."},
         422: {"description": "New password does not meet security requirements."},
@@ -274,10 +385,10 @@ async def student_login(
     "/reset-password",
     response_model=StudentAuthResponse,
     status_code=status.HTTP_200_OK,
-    summary="Reset student password with complexity validation (alias)",
+    summary="Reset password with complexity validation (alias)",
     include_in_schema=False,
 )
-async def update_student_password(
+async def update_password(
     payload: ChangePasswordRequest,
     principal: OptionalPrincipal,
     session: SessionDep,
@@ -299,7 +410,7 @@ async def update_student_password(
         confirm_password=payload.confirm_password,
         current_password=payload.resolved_current_password,
         examination_no=payload.examination_no,
-        student_id=payload.resolved_student_id,
+        student_id=payload.resolved_identifier,
         authenticated_user_id=auth_user_id,
         settings=settings,
         request_id=get_request_id(),
@@ -311,6 +422,12 @@ async def update_student_password(
 
 
 @router.get(
+    "/login-config",
+    response_model=PasswordRequirementsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get two-tab login UI configuration and password complexity rules",
+)
+@router.get(
     "/password-requirements",
     response_model=PasswordRequirementsResponse,
     status_code=status.HTTP_200_OK,
@@ -321,6 +438,8 @@ async def password_requirements() -> PasswordRequirementsResponse:
         min_length=MIN_PASSWORD_LENGTH,
         requirements=list(PASSWORD_REQUIREMENTS),
         total_registered_students=len(OFFICIAL_STUDENT_ROSTER),
+        total_staff_roles=len(OFFICIAL_STAFF_ACCOUNTS),
+        tabs=_login_tabs(),
     )
 
 
@@ -337,14 +456,18 @@ async def me(
     profile = None
     try:
         uid = uuid.UUID(principal.subject)
-        profile = await get_student_profile_for_user(session, uid)
+        profile = await get_user_profile_for_principal(session, uid)
     except ValueError:
         profile = None
 
+    is_admin = Role.admin in principal.effective_roles()
     return PrincipalResponse(
         subject=principal.subject,
         roles=sorted(r.value for r in principal.roles),
         effective_roles=sorted(r.value for r in principal.effective_roles()),
+        account_type=profile.account_type if profile else None,
+        is_admin=profile.is_admin if profile else is_admin,
+        email=profile.email if profile else None,
         student_id=profile.student_id if profile else None,
         display_name=profile.display_name if profile else None,
         first_name=profile.first_name if profile else None,
@@ -386,8 +509,6 @@ async def dev_token(
     result = await session.execute(select(AppUser).where(AppUser.email == payload.email.strip().lower()))
     user = result.scalar_one_or_none()
 
-    # Same error and roughly the same work whether the account is missing or the
-    # password is wrong, so the endpoint does not enumerate accounts.
     password_ok = bool(user and user.password_hash and verify_password(payload.password, user.password_hash))
     if not user or not user.is_active or not password_ok:
         session.add(

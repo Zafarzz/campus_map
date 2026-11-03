@@ -19,7 +19,9 @@ from app.core.security import (
     verify_password,
 )
 from app.services.student_auth_service import (
+    OFFICIAL_STAFF_ACCOUNTS,
     OFFICIAL_STUDENT_ROSTER,
+    detect_account_type,
     validate_password_strength,
 )
 
@@ -199,6 +201,27 @@ def test_password_strength_validation_rules() -> None:
     )
     assert any("confirmation does not match" in msg for msg in v_confirm)
 
+    # 9. Forbidden staff identifiers (cannot reuse staff email/handle as password)
+    v_staff_ident = validate_password_strength(
+        "Admin@dev.local1",
+        forbidden_identifiers=("admin@dev.local1", "admin"),
+    )
+    assert any("login email or username" in msg for msg in v_staff_ident)
+
+
+def test_unified_account_type_detection_and_staff_roster() -> None:
+    """Two-tab login preserves explicit tab selection and auto-detects when omitted."""
+    assert len(OFFICIAL_STAFF_ACCOUNTS) == 5
+    assert detect_account_type("202590207") == "student"
+    assert detect_account_type("admin@dev.local") == "staff"
+    assert detect_account_type("admin@ajou.uz") == "staff"
+    assert detect_account_type("admin") == "staff"
+    assert detect_account_type("teacher@ajou.uz") == "staff"
+
+    # Explicit tab selection overrides auto-detection so cross-tab hints work cleanly
+    assert detect_account_type("202590207", "staff") == "staff"
+    assert detect_account_type("admin@dev.local", "student") == "student"
+
 
 @pytest.mark.db
 async def test_student_login_and_password_change_lifecycle(
@@ -285,5 +308,84 @@ async def test_student_login_and_password_change_lifecycle(
     assert r_me.status_code == 200
     me_data = r_me.json()
     assert me_data["student_id"] == "202590207"
+    assert me_data["account_type"] == "student"
+    assert me_data["is_admin"] is False
     assert me_data["group_no"] == "I25D"
     assert me_data["must_change_password"] is False
+
+
+@pytest.mark.db
+async def test_unified_staff_and_admin_login_lifecycle(
+    clean_database: Database,
+    client: AsyncClient,
+) -> None:
+    """Two-tab unified login supports Staff/Admin accounts alongside Student IDs."""
+    _ = clean_database
+    prefix = "/api/v1"
+
+    # 1. GET /auth/login-config exposes Option 1 two-tab UI descriptors
+    r_cfg = await client.get(f"{prefix}/auth/login-config")
+    assert r_cfg.status_code == 200
+    cfg_data = r_cfg.json()
+    assert cfg_data["total_registered_students"] == 112
+    assert len(cfg_data["tabs"]) == 2
+    assert cfg_data["tabs"][0]["id"] == "student"
+    assert cfg_data["tabs"][0]["default_selected"] is True
+    assert "202590207" in cfg_data["tabs"][0]["input_placeholder"]
+    assert cfg_data["tabs"][1]["id"] == "staff"
+
+    # 2. Cross-tab safety: entering a Student ID on the Staff tab returns 401 with hint
+    r_wrong_tab = await client.post(
+        f"{prefix}/auth/login",
+        json={
+            "account_type": "staff",
+            "login": "202590207",
+            "password": "202590207",
+        },
+    )
+    assert r_wrong_tab.status_code == 401
+    assert "Student tab" in r_wrong_tab.json()["error"]["message"]
+
+    # 3. Admin superuser signs in via unified endpoint (using @ajou.uz alias or @dev.local)
+    r_admin = await client.post(
+        f"{prefix}/auth/login",
+        json={
+            "account_type": "staff",
+            "email": "admin@ajou.uz",
+            "password": "devpassword",
+        },
+    )
+    assert r_admin.status_code == 200
+    admin_data = r_admin.json()
+    assert admin_data["account_type"] == "staff"
+    assert admin_data["is_admin"] is True
+    assert "admin" in admin_data["roles"]
+    assert "facilities" in admin_data["effective_roles"]
+    assert "safety_officer" in admin_data["effective_roles"]
+    assert admin_data["must_change_password"] is True
+    admin_token = admin_data["access_token"]
+
+    # 4. Admin changes initial password with complexity validation
+    r_change = await client.post(
+        f"{prefix}/auth/change-password",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "current_password": "devpassword",
+            "new_password": "AdminSecure#2026",
+            "confirm_password": "AdminSecure#2026",
+        },
+    )
+    assert r_change.status_code == 200
+    assert r_change.json()["must_change_password"] is False
+    new_admin_token = r_change.json()["access_token"]
+
+    # 5. GET /auth/me reflects staff admin profile and updated password status
+    r_me = await client.get(
+        f"{prefix}/auth/me",
+        headers={"Authorization": f"Bearer {new_admin_token}"},
+    )
+    assert r_me.status_code == 200
+    me_admin = r_me.json()
+    assert me_admin["account_type"] == "staff"
+    assert me_admin["is_admin"] is True
+    assert me_admin["must_change_password"] is False
