@@ -40,6 +40,7 @@ export async function apiGet<T>(
   path: string,
   params?: Record<string, string | number | undefined>,
   signal?: AbortSignal,
+  token?: string | null,
 ): Promise<T> {
   if (!isBackendEnabled) throw new ApiError('Backend integration is disabled');
   const query = params
@@ -49,13 +50,69 @@ export async function apiGet<T>(
         .join('&')
     : '';
   const url = `${explicitBase}${API_PREFIX}${path}${query ? `?${query}` : ''}`;
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   let res: Response;
   try {
-    res = await fetch(url, { headers: { Accept: 'application/json' }, signal });
+    res = await fetch(url, { headers, signal });
   } catch (err) {
     throw new ApiError(err instanceof Error ? err.message : 'Network error');
   }
   if (!res.ok) throw new ApiError(`HTTP ${res.status} for ${path}`, res.status);
+  return (await res.json()) as T;
+}
+
+/** POST `${base}/api/v1${path}` with JSON payload. Throws `ApiError` with backend message on failure. */
+export async function apiPost<T>(
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+  token?: string | null,
+): Promise<T> {
+  if (!isBackendEnabled) throw new ApiError('Backend integration is disabled');
+  const url = `${explicitBase}${API_PREFIX}${path}`;
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
+    });
+  } catch (err) {
+    throw new ApiError(err instanceof Error ? err.message : 'Network error');
+  }
+
+  if (!res.ok) {
+    let errorMsg = `HTTP ${res.status} for ${path}`;
+    try {
+      const errJson = (await res.json()) as {
+        error?: { message?: string };
+        detail?: string | Array<{ msg?: string }>;
+      };
+      if (errJson?.error?.message) {
+        errorMsg = errJson.error.message;
+      } else if (typeof errJson?.detail === 'string') {
+        errorMsg = errJson.detail;
+      } else if (Array.isArray(errJson?.detail) && errJson.detail[0]?.msg) {
+        errorMsg = errJson.detail[0].msg;
+      }
+    } catch {
+      // keep fallback errorMsg
+    }
+    throw new ApiError(errorMsg, res.status);
+  }
+
   return (await res.json()) as T;
 }
 

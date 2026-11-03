@@ -18,6 +18,9 @@ import { SearchBox } from './components/ui/SearchBox';
 import { ViewportNavigationTools } from './components/ui/ViewportNavigationTools';
 import { CinematicButton, CinematicOverlay, useCinematicClean } from './cinematic/CinematicMode';
 import { isGameRoute, navigateToGame } from './game/config/gameConfig';
+import { AuthHeaderButton } from './components/auth/AuthHeaderButton';
+import { AuthModal } from './components/auth/AuthModal';
+import { AuthProvider } from './state/AuthContext';
 import { MapProvider, useMap } from './state/MapProvider';
 
 const LazyEditorPage = lazy(() =>
@@ -155,6 +158,7 @@ function AppLayout() {
                 <Breadcrumbs />
               </div>
             </div>
+            <AuthHeaderButton />
           </div>
 
           <div className="header__actions" role="toolbar" aria-label="Platform modes">
@@ -232,6 +236,7 @@ function AppLayout() {
           </div>
         </footer>
       </aside>
+      <AuthModal />
     </div>
   );
 }
@@ -290,8 +295,10 @@ export default function App() {
   }
 
   return (
-    <MapProvider fallback={<InitialCampusLoader stageMessage="Initializing campus digital twin..." />}>
-      <AppLayout />
-    </MapProvider>
+    <AuthProvider>
+      <MapProvider fallback={<InitialCampusLoader stageMessage="Initializing campus digital twin..." />}>
+        <AppLayout />
+      </MapProvider>
+    </AuthProvider>
   );
 }

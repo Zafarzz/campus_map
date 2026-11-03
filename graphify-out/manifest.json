@@ -780,9 +780,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793112615.8257103,
-    "seen": 1793735383.2832432,
-    "ast_hash": "310881140f367d690426fb59996bbfc4",
+    "mtime": 1793740321.1241727,
+    "seen": 1793740890.0116787,
+    "ast_hash": "f79bfd834b4bf8fe3b7754e62cd3c8e5",
     "semantic_hash": ""
   },
   "scripts/capture.mjs": {
@@ -804,9 +804,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793732458.0597315,
-    "seen": 1793735383.2832572,
-    "ast_hash": "751cd7e3e15aa8189f45b8ae22d73c74",
+    "mtime": 1793739947.4327254,
+    "seen": 1793740890.0127308,
+    "ast_hash": "b4a0ed628be29a4119cebc42ad0751ea",
     "semantic_hash": ""
   },
   "src/__tests__/ajouArtObject.test.ts": {
@@ -1548,9 +1548,9 @@
     "semantic_hash": ""
   },
   "src/services/api/apiClient.ts": {
-    "mtime": 1793390025.1573822,
-    "seen": 1793735383.2837503,
-    "ast_hash": "026d91add673bfbd4a62bd96508a98ad",
+    "mtime": 1793739717.289232,
+    "seen": 1793740890.0646067,
+    "ast_hash": "e81f72f2db160c38cbb5145b031cd087",
     "semantic_hash": ""
   },
   "src/services/campus/campusService.ts": {
@@ -2253,6 +2253,42 @@
     "mtime": 1793477870.630594,
     "seen": 1793735383.2841425,
     "ast_hash": "fb5b12e83327ecfbc8c33622c4a9e5b5",
+    "semantic_hash": ""
+  },
+  "src/__tests__/auth.test.ts": {
+    "mtime": 1793740085.7140098,
+    "seen": 1793740890.0134323,
+    "ast_hash": "deacda0ce23bc3da90d6c8b51cbeaee5",
+    "semantic_hash": ""
+  },
+  "src/components/auth/AuthHeaderButton.tsx": {
+    "mtime": 1793739869.546672,
+    "seen": 1793740890.0431557,
+    "ast_hash": "4f88eb4fb622ac7cf03874976a02be49",
+    "semantic_hash": ""
+  },
+  "src/components/auth/AuthModal.tsx": {
+    "mtime": 1793739904.4073608,
+    "seen": 1793740890.0431607,
+    "ast_hash": "ae4983785a9f01ff122176b1b41c4855",
+    "semantic_hash": ""
+  },
+  "src/services/auth/authService.ts": {
+    "mtime": 1793740123.9307551,
+    "seen": 1793740890.0646133,
+    "ast_hash": "63a1fc79cbba0f63d932af922d2788fe",
+    "semantic_hash": ""
+  },
+  "src/services/auth/authTypes.ts": {
+    "mtime": 1793739665.612569,
+    "seen": 1793740890.0646179,
+    "ast_hash": "ff28280f85d67cd294cc5c764b9daf90",
+    "semantic_hash": ""
+  },
+  "src/state/AuthContext.tsx": {
+    "mtime": 1793739835.9205058,
+    "seen": 1793740890.0664523,
+    "ast_hash": "cb0842f4138c8f1fcd0c33491debc151",
     "semantic_hash": ""
   },
   "package-lock.json": {
