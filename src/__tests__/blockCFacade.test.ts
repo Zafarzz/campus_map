@@ -68,13 +68,13 @@ describe('Block C Architectural Facade & Appearance', () => {
     const bldGeom = campusGeom.buildings['bld-i'];
     expect(bldGeom).toBeDefined();
 
-    // Primary footprint part depth: 202px * 0.3 = 60.6m
+    // Primary footprint part: 63.33px * 0.3 = 19.0m width, 160px * 0.3 = 48.0m depth
     const part = bldGeom.parts[0];
     expect(part.type).toBe('rect');
     if (part.type === 'rect') {
       const [w, d] = part.size;
-      expect(w).toBeCloseTo(24.0, 1);
-      expect(d).toBeCloseTo(60.6, 1);
+      expect(w).toBeCloseTo(19.0, 1);
+      expect(d).toBeCloseTo(48.0, 1);
     }
   });
 });

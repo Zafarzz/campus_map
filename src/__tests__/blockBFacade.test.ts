@@ -39,13 +39,13 @@ describe('Block B Architectural Facade & Appearance', () => {
     const bldGeom = campusGeom.buildings['bld-g'];
     expect(bldGeom).toBeDefined();
 
-    // 183px * 0.3 = 54.9m (~55.0m CAD elevation), depth 50px * 0.3 = 15.0m
+    // 183.33px * 0.3 = 55.0m, depth 46.67px * 0.3 = 14.0m
     const part = bldGeom.parts[0];
     expect(part.type).toBe('rect');
     if (part.type === 'rect') {
       const [w, d] = part.size;
-      expect(w).toBeCloseTo(54.9, 1);
-      expect(d).toBeCloseTo(15.0, 1);
+      expect(w).toBeCloseTo(55.0, 1);
+      expect(d).toBeCloseTo(14.0, 1);
     }
   });
 

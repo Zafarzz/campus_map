@@ -6,12 +6,12 @@ export const LIBRARY_ROOM_ID = 'bld-d-f1-f101';
 /**
  * Local-space layout constants for Room F-101 (Campus Library & Reading Hall)
  * inside Block F (bld-d, Floor 1).
- * Room center in world space: [92.97, 0.25, -53.1], size: [9.52, 2.6, 46.72].
+ * Room center in world space: [65.85, 0.25, -73.2], size: [10.6, 2.6, 43.96].
  */
 export const LIBRARY_LAYOUT = {
-  roomWidthX: 9.52,
+  roomWidthX: 10.6,
   roomHeightY: 2.6,
-  roomLengthZ: 46.72,
+  roomLengthZ: 43.96,
   portalHalfWidthZ: 2.8,
 
   bookcaseRowsZ: [-19.5, -16.8, -14.1, -11.4, -8.7] as const,

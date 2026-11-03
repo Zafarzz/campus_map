@@ -75,8 +75,8 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
 
     if (pitch?.footprint.type === 'rect') {
       const [w, d] = pitch.footprint.size;
-      expect(w).toBe(22.5);
-      expect(d).toBe(51.0);
+      expect(w).toBeCloseTo(20.0, 1);
+      expect(d).toBeCloseTo(40.0, 1);
     }
 
     // Fountain is centered on lawn-g1 at worldX ≈ 0.0m, worldZ = -23.1m

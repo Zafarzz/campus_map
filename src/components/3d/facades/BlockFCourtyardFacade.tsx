@@ -193,17 +193,19 @@ export function BlockFCourtyardFacade({
   // =========================================================================
 
   // 1. West Facade of Block F (Part 1 courtyard face)
-  // Position in World: X = 58.05m.
-  // Z runs from -77.1m to -38.1m -> Length = 39.0m.
-  const westLength = 39.0;
-  const westCenterZ = (-77.1 + -38.1) / 2; // -57.6m
-  const westWallX = 58.05;
+  // Position in World: X = 52.05m ((525 - 351.5) * 0.3).
+  // Z runs from -80.2m (y=244.67) to -49.2m (y=348) -> Length = 31.0m.
+  const westStartZ = -80.2;
+  const westEndZ = -49.2;
+  const westLength = westEndZ - westStartZ; // 31.0m
+  const westCenterZ = (westStartZ + westEndZ) / 2; // -64.7m
+  const westWallX = 52.05;
   const wallH = 8.05;
   const plinthH = 0.6;
 
-  // 10 Window bays spaced every 3.8m
+  // 10 Window bays spaced along the 31.0m courtyard facade
   const bayCount = 10;
-  const bayWidth = westLength / bayCount; // 3.9m
+  const bayWidth = westLength / bayCount; // 3.1m
   const winW = 1.6;
   const winH = 1.75;
   const f1WinY = 1.85;
@@ -212,10 +214,10 @@ export function BlockFCourtyardFacade({
   const windowBaysZ = useMemo(() => {
     const list: number[] = [];
     for (let i = 0; i < bayCount; i++) {
-      list.push(-77.1 + (i + 0.5) * bayWidth);
+      list.push(westStartZ + (i + 0.5) * bayWidth);
     }
     return list;
-  }, [bayCount, bayWidth]);
+  }, [bayCount, bayWidth, westStartZ]);
 
   // Standard 1.6m x 1.75m Rectangular Window Frame Geometry
   const standardFrameGeo = useMemo(() => {
@@ -293,21 +295,20 @@ export function BlockFCourtyardFacade({
   // Bays with vertical drainpipes (between bays at 1, 4, 7, 9)
   const pipeBayIndices = [1, 4, 7, 9];
 
-  // 2. Corner Entrance Vestibule Dimensions (Part 0 at Z = -77.1m)
-  const vestWidth = 13.5;
-  const vestCenterX = (44.55 + 58.05) / 2; // 51.3m
-  const vestZ = -77.1;
-  const vestHeight = 4.0;
+  // 2. Corner Entrance Vestibule Dimensions (D–F hall: 1-storey, 12.0m span at Z = -80.2m)
+  const vestWidth = 12.0;
+  const vestCenterX = (40.05 + 52.05) / 2; // 46.05m
+  const vestZ = -80.2;
 
-  // 3. South End Facade Dimensions (Part 1 at Z = -38.1m)
-  const southEndWidth = 19.5;
-  const southEndCenterX = (58.05 + 77.55) / 2; // 67.8m
-  const southEndZ = -38.1;
+  // 3. South End Facade Dimensions (Part 1: 20.0m width at Z = -49.2m)
+  const southEndWidth = 20.0;
+  const southEndCenterX = (52.05 + 72.05) / 2; // 62.05m
+  const southEndZ = -49.2;
 
   return (
     <group>
       {/* ============================================================== */}
-      {/* 1. WEST FACADE OF BLOCK F (Facing Courtyard at X = 58.05m)     */}
+      {/* 1. WEST FACADE OF BLOCK F (Facing Courtyard at X = 52.05m)     */}
       {/* ============================================================== */}
       <group position={[westWallX, 0, 0]}>
         {/* Base Granite Plinth (±0.000 to +0.600m) */}
@@ -412,7 +413,7 @@ export function BlockFCourtyardFacade({
 
         {/* Vertical Downspouts (Водосточные трубы) */}
         {pipeBayIndices.map((bIdx) => {
-          const pz = -77.1 + bIdx * bayWidth;
+          const pz = westStartZ + bIdx * bayWidth;
           return (
             <mesh
               key={`downspout-${bIdx}`}
@@ -426,7 +427,7 @@ export function BlockFCourtyardFacade({
       </group>
 
       {/* ============================================================== */}
-      {/* 2. 1-STOREY CORNER ENTRANCE VESTIBULE (Part 0 at Z = -77.1m)   */}
+      {/* 2. 1-STOREY D–F HALL ENTRANCE VESTIBULE (12m span at Z=-80.2m) */}
       {/* ============================================================== */}
       <group position={[vestCenterX, 0, vestZ]}>
         {/* Concrete Entrance Porch Landing Plinth */}
@@ -485,40 +486,17 @@ export function BlockFCourtyardFacade({
         </mesh>
 
         {/* Stainless Steel Vertical Door Handles on 4 Main Entrance Doors */}
-        {[-3.2, -1.8, 1.8, 3.2].map((hx, hIdx) => (
+        {[-3.0, -1.6, 1.6, 3.0].map((hx, hIdx) => (
           <group key={`door-handle-${hIdx}`} position={[hx, 1.3, 0.2]}>
             <mesh material={materials.handleMat} castShadow>
               <cylinderGeometry args={[0.018, 0.018, 0.7, 12]} />
             </mesh>
           </group>
         ))}
-
-        {/* Second Floor Facade Wall above the Vestibule (+4.00 to +8.05m) */}
-        <mesh position={[0, 6.025, 0]} material={materials.wallMat} castShadow receiveShadow>
-          <boxGeometry args={[vestWidth, 4.05, 0.15]} />
-        </mesh>
-        {/* 2F White Cornice (+7.85 to +8.25m) */}
-        <mesh position={[0, 8.05, 0.1]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[vestWidth + 0.2, 0.35, 0.3]} />
-        </mesh>
-
-        {/* 3 Upper Windows on 2F above the vestibule */}
-        {[-3.6, 0, 3.6].map((wx, wIdx) => (
-          <group key={`vest-2f-win-${wIdx}`} position={[wx, f2WinY, 0.08]} rotation={[0, Math.PI / 2, 0]}>
-            {/* Frame */}
-            <mesh geometry={standardFrameGeo} material={materials.frameMat} castShadow />
-            {/* Glass */}
-            <mesh position={[0.015, 0, 0]} material={materials.glassMat}>
-              <boxGeometry args={[0.03, winH - 0.1, winW - 0.1]} />
-            </mesh>
-            {/* Sills */}
-            <mesh geometry={standardTrimGeo} material={materials.trimMat} castShadow />
-          </group>
-        ))}
       </group>
 
       {/* ============================================================== */}
-      {/* 3. SOUTH END FACADE OF BLOCK F (Width 19.5m at Z = -38.1m)     */}
+      {/* 3. SOUTH END FACADE OF BLOCK F (Width 20.0m at Z = -49.2m)     */}
       {/* ============================================================== */}
       <group position={[southEndCenterX, 0, southEndZ]}>
         {/* Plinth */}

@@ -355,16 +355,16 @@ export function SiteFurniture() {
   // Sports floodlight masts around court & soccer pitch
   const sportsFloodlights = useMemo<[number, number, number, number][]>(
     () => [
-      // Soccer pitch corners (pitchW = 22.5, pitchX = 22.8)
-      [10.8, 0, -10.5, Math.PI / 4],
-      [34.8, 0, -10.5, (3 * Math.PI) / 4],
-      [10.8, 0, 42.5, -Math.PI / 4],
-      [34.8, 0, 42.5, -(3 * Math.PI) / 4],
-      // Tennis / Basketball court corners (apronW = 36.0, courtX = 55.5)
-      [37.0, 0, -10.5, Math.PI / 4],
-      [74.0, 0, -10.5, (3 * Math.PI) / 4],
-      [37.0, 0, 42.5, -Math.PI / 4],
-      [74.0, 0, 42.5, -(3 * Math.PI) / 4],
+      // Soccer pitch corners (pitchW = 20.0, pitchD = 40.0, pitchX = 21.55, pitchZ = 13.4)
+      [10.8, 0, -7.2, Math.PI / 4],
+      [32.3, 0, -7.2, (3 * Math.PI) / 4],
+      [10.8, 0, 34.0, -Math.PI / 4],
+      [32.3, 0, 34.0, -(3 * Math.PI) / 4],
+      // Tennis / Multi-sport court corners (apronW = 30.0, apronD = 40.0, courtX = 52.65, courtZ = 13.4)
+      [37.0, 0, -7.2, Math.PI / 4],
+      [68.3, 0, -7.2, (3 * Math.PI) / 4],
+      [37.0, 0, 34.0, -Math.PI / 4],
+      [68.3, 0, 34.0, -(3 * Math.PI) / 4],
     ],
     [],
   );
