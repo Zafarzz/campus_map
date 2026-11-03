@@ -21,6 +21,7 @@ import {
   getLushGrassTextures,
   getPromenadePavingTextures,
 } from './materials/pbrMaterials';
+import { applyTerrainMacroVariationShader } from './shaders/architecturalShaders';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.015,
@@ -332,49 +333,61 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
   const roadColor = tuning?.roadColor ?? contextColors.road ?? mapConfig.colors.context.road;
 
   const contextMaterials = useMemo(() => {
-    const groundMat = new THREE.MeshStandardMaterial({
-      color: tuning?.groundColor ?? '#d8d4cc',
-      map: pavingPbr?.map ?? null,
-      normalMap: pavingPbr?.normalMap ?? null,
-      normalScale: new THREE.Vector2(0.08, 0.08),
-      roughnessMap: pavingPbr?.roughnessMap ?? null,
-      roughness: 0.88,
-      metalness: 0.02,
-      polygonOffset: true,
-      polygonOffsetFactor: 3,
-      polygonOffsetUnits: 3,
-    });
-    const lawnMat = new THREE.MeshStandardMaterial({
-      color: lawnColor,
-      map: grassPbr?.map ?? null,
-      normalMap: grassPbr?.normalMap ?? null,
-      normalScale: new THREE.Vector2(0.12, 0.12),
-      roughnessMap: grassPbr?.roughnessMap ?? null,
-      roughness: 0.9,
-      metalness: 0.02,
-    });
-    const roadMat = new THREE.MeshStandardMaterial({
-      color: roadColor,
-      map: asphaltPbr?.map ?? null,
-      normalMap: asphaltPbr?.normalMap ?? null,
-      normalScale: new THREE.Vector2(0.15, 0.15),
-      roughnessMap: asphaltPbr?.roughnessMap ?? null,
-      roughness: 0.84,
-      metalness: 0.06,
-    });
-    const plazaMat = new THREE.MeshStandardMaterial({
-      color: '#cbd5e1',
-      map: pavingPbr?.map ?? null,
-      normalMap: pavingPbr?.normalMap ?? null,
-      normalScale: new THREE.Vector2(0.12, 0.12),
-      roughnessMap: pavingPbr?.roughnessMap ?? null,
-      roughness: 0.82,
-      metalness: 0.05,
-    });
+    const groundMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: tuning?.groundColor ?? '#d8d4cc',
+        map: pavingPbr?.map ?? null,
+        normalMap: pavingPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.12, 0.12),
+        roughnessMap: pavingPbr?.roughnessMap ?? null,
+        roughness: 0.88,
+        metalness: 0.0,
+        polygonOffset: true,
+        polygonOffsetFactor: 3,
+        polygonOffsetUnits: 3,
+      }),
+      'paving',
+    );
+    const lawnMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: lawnColor,
+        map: grassPbr?.map ?? null,
+        normalMap: grassPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.15, 0.15),
+        roughnessMap: grassPbr?.roughnessMap ?? null,
+        roughness: 0.9,
+        metalness: 0.0,
+      }),
+      'grass',
+    );
+    const roadMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: roadColor,
+        map: asphaltPbr?.map ?? null,
+        normalMap: asphaltPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.18, 0.18),
+        roughnessMap: asphaltPbr?.roughnessMap ?? null,
+        roughness: 0.86,
+        metalness: 0.0,
+      }),
+      'asphalt',
+    );
+    const plazaMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: '#cbd5e1',
+        map: pavingPbr?.map ?? null,
+        normalMap: pavingPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.14, 0.14),
+        roughnessMap: pavingPbr?.roughnessMap ?? null,
+        roughness: 0.82,
+        metalness: 0.0,
+      }),
+      'paving',
+    );
     const structureMat = new THREE.MeshStandardMaterial({
       color: '#94a3b8',
       roughness: 0.85,
-      metalness: 0.04,
+      metalness: 0.0,
     });
     return { groundMat, lawnMat, roadMat, plazaMat, structureMat };
   }, [tuning?.groundColor, lawnColor, roadColor, pavingPbr, grassPbr, asphaltPbr]);

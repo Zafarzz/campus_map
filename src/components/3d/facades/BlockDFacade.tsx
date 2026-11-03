@@ -5,7 +5,15 @@ import {
   disposeMergedMap,
   NO_RAYCAST,
 } from '../geometry/staticGeometryMerger';
-import { getArchitecturalWallTextures, getWindowGlassTexture } from '../materials/pbrMaterials';
+import {
+  getArchitecturalWallTextures,
+  getGranitePlinthTextures,
+  getWindowGlassTexture,
+} from '../materials/pbrMaterials';
+import {
+  applyArchitecturalGlassShader,
+  applyTravertineWeatheringShader,
+} from '../shaders/architecturalShaders';
 
 export type BlockDFacadeProps = {
   /** Building mass length along X (m) */
@@ -63,26 +71,33 @@ export function BlockDFacade({
   const winHeight = 2.0;
 
   const travertinePbr = useMemo(() => getArchitecturalWallTextures(12, 3), []);
+  const plinthPbr = useMemo(() => getGranitePlinthTextures(4, 1), []);
   const glassTex = useMemo(() => getWindowGlassTexture(), []);
 
   const materials = useMemo(() => {
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: wallColor,
-      map: travertinePbr?.map ?? null,
-      normalMap: travertinePbr?.normalMap ?? null,
-      normalScale: new THREE.Vector2(0.25, 0.25),
-      roughnessMap: travertinePbr?.roughnessMap ?? null,
-      roughness: 0.78,
-      metalness: 0.03,
-      transparent,
-      opacity,
-      depthWrite: !transparent,
-    });
+    const wallMat = applyTravertineWeatheringShader(
+      new THREE.MeshStandardMaterial({
+        color: wallColor,
+        map: travertinePbr?.map ?? null,
+        normalMap: travertinePbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.25, 0.25),
+        roughnessMap: travertinePbr?.roughnessMap ?? null,
+        roughness: 0.8,
+        metalness: 0.0,
+        transparent,
+        opacity,
+        depthWrite: !transparent,
+      }),
+    );
 
     const plinthMat = new THREE.MeshStandardMaterial({
       color: plinthColor,
+      map: plinthPbr?.map ?? null,
+      normalMap: plinthPbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.25, 0.25),
+      roughnessMap: plinthPbr?.roughnessMap ?? null,
       roughness: 0.85,
-      metalness: 0.08,
+      metalness: 0.0,
       transparent,
       opacity,
       depthWrite: !transparent,
@@ -91,7 +106,7 @@ export function BlockDFacade({
     const trimMat = new THREE.MeshStandardMaterial({
       color: trimColor,
       roughness: 0.65,
-      metalness: 0.06,
+      metalness: 0.0,
       transparent,
       opacity,
       depthWrite: !transparent,
@@ -106,16 +121,18 @@ export function BlockDFacade({
       depthWrite: !transparent,
     });
 
-    const glassMat = new THREE.MeshStandardMaterial({
-      color: '#020617',
-      map: glassTex ?? null,
-      roughness: 0.08,
-      metalness: 0.85,
-      envMapIntensity: 0.9,
-      transparent: true,
-      opacity: transparent ? opacity * 0.9 : 0.98,
-      depthWrite: !transparent,
-    });
+    const glassMat = applyArchitecturalGlassShader(
+      new THREE.MeshStandardMaterial({
+        color: '#16283e',
+        map: glassTex ?? null,
+        roughness: 0.08,
+        metalness: 0.15,
+        envMapIntensity: 1.6,
+        transparent: true,
+        opacity: transparent ? opacity * 0.9 : 0.94,
+        depthWrite: !transparent,
+      }),
+    );
 
     const cavityMat = new THREE.MeshBasicMaterial({
       color: '#020408',

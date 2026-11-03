@@ -4,7 +4,7 @@ export const DEFAULT_APPEARANCE: BuildingAppearance = {
   preset: 'default',
   wallColor: '#f1f5f9',
   wallRoughness: 0.85,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'flat',
   roofColor: '#64748b',
   roofRoughness: 0.8,
@@ -49,8 +49,8 @@ export const ACADEMIC_MODERN: BuildingAppearance = {
   ...DEFAULT_APPEARANCE,
   preset: 'academic-modern',
   wallColor: '#f8fafc',
-  wallRoughness: 0.75,
-  wallMetalness: 0.1,
+  wallRoughness: 0.78,
+  wallMetalness: 0.0,
   roofType: 'flat',
   roofColor: '#475569',
   roofRoughness: 0.8,
@@ -101,8 +101,8 @@ export const SPORTS_COMPLEX: BuildingAppearance = {
   ...DEFAULT_APPEARANCE,
   preset: 'sports-complex',
   wallColor: '#f1f5f9',
-  wallRoughness: 0.7,
-  wallMetalness: 0.15,
+  wallRoughness: 0.76,
+  wallMetalness: 0.0,
   roofType: 'barrel',
   roofColor: '#22252a',
   roofHeight: 6.9,
@@ -135,7 +135,7 @@ export const BLOCK_C_FRONT: BuildingAppearance = {
   preset: 'block-c-front',
   wallColor: '#e2c391',
   wallRoughness: 0.82,
-  wallMetalness: 0.04,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#991b1b', // Terracotta red hip roof matching Block A and Block B per media_1793538000291.png
   roofHeight: 3.6,
@@ -155,7 +155,7 @@ export const BLOCK_B_FRONT: BuildingAppearance = {
   preset: 'block-b-front',
   wallColor: '#ebdcc5', // Warm travertine / cream beige
   wallRoughness: 0.8,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#991b1b', // Classic red metal tile roof
   roofRoughness: 0.7,
@@ -176,7 +176,7 @@ export const BLOCK_A_FRONT: BuildingAppearance = {
   preset: 'block-a-front',
   wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793539586758.jpg
   wallRoughness: 0.8,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#991b1b', // Terracotta red hip roof
   roofRoughness: 0.7,
@@ -197,7 +197,7 @@ export const BLOCK_F_FRONT: BuildingAppearance = {
   preset: 'block-f-front',
   wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793540287791.png
   wallRoughness: 0.8,
-  wallMetalness: 0.04,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#8a99a8', // Architectural steel grey standing-seam metal roof matching reference photo
   roofHeight: 1.4,
@@ -218,7 +218,7 @@ export const BLOCK_D_FRONT: BuildingAppearance = {
   preset: 'block-d-front',
   wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793540478176.png
   wallRoughness: 0.8,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#991b1b', // Terracotta / burgundy red hip roof per elevation (+8.600m)
   roofRoughness: 0.7,
@@ -239,7 +239,7 @@ export const BLOCK_E_FRONT: BuildingAppearance = {
   preset: 'block-e-front',
   wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793540858849.png
   wallRoughness: 0.8,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#991b1b', // Terracotta red hip roof
   roofRoughness: 0.7,

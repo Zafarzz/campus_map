@@ -6,6 +6,7 @@ import {
   NO_RAYCAST,
   StaticGeometryBatcher,
 } from './geometry/staticGeometryMerger';
+import { getPolishedTileTextures } from './materials/pbrMaterials';
 
 export type BlockCorridorProps = {
   floorId: string;
@@ -126,26 +127,35 @@ let sharedCorridorMaterials: SharedCorridorMaterials | null = null;
 function getSharedCorridorMaterials(): SharedCorridorMaterials {
   if (sharedCorridorMaterials) return sharedCorridorMaterials;
 
+  const tilePbr = getPolishedTileTextures(12, 4);
   sharedCorridorMaterials = {
     floorCenterMat: new THREE.MeshStandardMaterial({
       color: '#eae3d2',
-      roughness: 0.55,
-      metalness: 0.05,
+      map: tilePbr?.map ?? null,
+      normalMap: tilePbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.14, 0.14),
+      roughnessMap: tilePbr?.roughnessMap ?? null,
+      roughness: 0.45,
+      metalness: 0.0,
     }),
     floorBorderMat: new THREE.MeshStandardMaterial({
       color: '#475569',
-      roughness: 0.65,
-      metalness: 0.1,
+      roughness: 0.62,
+      metalness: 0.0,
     }),
     lobbyFloorMat: new THREE.MeshStandardMaterial({
       color: '#dcd5c9',
-      roughness: 0.45,
-      metalness: 0.08,
+      map: tilePbr?.map ?? null,
+      normalMap: tilePbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.14, 0.14),
+      roughnessMap: tilePbr?.roughnessMap ?? null,
+      roughness: 0.4,
+      metalness: 0.0,
     }),
     stairTreadMat: new THREE.MeshStandardMaterial({
       color: '#f1f5f9',
-      roughness: 0.4,
-      metalness: 0.05,
+      roughness: 0.42,
+      metalness: 0.0,
     }),
     stairRiserMat: new THREE.MeshStandardMaterial({
       color: '#94a3b8',

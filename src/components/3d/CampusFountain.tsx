@@ -7,6 +7,10 @@ import {
   NO_RAYCAST,
   StaticGeometryBatcher,
 } from './geometry/staticGeometryMerger';
+import {
+  applyAnimatedWaterShader,
+  sharedWaterUniforms,
+} from './shaders/architecturalShaders';
 
 export const FOUNTAIN_DIMENSIONS = {
   // Габариты чаши бассейна, масштабированные в 1.5х по запросу пользователя (исходные 36х12 м)
@@ -243,40 +247,53 @@ export function CampusFountain({
   scale = FOUNTAIN_DIMENSIONS.defaultScale,
   showPalms = false,
 }: CampusFountainProps) {
+  useFrame(({ clock }) => {
+    sharedWaterUniforms.uTime.value = clock.getElapsedTime();
+  });
+
   const materials = useMemo(() => {
     const dpkBoardMat = new THREE.MeshStandardMaterial({
       color: '#4e3829',
       roughness: 0.65,
-      metalness: 0.08,
+      metalness: 0.0,
     });
     const dpkCapMat = new THREE.MeshStandardMaterial({
       color: '#3b281c',
       roughness: 0.5,
-      metalness: 0.12,
+      metalness: 0.0,
     });
     const poolTileMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.poolTile,
-      roughness: 0.3,
+      roughness: 0.28,
+      metalness: 0.0,
     });
-    const poolWaterMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.poolWater,
-      roughness: 0.08,
-      metalness: 0.15,
-      transparent: true,
-      opacity: 0.85,
-    });
+    const poolWaterMat = applyAnimatedWaterShader(
+      new THREE.MeshStandardMaterial({
+        color: FOUNTAIN_MATERIALS.poolWater,
+        roughness: 0.06,
+        metalness: 0.1,
+        envMapIntensity: 1.5,
+        transparent: true,
+        opacity: 0.88,
+      }),
+      false,
+    );
     const cascadeStoneMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.cascadeStone,
-      roughness: 0.75,
-      metalness: 0.05,
+      roughness: 0.78,
+      metalness: 0.0,
     });
-    const cascadeWaterMat = new THREE.MeshStandardMaterial({
-      color: FOUNTAIN_MATERIALS.cascadeWater,
-      roughness: 0.1,
-      metalness: 0.2,
-      transparent: true,
-      opacity: 0.8,
-    });
+    const cascadeWaterMat = applyAnimatedWaterShader(
+      new THREE.MeshStandardMaterial({
+        color: FOUNTAIN_MATERIALS.cascadeWater,
+        roughness: 0.08,
+        metalness: 0.12,
+        envMapIntensity: 1.5,
+        transparent: true,
+        opacity: 0.85,
+      }),
+      true,
+    );
     const goldMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.goldAccent,
       roughness: 0.18,

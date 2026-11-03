@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { getInteriorWoodTextures } from './materials/pbrMaterials';
 
 export const LIBRARY_ROOM_ID = 'bld-d-f1-f101';
 
@@ -125,33 +126,49 @@ let cachedLibraryBaseMaterials: {
 
 function getSharedLibraryMaterials(selected: boolean) {
   if (!cachedLibraryBaseMaterials) {
+    const woodPbr = getInteriorWoodTextures(4, 4);
     cachedLibraryBaseMaterials = {
       oakFloor: new THREE.MeshStandardMaterial({
-        color: '#7c4a24',
-        roughness: 0.65,
-        metalness: 0.05,
+        color: '#8c5830',
+        map: woodPbr?.map ?? null,
+        normalMap: woodPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.18, 0.18),
+        roughnessMap: woodPbr?.roughnessMap ?? null,
+        roughness: 0.56,
+        metalness: 0.0,
       }),
       carpetNavyDefault: new THREE.MeshStandardMaterial({
         color: '#1e3a5f',
-        roughness: 0.9,
+        roughness: 0.92,
+        metalness: 0.0,
       }),
       carpetNavySelected: new THREE.MeshStandardMaterial({
         color: '#1d4ed8',
-        roughness: 0.9,
+        roughness: 0.92,
+        metalness: 0.0,
       }),
       walnutWood: new THREE.MeshStandardMaterial({
-        color: '#452615',
-        roughness: 0.55,
-        metalness: 0.08,
+        color: '#522e1a',
+        map: woodPbr?.map ?? null,
+        normalMap: woodPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.14, 0.14),
+        roughnessMap: woodPbr?.roughnessMap ?? null,
+        roughness: 0.52,
+        metalness: 0.0,
       }),
       warmOakFurniture: new THREE.MeshStandardMaterial({
-        color: '#9a5b2d',
-        roughness: 0.5,
-        metalness: 0.05,
+        color: '#a66534',
+        map: woodPbr?.map ?? null,
+        normalMap: woodPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.14, 0.14),
+        roughnessMap: woodPbr?.roughnessMap ?? null,
+        roughness: 0.48,
+        metalness: 0.0,
       }),
       creamWall: new THREE.MeshStandardMaterial({
         color: '#f8fafc',
-        roughness: 0.8,
+        roughness: 0.82,
+        metalness: 0.0,
       }),
       partitionGlass: new THREE.MeshStandardMaterial({
         color: '#bae6fd',
