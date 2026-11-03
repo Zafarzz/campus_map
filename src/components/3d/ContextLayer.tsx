@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import type { CampusGeometry, ContextFeatureKind, Footprint } from '../../domain/geometry/types';
@@ -82,6 +82,13 @@ function FenceSegment({
       depthWrite: true,
     });
   }, [fenceTexture, repeatCount]);
+
+  useEffect(() => {
+    return () => {
+      if (metalMat.map) metalMat.map.dispose();
+      metalMat.dispose();
+    };
+  }, [metalMat]);
 
   const plinthW = axis === 'z' ? 0.35 : length;
   const plinthD = axis === 'z' ? length : 0.35;

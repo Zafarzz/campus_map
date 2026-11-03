@@ -9,7 +9,7 @@ const fmtMinutes = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export function TimeControl() {
-  const { time, setTime, now } = useMap();
+  const { time, setTime, now, scheduleLoading } = useMap();
   const [from, to] = mapConfig.schedule.simulatedRange;
   const minutes = now.getHours() * 60 + now.getMinutes();
   const activeWeekday =
@@ -18,11 +18,22 @@ export function TimeControl() {
   return (
     <section className="section time">
       <div className="time__row">
-        <span className="time__now">
-          {DAY_NAMES[now.getDay()]} {fmtMinutes(minutes)}
-        </span>
+        <div className="time__clock-group">
+          <span className="time__now">
+            {DAY_NAMES[now.getDay()]} {fmtMinutes(minutes)}
+          </span>
+          {scheduleLoading && (
+            <span className="time__sync-badge" title="Refreshing schedule...">
+              Syncing…
+            </span>
+          )}
+        </div>
         <div className="segmented" role="group" aria-label="Time mode">
-          <button type="button" className={time.mode === 'live' ? 'active' : ''} onClick={() => setTime({ mode: 'live' })}>
+          <button
+            type="button"
+            className={time.mode === 'live' ? 'active' : ''}
+            onClick={() => setTime({ mode: 'live' })}
+          >
             Live
           </button>
           <button
@@ -41,7 +52,7 @@ export function TimeControl() {
         </div>
       </div>
       {time.mode === 'simulated' && (
-        <>
+        <div className="time__sim-controls">
           <div className="segmented segmented--days" role="group" aria-label="Simulated weekday">
             {TEACHING_WEEKDAYS.map((d) => (
               <button
@@ -54,18 +65,22 @@ export function TimeControl() {
               </button>
             ))}
           </div>
-          <input
-            type="range"
-            min={from}
-            max={to}
-            step={5}
-            value={time.minutes}
-            onChange={(e) =>
-              setTime({ mode: 'simulated', minutes: Number(e.target.value), weekday: activeWeekday })
-            }
-            aria-label="Simulated time"
-          />
-        </>
+          <div className="time__slider-wrap">
+            <span className="time__bound">{fmtMinutes(from)}</span>
+            <input
+              type="range"
+              min={from}
+              max={to}
+              step={5}
+              value={time.minutes}
+              onChange={(e) =>
+                setTime({ mode: 'simulated', minutes: Number(e.target.value), weekday: activeWeekday })
+              }
+              aria-label="Simulated time"
+            />
+            <span className="time__bound">{fmtMinutes(to)}</span>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -73,11 +88,11 @@ export function TimeControl() {
 
 export function Legend() {
   return (
-    <ul className="legend">
+    <ul className="legend" aria-label="Room status legend">
       {(Object.keys(statusLabels) as RoomStatus[]).map((s) => (
         <li key={s}>
           <span className="status-dot" style={{ background: mapConfig.colors.status[s] }} />
-          {statusLabels[s]}
+          <span>{statusLabels[s]}</span>
         </li>
       ))}
     </ul>
@@ -88,16 +103,22 @@ export function DataNotice() {
   const { showReference, setShowReference } = useMap();
   return (
     <section className="notice">
-      <p>
-        <strong>Campus Digital Twin.</strong> Building positions are traced from satellite &amp; CAD plans;{' '}
+      <div className="notice__row">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={showReference}
+            onChange={(e) => setShowReference(e.target.checked)}
+          />
+          <span>Show satellite reference overlay</span>
+        </label>
+      </div>
+      <p className="notice__text">
+        <strong>Campus Digital Twin.</strong> Building footprints traced from CAD &amp; satellite plans;{' '}
         {isBackendEnabled
-          ? 'timetable is synced from the official AUT EduPage schedule.'
+          ? 'timetable synced from official AUT EduPage.'
           : 'offline mode uses demo schedule.'}
       </p>
-      <label className="checkbox">
-        <input type="checkbox" checked={showReference} onChange={(e) => setShowReference(e.target.checked)} />
-        Show satellite reference
-      </label>
     </section>
   );
 }

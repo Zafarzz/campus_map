@@ -1,6 +1,6 @@
 import { useMap } from '../../state/MapProvider';
 
-/** Campus › Building › Floor › Room — every level is clickable. */
+/** Campus › Building › Floor › Room — every level is clickable with clear visual hierarchy. */
 export function Breadcrumbs() {
   const { index, selection, clearSelection, selectBuilding, selectFloor } = useMap();
   const building = selection.buildingId ? index.buildings.get(selection.buildingId) : undefined;
@@ -9,29 +9,44 @@ export function Breadcrumbs() {
 
   return (
     <nav className="crumbs" aria-label="Location">
-      <button type="button" onClick={clearSelection} disabled={!building}>
+      <button
+        type="button"
+        className="crumbs__item"
+        onClick={clearSelection}
+        disabled={!building}
+      >
         Campus
       </button>
       {building && (
         <>
-          <span>›</span>
-          <button type="button" onClick={() => selectBuilding(building.id)} disabled={!floor && !room}>
+          <span className="crumbs__sep" aria-hidden="true">›</span>
+          <button
+            type="button"
+            className="crumbs__item"
+            onClick={() => selectBuilding(building.id)}
+            disabled={!floor && !room}
+          >
             {building.name}
           </button>
         </>
       )}
       {floor && (
         <>
-          <span>›</span>
-          <button type="button" onClick={() => selectFloor(floor.id)} disabled={!room}>
+          <span className="crumbs__sep" aria-hidden="true">›</span>
+          <button
+            type="button"
+            className="crumbs__item"
+            onClick={() => selectFloor(floor.id)}
+            disabled={!room}
+          >
             {floor.name}
           </button>
         </>
       )}
       {room && (
         <>
-          <span>›</span>
-          <button type="button" disabled>
+          <span className="crumbs__sep" aria-hidden="true">›</span>
+          <button type="button" className="crumbs__item" disabled>
             {room.number}
           </button>
         </>
