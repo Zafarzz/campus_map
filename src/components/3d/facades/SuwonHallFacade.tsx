@@ -1,5 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import {
+  StaticGeometryBatcher,
+  disposeMergedMap,
+  NO_RAYCAST,
+} from '../geometry/staticGeometryMerger';
 import { getWindowGlassTexture } from '../materials/pbrMaterials';
 
 export type SuwonHallFacadeProps = {
@@ -15,10 +20,6 @@ export type SuwonHallFacadeProps = {
   transparent?: boolean;
 };
 
-/**
- * Creates 3D extruded vector geometry for individual capital letters of «SUWON HALL».
- * Extruded locally without any external font or CDN dependencies.
- */
 function createLetterGeometry(letter: string, height: number = 0.7, depth: number = 0.08): THREE.BufferGeometry {
   const shape = new THREE.Shape();
   const w = height * (letter === 'W' ? 0.95 : letter === 'I' ? 0.25 : letter === 'L' ? 0.65 : 0.75);
@@ -171,20 +172,6 @@ function createLetterGeometry(letter: string, height: number = 0.7, depth: numbe
 
 /**
  * Architectural 3D Elevation of the «SUWON HALL» Entrance Group Pavilion.
- * Connecting Block F (bld-d) and Block E (bld-b), facing East towards the perimeter fence & driveway.
- * Reconstructed directly from CAD blueprint:
- * «ФАСАД ВХОДНОЙ ГРУППЫ «SUWON HALL» В ОСЯХ А–В (2D ЧЕРТЕЖ)»
- * (Ортогональная проекция павильона без примыкающих корпусов | Размеры в мм (М 1:100)).
- *
- * Anatomy & Dimensions:
- * - Total facade length: 14 000 mm (14.0m) in structural axes А–В.
- * - Symmetrical 2 blocks of 7 000 mm (Left block: Axes А–Б, Right block: Axes Б–В).
- * - Central structural pillar at axis Б with off-white composite cladding.
- * - Two sets of double entrance doors (2 155 mm wide, 2 400 mm high) with long stainless steel pull handles.
- * - Four large panoramic fixed glass bays (2 160 mm wide, 3 750 mm total height).
- * - Continuous horizontal transom bar at +2.650 m with upper transom window pane («Фрамуга», 1 100 mm).
- * - Massive cantilevered parapet frieze canopy: height 1 200 mm (+3.750 m to +4.950 m) with vertical panel rustication.
- * - Individual 3D rooftop letters «SUWON HALL» in Ajou University Blue (height 700 mm, top at +5.650 m) on structural metal frame.
  */
 export function SuwonHallFacade({
   width = 14.0,
@@ -193,13 +180,11 @@ export function SuwonHallFacade({
   opacity = 1,
   transparent = false,
 }: SuwonHallFacadeProps) {
-  // Base CAD dimensions
   const baseWidth = 14.0;
   const scaleX = width / baseWidth;
 
   const glassTex = useMemo(() => getWindowGlassTexture(), []);
 
-  // Materials
   const whitePanelMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -270,7 +255,7 @@ export function SuwonHallFacade({
   const blueLetterMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#003876', // Official Ajou Blue per university brand identity
+        color: '#003876',
         roughness: 0.28,
         metalness: 0.25,
         transparent,
@@ -293,303 +278,111 @@ export function SuwonHallFacade({
     [transparent, opacity],
   );
 
-  // 3D Rooftop Letters «SUWON HALL» (calibrated height 720 mm per architectural blueprint)
-  const lettersData = useMemo(() => {
+  const merged = useMemo(() => {
+    const b = new StaticGeometryBatcher();
+
+    const doorW = 2.155 * scaleX;
+    const panelW = 2.16 * scaleX;
+    const totalGlazeH = 3.75;
+    const doorH = 2.4;
+    const transomH = 1.1;
+
+    // 1. Base granite plinth
+    b.addBox('plinth', [14.0 * scaleX + 0.4, 0.08, 0.45], [0, 0.04, 0.08]);
+
+    // 2. Structural cladding pillars
+    b.addBox('whitePanel', [0.48 * scaleX, totalGlazeH, 0.28], [0, totalGlazeH / 2, 0.06]);
+    b.addBox('whitePanel', [0.4 * scaleX, totalGlazeH, 0.28], [-7.0 * scaleX + 0.2 * scaleX, totalGlazeH / 2, 0.06]);
+    b.addBox('whitePanel', [0.4 * scaleX, totalGlazeH, 0.28], [7.0 * scaleX - 0.2 * scaleX, totalGlazeH / 2, 0.06]);
+
+    // 3 & 4. Left and Right stained glass sections
+    for (const secX of [-3.5 * scaleX, 3.5 * scaleX]) {
+      // Left fixed glass panel
+      const lpx = secX - doorW / 2 - panelW / 2;
+      b.addBox('glass', [panelW - 0.06, 2.6, 0.04], [lpx, 1.325, 0.02]);
+      b.addBox('glass', [panelW - 0.06, transomH - 0.04, 0.04], [lpx, 2.65 + transomH / 2, 0.02]);
+      b.addBox('darkFrame', [panelW, 0.06, 0.08], [lpx, 2.65, 0.04]);
+      b.addBox('darkFrame', [0.06, totalGlazeH, 0.08], [lpx - panelW / 2, totalGlazeH / 2, 0.04]);
+
+      // Center double entrance door
+      for (const leafSign of [-1, 1]) {
+        const lx = secX + leafSign * (doorW / 4);
+        const ly = doorH / 2;
+        const lz = 0.04;
+        b.addBox('glass', [doorW / 2 - 0.08, doorH - 0.1, 0.03], [lx, ly, lz]);
+        b.addBox('darkFrame', [doorW / 2, 0.08, 0.06], [lx, ly + doorH / 2 - 0.04, lz]);
+        b.addBox('darkFrame', [doorW / 2, 0.08, 0.06], [lx, ly - doorH / 2 + 0.04, lz]);
+        b.addBox('darkFrame', [0.06, doorH, 0.06], [lx - doorW / 4 + 0.03, ly, lz]);
+        b.addBox('darkFrame', [0.06, doorH, 0.06], [lx + doorW / 4 - 0.03, ly, lz]);
+        const hx = lx - leafSign * (doorW / 4 - 0.1);
+        b.addCylinder('steelRail', [0.016, 0.016, 1.2, 12], [hx, ly, lz + 0.07]);
+      }
+      b.addBox('darkFrame', [doorW, 0.25, 0.08], [secX, 2.525, 0.04]);
+      b.addBox('glass', [doorW - 0.06, transomH - 0.04, 0.04], [secX, 2.65 + transomH / 2, 0.02]);
+
+      // Right fixed glass panel
+      const rpx = secX + doorW / 2 + panelW / 2;
+      b.addBox('glass', [panelW - 0.06, 2.6, 0.04], [rpx, 1.325, 0.02]);
+      b.addBox('glass', [panelW - 0.06, transomH - 0.04, 0.04], [rpx, 2.65 + transomH / 2, 0.02]);
+      b.addBox('darkFrame', [panelW, 0.06, 0.08], [rpx, 2.65, 0.04]);
+      b.addBox('darkFrame', [0.06, totalGlazeH, 0.08], [rpx + panelW / 2, totalGlazeH / 2, 0.04]);
+    }
+
+    // 5. Parapet frieze canopy
+    const fy = 3.75 + 0.6;
+    const fz = 0.22;
+    b.addBox('whitePanel', [14.0 * scaleX + 0.6, 1.2, 0.44], [0, fy, fz]);
+    const step = (14.0 * scaleX) / 12;
+    for (let i = 1; i < 12; i++) {
+      const lx = -7.0 * scaleX + i * step;
+      b.addBox('rustication', [0.018, 1.18, 0.015], [lx, fy, fz + 0.225]);
+    }
+    b.addBox('rustication', [14.0 * scaleX + 0.66, 0.04, 0.48], [0, fy + 0.62, fz + 0.01]);
+
+    // 6. Rooftop metal support frame & 3D letters «SUWON HALL»
+    const rx = 0.2;
+    const ry = 4.95;
+    const rz = 0.12;
+    b.addBox('darkFrame', [6.2, 0.04, 0.04], [rx, ry + 0.16, rz]);
+    b.addBox('darkFrame', [6.2, 0.04, 0.04], [rx, ry + 0.62, rz]);
+    for (const sx of [-2.7, -1.35, 0, 1.35, 2.7]) {
+      b.addBox('darkFrame', [0.04, 0.8, 0.08], [rx + sx, ry + 0.4, rz - 0.04]);
+    }
+
     const letters = ['S', 'U', 'W', 'O', 'N', ' ', 'H', 'A', 'L', 'L'];
-    const letterHeight = 0.72; // 720 mm
+    const letterHeight = 0.72;
     const letterSpacing = 0.12;
     const spaceWidth = 0.32;
-
-    const widths: number[] = letters.map((l) =>
+    const widths = letters.map((l) =>
       l === ' ' ? spaceWidth : l === 'W' ? letterHeight * 0.95 : l === 'L' ? letterHeight * 0.65 : letterHeight * 0.75,
     );
     const totalWordWidth = widths.reduce((sum, w) => sum + w, 0) + (letters.length - 1) * letterSpacing;
-
     let curX = -totalWordWidth / 2;
-    const items: Array<{ geom: THREE.BufferGeometry; x: number }> = [];
-
-    letters.forEach((letter, i) => {
+    for (let i = 0; i < letters.length; i++) {
+      const letter = letters[i];
       const lw = widths[i];
       if (letter !== ' ') {
         const geom = createLetterGeometry(letter, letterHeight, 0.08);
-        items.push({ geom, x: curX + lw / 2 });
+        b.addGeometry('blueLetter', geom, [rx + curX + lw / 2, ry + 0.16, rz + 0.08]);
+        geom.dispose();
       }
       curX += lw + letterSpacing;
-    });
-
-    return items;
-  }, []);
-
-  // Vertical panel rustication lines for 1.2m frieze (12 lines spaced every ~1.16m)
-  const friezeRusticationLines = useMemo(() => {
-    const lines: number[] = [];
-    const count = 12;
-    const step = (14.0 * scaleX) / count;
-    for (let i = 1; i < count; i++) {
-      lines.push(-7.0 * scaleX + i * step);
     }
-    return lines;
+
+    return b.buildAll();
   }, [scaleX]);
 
-  // Entrance door and window dimensions
-  const doorW = 2.155 * scaleX;
-  const panelW = 2.16 * scaleX;
-  const totalGlazeH = 3.75;
-  const doorH = 2.4;
-  const transomH = 1.1; // +2.65m to +3.75m
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      {/* 1. Base Granite Plinth / Step (±0.000 to +0.050 m) */}
-      <mesh position={[0, 0.04, 0.08]} material={plinthMat} castShadow receiveShadow>
-        <boxGeometry args={[14.0 * scaleX + 0.4, 0.08, 0.45]} />
-      </mesh>
-
-      {/* 2. Structural Cladding Pillars:
-          - Central Pillar at Axis Б (x = 0)
-          - Left End Pillar at Axis А (x = -7.0 * scaleX)
-          - Right End Pillar at Axis В (x = +7.0 * scaleX) */}
-      <mesh position={[0, totalGlazeH / 2, 0.06]} material={whitePanelMat} castShadow receiveShadow>
-        <boxGeometry args={[0.48 * scaleX, totalGlazeH, 0.28]} />
-      </mesh>
-      <mesh position={[-7.0 * scaleX + (0.2 * scaleX), totalGlazeH / 2, 0.06]} material={whitePanelMat} castShadow receiveShadow>
-        <boxGeometry args={[0.4 * scaleX, totalGlazeH, 0.28]} />
-      </mesh>
-      <mesh position={[7.0 * scaleX - (0.2 * scaleX), totalGlazeH / 2, 0.06]} material={whitePanelMat} castShadow receiveShadow>
-        <boxGeometry args={[0.4 * scaleX, totalGlazeH, 0.28]} />
-      </mesh>
-
-      {/* 3. Left Stained Glass Section (Axes А–Б, 7 000 mm, center at -3.5 * scaleX) */}
-      <group position={[-3.5 * scaleX, 0, 0]}>
-        {/* 3a. Left Fixed Glass Panel (2 160 mm) */}
-        <group position={[-doorW / 2 - panelW / 2, 0, 0]}>
-          {/* Main Lower Pane (0 to +2.65m) */}
-          <mesh position={[0, 1.325, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, 2.6, 0.04]} />
-          </mesh>
-          {/* Upper Transom Pane (Фрамуга, +2.65 to +3.75m) */}
-          <mesh position={[0, 2.65 + transomH / 2, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, transomH - 0.04, 0.04]} />
-          </mesh>
-          {/* Mullion Frame */}
-          <mesh position={[0, 2.65, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[panelW, 0.06, 0.08]} />
-          </mesh>
-          <mesh position={[-panelW / 2, totalGlazeH / 2, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[0.06, totalGlazeH, 0.08]} />
-          </mesh>
-        </group>
-
-        {/* 3b. Center Double Entrance Door (2 155 mm wide, 2 400 mm high) */}
-        <group position={[0, 0, 0]}>
-          {/* Left Door Leaf */}
-          <group position={[-doorW / 4, doorH / 2, 0.04]}>
-            <mesh material={glassMat}>
-              <boxGeometry args={[doorW / 2 - 0.08, doorH - 0.1, 0.03]} />
-            </mesh>
-            {/* Door leaf perimeter frame */}
-            <mesh position={[0, doorH / 2 - 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[0, -doorH / 2 + 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[-doorW / 4 + 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            <mesh position={[doorW / 4 - 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            {/* Long Vertical Pull Handle (Stainless steel rail, Y: 0.85 to 2.05m) */}
-            <mesh position={[doorW / 4 - 0.1, 0, 0.07]} material={steelRailMat} castShadow>
-              <cylinderGeometry args={[0.016, 0.016, 1.2, 16]} />
-            </mesh>
-          </group>
-
-          {/* Right Door Leaf */}
-          <group position={[doorW / 4, doorH / 2, 0.04]}>
-            <mesh material={glassMat}>
-              <boxGeometry args={[doorW / 2 - 0.08, doorH - 0.1, 0.03]} />
-            </mesh>
-            <mesh position={[0, doorH / 2 - 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[0, -doorH / 2 + 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[-doorW / 4 + 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            <mesh position={[doorW / 4 - 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            {/* Long Vertical Pull Handle */}
-            <mesh position={[-doorW / 4 + 0.1, 0, 0.07]} material={steelRailMat} castShadow>
-              <cylinderGeometry args={[0.016, 0.016, 1.2, 16]} />
-            </mesh>
-          </group>
-
-          {/* Door Header Transom Beam (+2.40 to +2.65m) */}
-          <mesh position={[0, 2.525, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[doorW, 0.25, 0.08]} />
-          </mesh>
-
-          {/* Upper Transom Pane above door (+2.65 to +3.75m) */}
-          <mesh position={[0, 2.65 + transomH / 2, 0.02]} material={glassMat}>
-            <boxGeometry args={[doorW - 0.06, transomH - 0.04, 0.04]} />
-          </mesh>
-        </group>
-
-        {/* 3c. Right Fixed Glass Panel (2 160 mm) */}
-        <group position={[doorW / 2 + panelW / 2, 0, 0]}>
-          <mesh position={[0, 1.325, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, 2.6, 0.04]} />
-          </mesh>
-          <mesh position={[0, 2.65 + transomH / 2, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, transomH - 0.04, 0.04]} />
-          </mesh>
-          <mesh position={[0, 2.65, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[panelW, 0.06, 0.08]} />
-          </mesh>
-          <mesh position={[panelW / 2, totalGlazeH / 2, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[0.06, totalGlazeH, 0.08]} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* 4. Right Stained Glass Section (Axes Б–В, 7 000 mm, center at +3.5 * scaleX) */}
-      <group position={[3.5 * scaleX, 0, 0]}>
-        {/* 4a. Left Fixed Glass Panel (2 160 mm) */}
-        <group position={[-doorW / 2 - panelW / 2, 0, 0]}>
-          <mesh position={[0, 1.325, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, 2.6, 0.04]} />
-          </mesh>
-          <mesh position={[0, 2.65 + transomH / 2, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, transomH - 0.04, 0.04]} />
-          </mesh>
-          <mesh position={[0, 2.65, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[panelW, 0.06, 0.08]} />
-          </mesh>
-          <mesh position={[-panelW / 2, totalGlazeH / 2, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[0.06, totalGlazeH, 0.08]} />
-          </mesh>
-        </group>
-
-        {/* 4b. Center Double Entrance Door (2 155 mm wide, 2 400 mm high) */}
-        <group position={[0, 0, 0]}>
-          {/* Left Door Leaf */}
-          <group position={[-doorW / 4, doorH / 2, 0.04]}>
-            <mesh material={glassMat}>
-              <boxGeometry args={[doorW / 2 - 0.08, doorH - 0.1, 0.03]} />
-            </mesh>
-            <mesh position={[0, doorH / 2 - 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[0, -doorH / 2 + 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[-doorW / 4 + 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            <mesh position={[doorW / 4 - 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            <mesh position={[doorW / 4 - 0.1, 0, 0.07]} material={steelRailMat} castShadow>
-              <cylinderGeometry args={[0.016, 0.016, 1.2, 16]} />
-            </mesh>
-          </group>
-
-          {/* Right Door Leaf */}
-          <group position={[doorW / 4, doorH / 2, 0.04]}>
-            <mesh material={glassMat}>
-              <boxGeometry args={[doorW / 2 - 0.08, doorH - 0.1, 0.03]} />
-            </mesh>
-            <mesh position={[0, doorH / 2 - 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[0, -doorH / 2 + 0.04, 0]} material={darkFrameMat}>
-              <boxGeometry args={[doorW / 2, 0.08, 0.06]} />
-            </mesh>
-            <mesh position={[-doorW / 4 + 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            <mesh position={[doorW / 4 - 0.03, 0, 0]} material={darkFrameMat}>
-              <boxGeometry args={[0.06, doorH, 0.06]} />
-            </mesh>
-            <mesh position={[-doorW / 4 + 0.1, 0, 0.07]} material={steelRailMat} castShadow>
-              <cylinderGeometry args={[0.016, 0.016, 1.2, 16]} />
-            </mesh>
-          </group>
-
-          <mesh position={[0, 2.525, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[doorW, 0.25, 0.08]} />
-          </mesh>
-          <mesh position={[0, 2.65 + transomH / 2, 0.02]} material={glassMat}>
-            <boxGeometry args={[doorW - 0.06, transomH - 0.04, 0.04]} />
-          </mesh>
-        </group>
-
-        {/* 4c. Right Fixed Glass Panel (2 160 mm) */}
-        <group position={[doorW / 2 + panelW / 2, 0, 0]}>
-          <mesh position={[0, 1.325, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, 2.6, 0.04]} />
-          </mesh>
-          <mesh position={[0, 2.65 + transomH / 2, 0.02]} material={glassMat}>
-            <boxGeometry args={[panelW - 0.06, transomH - 0.04, 0.04]} />
-          </mesh>
-          <mesh position={[0, 2.65, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[panelW, 0.06, 0.08]} />
-          </mesh>
-          <mesh position={[panelW / 2, totalGlazeH / 2, 0.04]} material={darkFrameMat}>
-            <boxGeometry args={[0.06, totalGlazeH, 0.08]} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* 5. Parapet Frieze Canopy (1 200 mm height, from +3.750 m to +4.950 m) */}
-      <group position={[0, 3.75 + 0.6, 0.22]}>
-        {/* Main Frieze Facade Box */}
-        <mesh material={whitePanelMat} castShadow receiveShadow>
-          <boxGeometry args={[14.0 * scaleX + 0.6, 1.2, 0.44]} />
-        </mesh>
-
-        {/* Vertical panel rustication lines */}
-        {friezeRusticationLines.map((lx, idx) => (
-          <mesh key={`frust-${idx}`} position={[lx, 0, 0.225]} material={rusticationJointMat}>
-            <boxGeometry args={[0.018, 1.18, 0.015]} />
-          </mesh>
-        ))}
-
-        {/* Top Edge Flashing Strip at +4.950 m */}
-        <mesh position={[0, 0.6 + 0.02, 0.01]} material={rusticationJointMat}>
-          <boxGeometry args={[14.0 * scaleX + 0.66, 0.04, 0.48]} />
-        </mesh>
-      </group>
-
-      {/* 6. Rooftop Metal Support Frame & 3D Letters «SUWON HALL» */}
-      <group position={[0.2, 4.95, 0.12]}>
-        {/* Horizontal Metal Frame Rails (steel tubes) */}
-        <mesh position={[0, 0.16, 0]} material={darkFrameMat}>
-          <boxGeometry args={[6.2, 0.04, 0.04]} />
-        </mesh>
-        <mesh position={[0, 0.62, 0]} material={darkFrameMat}>
-          <boxGeometry args={[6.2, 0.04, 0.04]} />
-        </mesh>
-
-        {/* Vertical Frame Support Stanchions (5 posts) */}
-        {[-2.7, -1.35, 0, 1.35, 2.7].map((sx, idx) => (
-          <mesh key={`post-${idx}`} position={[sx, 0.4, -0.04]} material={darkFrameMat}>
-            <boxGeometry args={[0.04, 0.8, 0.08]} />
-          </mesh>
-        ))}
-
-        {/* 3D Blue Letters «SUWON HALL» (Height 720 mm) */}
-        <group position={[0, 0.16, 0.08]}>
-          {lettersData.map(({ geom, x }, idx) => (
-            <mesh key={`letter-${idx}`} position={[x, 0, 0]} geometry={geom} material={blueLetterMat} castShadow />
-          ))}
-        </group>
-      </group>
+      {merged.plinth && <mesh geometry={merged.plinth} material={plinthMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.whitePanel && <mesh geometry={merged.whitePanel} material={whitePanelMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.rustication && <mesh geometry={merged.rustication} material={rusticationJointMat} raycast={NO_RAYCAST} />}
+      {merged.darkFrame && <mesh geometry={merged.darkFrame} material={darkFrameMat} raycast={NO_RAYCAST} />}
+      {merged.glass && <mesh geometry={merged.glass} material={glassMat} raycast={NO_RAYCAST} />}
+      {merged.steelRail && <mesh geometry={merged.steelRail} material={steelRailMat} raycast={NO_RAYCAST} />}
+      {merged.blueLetter && <mesh geometry={merged.blueLetter} material={blueLetterMat} raycast={NO_RAYCAST} />}
     </group>
   );
 }

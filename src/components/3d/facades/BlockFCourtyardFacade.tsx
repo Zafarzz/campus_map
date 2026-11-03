@@ -1,6 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { mergeBufferGeometries } from 'three-stdlib';
+import {
+  StaticGeometryBatcher,
+  disposeMergedMap,
+  NO_RAYCAST,
+} from '../geometry/staticGeometryMerger';
 import { getArchitecturalWallTextures, getWindowGlassTexture } from '../materials/pbrMaterials';
 
 export type BlockFCourtyardFacadeProps = {
@@ -22,30 +26,7 @@ export type BlockFCourtyardFacadeProps = {
 
 /**
  * Architectural 3D Elevation of the Block F Courtyard Ensemble.
- * Reconstructed with 100% fidelity from real-world reference photo:
- * media_1793558789621.jpg:
- *
- * 1. West Facade of Block F (Long 2-Storey Wing on the Right):
- *    - Length: 39.0m (along Z from Z = -77.1m to Z = -38.1m), Height: 8.05m.
- *    - Warm travertine stone wall (#ebdcc5) with subtle PBR relief.
- *    - Dark granite plinth (+0.000 to +0.600m) with white drip-edge molding.
- *    - 10 regular window bays on Ground Floor (1F) and Second Floor (2F).
- *    - Dark graphite aluminum frames with upper transom and twin vertical sashes.
- *    - Deep obsidian reflective tinted glass.
- *    - Projecting white stone sills & lintels.
- *    - 4 Sloped metal-hood basement window covers (приямки цокольного этажа со скошенными козырьками).
- *    - 4 Vertical cylindrical drainpipes (водосточные трубы) with wall mounting brackets.
- *    - Continuous molded white cornice along the top with gutter and sloped metal roof.
- *
- * 2. 1-Storey Corner Entrance Vestibule (Part 0, connecting Block D and Block F):
- *    - Width: 13.5m (along X from X = 44.55m to X = 58.05m at Z = -77.1m).
- *    - 1-storey entrance pavilion (height 4.0m) projecting forward with entrance porch steps.
- *    - Massive white architectural fascia band along the top (+3.200 to +4.000m).
- *    - Full-height floor-to-ceiling panoramic glass entrance doors with handles and mullions.
- *    - Second Floor wall above vestibule (+4.000 to +8.050m) with 3 regular window bays.
- *
- * 3. South End Facade of Block F (Width 19.5m at Z = -38.1m):
- *    - Warm travertine wall, plinth, cornice, and stepped parapet cap.
+ * Reconstructed with 100% fidelity from real-world reference photo.
  */
 export function BlockFCourtyardFacade({
   opacity = 1,
@@ -56,13 +37,10 @@ export function BlockFCourtyardFacade({
   frameColor = '#1e293b',
   roofColor = '#8a99a8',
 }: BlockFCourtyardFacadeProps) {
-  // PBR Textures
   const wallTextures = useMemo(() => getArchitecturalWallTextures(), []);
   const glassTexture = useMemo(() => getWindowGlassTexture(), []);
 
-  // Shared Architectural Materials
   const materials = useMemo(() => {
-    // 1. Warm buff limestone / travertine facade wall
     const wallMat = new THREE.MeshStandardMaterial({
       color: wallColor,
       map: wallTextures?.map ?? null,
@@ -76,7 +54,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 2. Foundation Plinth (dark granite / slate)
     const plinthMat = new THREE.MeshStandardMaterial({
       color: plinthColor,
       roughness: 0.85,
@@ -86,7 +63,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 3. White Architectural Moldings, Cornices, Sills & Vestibule Fascia
     const trimMat = new THREE.MeshStandardMaterial({
       color: trimColor,
       roughness: 0.45,
@@ -96,7 +72,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 4. Dark Graphite Aluminum Window & Door Frames
     const frameMat = new THREE.MeshStandardMaterial({
       color: frameColor,
       roughness: 0.5,
@@ -106,7 +81,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 5. Deep Obsidian Reflective Tinted Glass
     const glassMat = new THREE.MeshStandardMaterial({
       color: '#020617',
       map: glassTexture ?? null,
@@ -118,7 +92,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 6. Dark Interior Window Cavity Backing Box
     const cavityMat = new THREE.MeshBasicMaterial({
       color: '#020408',
       transparent,
@@ -126,7 +99,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 7. Sloped Basement Window Metal Hoods (приямки)
     const hoodMat = new THREE.MeshStandardMaterial({
       color: '#334155',
       roughness: 0.65,
@@ -136,7 +108,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 8. Drainpipe Metal (light grey / off-white)
     const pipeMat = new THREE.MeshStandardMaterial({
       color: '#cbd5e1',
       roughness: 0.4,
@@ -146,7 +117,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 9. Standing Seam Metal Roof Slope
     const roofMat = new THREE.MeshStandardMaterial({
       color: roofColor,
       roughness: 0.55,
@@ -156,7 +126,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 10. Horizontal Stone Rustication Reveal Grooves
     const jointMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(wallColor).multiplyScalar(0.82),
       roughness: 0.92,
@@ -166,7 +135,6 @@ export function BlockFCourtyardFacade({
       depthWrite: !transparent,
     });
 
-    // 11. Stainless Steel Door Push Handles
     const handleMat = new THREE.MeshStandardMaterial({
       color: '#e2e8f0',
       roughness: 0.25,
@@ -188,359 +156,148 @@ export function BlockFCourtyardFacade({
     };
   }, [wallColor, trimColor, plinthColor, frameColor, roofColor, wallTextures, glassTexture, transparent, opacity]);
 
-  // =========================================================================
-  // GEOMETRY DEFINITIONS & DIMENSIONS
-  // =========================================================================
+  const merged = useMemo(() => {
+    const b = new StaticGeometryBatcher();
 
-  // 1. West Facade of Block F (Part 1 courtyard face)
-  // Position in World: X = 52.05m ((525 - 351.5) * 0.3).
-  // Z runs from -80.2m (y=244.67) to -49.2m (y=348) -> Length = 31.0m.
-  const westStartZ = -80.2;
-  const westEndZ = -49.2;
-  const westLength = westEndZ - westStartZ; // 31.0m
-  const westCenterZ = (westStartZ + westEndZ) / 2; // -64.7m
-  const westWallX = 52.05;
-  const wallH = 8.05;
-  const plinthH = 0.6;
+    const westStartZ = -80.2;
+    const westEndZ = -49.2;
+    const westLength = westEndZ - westStartZ;
+    const westCenterZ = (westStartZ + westEndZ) / 2;
+    const westWallX = 52.05;
+    const wallH = 8.05;
+    const plinthH = 0.6;
+    const bayCount = 10;
+    const bayWidth = westLength / bayCount;
+    const winW = 1.6;
+    const winH = 1.75;
+    const f1WinY = 1.85;
+    const f2WinY = 5.45;
 
-  // 10 Window bays spaced along the 31.0m courtyard facade
-  const bayCount = 10;
-  const bayWidth = westLength / bayCount; // 3.1m
-  const winW = 1.6;
-  const winH = 1.75;
-  const f1WinY = 1.85;
-  const f2WinY = 5.45;
-
-  const windowBaysZ = useMemo(() => {
-    const list: number[] = [];
-    for (let i = 0; i < bayCount; i++) {
-      list.push(westStartZ + (i + 0.5) * bayWidth);
+    // 1. West Facade of Block F
+    b.addBox('plinth', [0.22, plinthH, westLength + 0.1], [westWallX - 0.08, plinthH / 2, westCenterZ]);
+    b.addBox('trim', [0.16, 0.08, westLength + 0.15], [westWallX - 0.12, plinthH, westCenterZ]);
+    b.addBox('wall', [0.15, wallH - plinthH, westLength], [westWallX, (wallH + plinthH) / 2, westCenterZ]);
+    for (const gy of [1.35, 2.7, 4.05, 4.95, 6.3, 7.2]) {
+      b.addBox('joint', [0.01, 0.03, westLength], [westWallX - 0.078, gy, westCenterZ]);
     }
-    return list;
-  }, [bayCount, bayWidth, westStartZ]);
+    b.addBox('trim', [0.36, 0.35, westLength + 0.2], [westWallX - 0.18, 8.05, westCenterZ]);
+    b.addBox('trim', [0.28, 0.12, westLength + 0.3], [westWallX - 0.32, 8.28, westCenterZ]);
+    b.addBox('roof', [1.6, 0.08, westLength + 0.2], [westWallX + 0.5, 8.7, westCenterZ], [0, 0, -0.15]);
 
-  // Standard 1.6m x 1.75m Rectangular Window Frame Geometry
-  const standardFrameGeo = useMemo(() => {
-    // Outer frame perimeter
-    const outer = new THREE.BoxGeometry(0.06, winH, winW);
-    // Upper horizontal transom bar (divides upper transom at 0.5m from top)
-    const transom = new THREE.BoxGeometry(0.045, 0.045, winW - 0.08);
-    transom.translate(0.01, winH / 2 - 0.52, 0);
-    // Vertical mullion dividing lower main sash into 2 vertical glass panes
     const lowerH = winH - 0.52;
-    const mullion = new THREE.BoxGeometry(0.045, lowerH - 0.06, 0.045);
-    mullion.translate(0.01, -winH / 2 + lowerH / 2, 0);
+    const addWestWindow = (wy: number, wz: number) => {
+      const wx = westWallX - 0.08;
+      b.addBox('cavity', [0.06, winH - 0.06, winW - 0.06], [wx + 0.035, wy, wz]);
+      b.addBox('frame', [0.06, winH, winW], [wx, wy, wz]);
+      b.addBox('frame', [0.045, 0.045, winW - 0.08], [wx + 0.01, wy + winH / 2 - 0.52, wz]);
+      b.addBox('frame', [0.045, lowerH - 0.06, 0.045], [wx + 0.01, wy - winH / 2 + lowerH / 2, wz]);
+      b.addBox('glass', [0.03, winH - 0.1, winW - 0.1], [wx + 0.015, wy, wz]);
+      b.addBox('trim', [0.18, 0.12, winW + 0.24], [wx - 0.06, wy - winH / 2 - 0.06, wz]);
+      b.addBox('trim', [0.14, 0.1, winW + 0.18], [wx - 0.04, wy + winH / 2 + 0.05, wz]);
+    };
 
-    return mergeBufferGeometries([outer, transom, mullion]) ?? outer;
-  }, [winW, winH]);
+    const windowBaysZ: number[] = [];
+    for (let i = 0; i < bayCount; i++) {
+      const wz = westStartZ + (i + 0.5) * bayWidth;
+      windowBaysZ.push(wz);
+      addWestWindow(f1WinY, wz);
+      addWestWindow(f2WinY, wz);
+    }
 
-  // Standard Stone Sill & Lintel Trim Geometry
-  const standardTrimGeo = useMemo(() => {
-    // Projecting stone sill at bottom
-    const sill = new THREE.BoxGeometry(0.18, 0.12, winW + 0.24);
-    sill.translate(-0.06, -winH / 2 - 0.06, 0);
-    // Projecting stone lintel at top
-    const lintel = new THREE.BoxGeometry(0.14, 0.1, winW + 0.18);
-    lintel.translate(-0.04, winH / 2 + 0.05, 0);
-
-    return mergeBufferGeometries([sill, lintel]) ?? sill;
-  }, [winW, winH]);
-
-  // Sloped Basement Window Metal Hood (приямок) Geometry
-  // A triangular prism wedge sloping down from the wall out onto the pavement
-  const basementHoodGeo = useMemo(() => {
-    const hw = 1.75; // width along Z
-    const projection = 0.95; // outward along X
-    const topH = 0.72; // top at wall
-    const botH = 0.16; // bottom at outer edge
-
+    // Basement hoods
+    const hw = 1.75;
     const shape = new THREE.Shape();
-    // Side profile in (X, Y)
-    shape.moveTo(0, topH);
-    shape.lineTo(-projection, botH);
-    shape.lineTo(-projection, 0);
+    shape.moveTo(0, 0.72);
+    shape.lineTo(-0.95, 0.16);
+    shape.lineTo(-0.95, 0);
     shape.lineTo(0, 0);
     shape.closePath();
+    const hoodGeom = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: hw, bevelEnabled: false });
+    hoodGeom.translate(0, 0, -hw / 2);
 
-    const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-      steps: 1,
-      depth: hw,
-      bevelEnabled: false,
+    for (const bIdx of [2, 4, 6, 8]) {
+      const wz = windowBaysZ[bIdx];
+      const hx = westWallX - 0.08;
+      b.addGeometry('hood', hoodGeom, [hx, 0, wz]);
+      b.addBox('plinth', [0.9, 0.7, 0.08], [hx - 0.45, 0.35, wz - 0.9]);
+      b.addBox('plinth', [0.9, 0.7, 0.08], [hx - 0.45, 0.35, wz + 0.9]);
+    }
+    hoodGeom.dispose();
+
+    // Vertical downspouts
+    for (const bIdx of [1, 4, 7, 9]) {
+      const pz = westStartZ + bIdx * bayWidth;
+      b.addCylinder('pipe', [0.05, 0.05, wallH - 0.4, 12], [westWallX - 0.1, (wallH - 0.4) / 2 + 0.35, pz]);
+      for (let y = 1.5; y <= 7.5; y += 2.0) {
+        b.addBox('pipe', [0.04, 0.03, 0.12], [westWallX - 0.08, y, pz]);
+      }
+    }
+
+    // 2. Corner Entrance Vestibule
+    const vestWidth = 12.0;
+    const vestCenterX = 46.05;
+    const vestZ = -80.2;
+    b.addBox('plinth', [vestWidth + 0.4, 0.22, 2.2], [vestCenterX, 0.11, vestZ + 1.0]);
+    b.addBox('plinth', [vestWidth + 0.6, 0.12, 0.4], [vestCenterX, 0.06, vestZ + 2.2]);
+    b.addBox('trim', [vestWidth + 0.2, 0.8, 0.45], [vestCenterX, 3.6, vestZ + 0.22]);
+    b.addBox('joint', [vestWidth + 0.2, 0.04, 0.46], [vestCenterX, 3.16, vestZ + 0.23]);
+    b.addBox('trim', [vestWidth + 0.3, 0.08, 0.52], [vestCenterX, 4.02, vestZ + 0.25]);
+    b.addBox('wall', [0.8, 3.0, 0.3], [vestCenterX - vestWidth / 2 + 0.4, 1.7, vestZ + 0.1]);
+    b.addBox('wall', [0.8, 3.0, 0.3], [vestCenterX + vestWidth / 2 - 0.4, 1.7, vestZ + 0.1]);
+    b.addBox('glass', [vestWidth - 1.6, 2.92, 0.04], [vestCenterX, 1.68, vestZ + 0.12]);
+    b.addBox('cavity', [vestWidth - 1.6, 2.92, 0.1], [vestCenterX, 1.68, vestZ - 0.05]);
+    for (let mIdx = 0; mIdx < 9; mIdx++) {
+      const mx = vestCenterX - (vestWidth - 1.6) / 2 + mIdx * ((vestWidth - 1.6) / 8);
+      b.addBox('frame', [0.08, 2.92, 0.06], [mx, 1.68, vestZ + 0.15]);
+    }
+    b.addBox('frame', [vestWidth - 1.6, 0.06, 0.06], [vestCenterX, 2.45, vestZ + 0.15]);
+    for (const hx of [-3.0, -1.6, 1.6, 3.0]) {
+      b.addCylinder('handle', [0.018, 0.018, 0.7, 10], [vestCenterX + hx, 1.3, vestZ + 0.2]);
+    }
+
+    // 3. South End Facade
+    const southEndWidth = 20.0;
+    const southEndCenterX = 62.05;
+    const southEndZ = -49.2;
+    b.addBox('plinth', [southEndWidth + 0.1, plinthH, 0.2], [southEndCenterX, plinthH / 2, southEndZ + 0.08]);
+    b.addBox('trim', [southEndWidth + 0.15, 0.08, 0.16], [southEndCenterX, plinthH, southEndZ + 0.12]);
+    b.addBox('wall', [southEndWidth, wallH - plinthH, 0.15], [southEndCenterX, (wallH + plinthH) / 2, southEndZ]);
+    b.addBox('trim', [southEndWidth + 0.2, 0.35, 0.32], [southEndCenterX, 8.05, southEndZ + 0.14]);
+    b.addBox('trim', [southEndWidth + 0.25, 0.15, 0.38], [southEndCenterX, 8.35, southEndZ + 0.18]);
+
+    const addSouthWindow = (wx: number, wy: number) => {
+      const wz = southEndZ + 0.08;
+      b.addBox('frame', [winW, winH, 0.06], [wx, wy, wz]);
+      b.addBox('frame', [winW - 0.08, 0.045, 0.045], [wx, wy + winH / 2 - 0.52, wz + 0.01]);
+      b.addBox('frame', [0.045, lowerH - 0.06, 0.045], [wx, wy - winH / 2 + lowerH / 2, wz + 0.01]);
+      b.addBox('glass', [winW - 0.1, winH - 0.1, 0.03], [wx, wy, wz + 0.015]);
+      b.addBox('trim', [winW + 0.24, 0.12, 0.18], [wx, wy - winH / 2 - 0.06, wz - 0.06]);
+      b.addBox('trim', [winW + 0.18, 0.1, 0.14], [wx, wy + winH / 2 + 0.05, wz - 0.04]);
     };
-    const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    // Center along Z
-    geom.translate(0, 0, -hw / 2);
-    return geom;
+
+    for (const ex of [-6.0, -2.0, 2.0, 6.0]) {
+      addSouthWindow(southEndCenterX + ex, f1WinY);
+      addSouthWindow(southEndCenterX + ex, f2WinY);
+    }
+
+    return b.buildAll();
   }, []);
 
-  // Vertical Downspout Drainpipe Geometry
-  const downspoutGeo = useMemo(() => {
-    const pipe = new THREE.CylinderGeometry(0.05, 0.05, wallH - 0.4, 16);
-    pipe.translate(-0.1, (wallH - 0.4) / 2 + 0.35, 0);
-
-    // Wall mounting bracket rings
-    const ringGeo = new THREE.TorusGeometry(0.06, 0.015, 8, 16);
-    ringGeo.rotateY(Math.PI / 2);
-    const geoms: THREE.BufferGeometry[] = [pipe];
-    for (let y = 1.5; y <= 7.5; y += 2.0) {
-      const ring = ringGeo.clone();
-      ring.translate(-0.08, y, 0);
-      geoms.push(ring);
-    }
-    return mergeBufferGeometries(geoms) ?? pipe;
-  }, [wallH]);
-
-  // Bays with basement lightwell hoods (bays 2, 4, 6, 8 per reference photo)
-  const hoodBayIndices = [2, 4, 6, 8];
-  // Bays with vertical drainpipes (between bays at 1, 4, 7, 9)
-  const pipeBayIndices = [1, 4, 7, 9];
-
-  // 2. Corner Entrance Vestibule Dimensions (D–F hall: 1-storey, 12.0m span at Z = -80.2m)
-  const vestWidth = 12.0;
-  const vestCenterX = (40.05 + 52.05) / 2; // 46.05m
-  const vestZ = -80.2;
-
-  // 3. South End Facade Dimensions (Part 1: 20.0m width at Z = -49.2m)
-  const southEndWidth = 20.0;
-  const southEndCenterX = (52.05 + 72.05) / 2; // 62.05m
-  const southEndZ = -49.2;
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   return (
     <group>
-      {/* ============================================================== */}
-      {/* 1. WEST FACADE OF BLOCK F (Facing Courtyard at X = 52.05m)     */}
-      {/* ============================================================== */}
-      <group position={[westWallX, 0, 0]}>
-        {/* Base Granite Plinth (±0.000 to +0.600m) */}
-        <mesh position={[-0.08, plinthH / 2, westCenterZ]} material={materials.plinthMat} receiveShadow>
-          <boxGeometry args={[0.22, plinthH, westLength + 0.1]} />
-        </mesh>
-        {/* White Stone Plinth Drip Edge Molding at +0.600m */}
-        <mesh position={[-0.12, plinthH, westCenterZ]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[0.16, 0.08, westLength + 0.15]} />
-        </mesh>
-
-        {/* Main Travertine Wall Body (+0.600 to +8.050m) */}
-        <mesh
-          position={[0, (wallH + plinthH) / 2, westCenterZ]}
-          material={materials.wallMat}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[0.15, wallH - plinthH, westLength]} />
-        </mesh>
-
-        {/* Horizontal Travertine Slab Joints every 0.45m */}
-        {[1.35, 2.7, 4.05, 4.95, 6.3, 7.2].map((gy) => (
-          <mesh key={`west-joint-${gy}`} position={[-0.078, gy, westCenterZ]} material={materials.jointMat}>
-            <boxGeometry args={[0.01, 0.03, westLength]} />
-          </mesh>
-        ))}
-
-        {/* Continuous Molded White Cornice & Gutter (+7.850 to +8.250m) */}
-        <mesh position={[-0.18, 8.05, westCenterZ]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[0.36, 0.35, westLength + 0.2]} />
-        </mesh>
-        {/* Sloped Roof Overhang Cap */}
-        <mesh position={[-0.32, 8.28, westCenterZ]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[0.28, 0.12, westLength + 0.3]} />
-        </mesh>
-
-        {/* Sloped Standing Seam Metal Roof Deck (rising from Y=8.2 to 9.2m) */}
-        <mesh
-          position={[0.5, 8.7, westCenterZ]}
-          rotation={[0, 0, -0.15]}
-          material={materials.roofMat}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[1.6, 0.08, westLength + 0.2]} />
-        </mesh>
-
-        {/* Ground Floor (1F) Windows (+1.85m center) */}
-        {windowBaysZ.map((wz, idx) => (
-          <group key={`west-f1-win-${idx}`} position={[-0.08, f1WinY, wz]}>
-            {/* Interior cavity box */}
-            <mesh position={[0.035, 0, 0]} material={materials.cavityMat}>
-              <boxGeometry args={[0.06, winH - 0.06, winW - 0.06]} />
-            </mesh>
-            {/* Frame */}
-            <mesh geometry={standardFrameGeo} material={materials.frameMat} castShadow />
-            {/* Glass */}
-            <mesh position={[0.015, 0, 0]} material={materials.glassMat}>
-              <boxGeometry args={[0.03, winH - 0.1, winW - 0.1]} />
-            </mesh>
-            {/* Stone Sill & Lintel */}
-            <mesh geometry={standardTrimGeo} material={materials.trimMat} castShadow />
-          </group>
-        ))}
-
-        {/* Second Floor (2F) Windows (+5.45m center) */}
-        {windowBaysZ.map((wz, idx) => (
-          <group key={`west-f2-win-${idx}`} position={[-0.08, f2WinY, wz]}>
-            {/* Interior cavity box */}
-            <mesh position={[0.035, 0, 0]} material={materials.cavityMat}>
-              <boxGeometry args={[0.06, winH - 0.06, winW - 0.06]} />
-            </mesh>
-            {/* Frame */}
-            <mesh geometry={standardFrameGeo} material={materials.frameMat} castShadow />
-            {/* Glass */}
-            <mesh position={[0.015, 0, 0]} material={materials.glassMat}>
-              <boxGeometry args={[0.03, winH - 0.1, winW - 0.1]} />
-            </mesh>
-            {/* Stone Sill & Lintel */}
-            <mesh geometry={standardTrimGeo} material={materials.trimMat} castShadow />
-          </group>
-        ))}
-
-        {/* Sloped Basement Window Metal Hoods (приямки) */}
-        {hoodBayIndices.map((bIdx) => {
-          const wz = windowBaysZ[bIdx];
-          return (
-            <group key={`hood-${bIdx}`} position={[-0.08, 0, wz]}>
-              {/* Sloped Metal Hood Body */}
-              <mesh geometry={basementHoodGeo} material={materials.hoodMat} castShadow receiveShadow />
-              {/* Side concrete retaining cheeks */}
-              <mesh position={[-0.45, 0.35, -0.9]} material={materials.plinthMat} castShadow>
-                <boxGeometry args={[0.9, 0.7, 0.08]} />
-              </mesh>
-              <mesh position={[-0.45, 0.35, 0.9]} material={materials.plinthMat} castShadow>
-                <boxGeometry args={[0.9, 0.7, 0.08]} />
-              </mesh>
-            </group>
-          );
-        })}
-
-        {/* Vertical Downspouts (Водосточные трубы) */}
-        {pipeBayIndices.map((bIdx) => {
-          const pz = westStartZ + bIdx * bayWidth;
-          return (
-            <mesh
-              key={`downspout-${bIdx}`}
-              position={[0, 0, pz]}
-              geometry={downspoutGeo}
-              material={materials.pipeMat}
-              castShadow
-            />
-          );
-        })}
-      </group>
-
-      {/* ============================================================== */}
-      {/* 2. 1-STOREY D–F HALL ENTRANCE VESTIBULE (12m span at Z=-80.2m) */}
-      {/* ============================================================== */}
-      <group position={[vestCenterX, 0, vestZ]}>
-        {/* Concrete Entrance Porch Landing Plinth */}
-        <mesh position={[0, 0.11, 1.0]} material={materials.plinthMat} receiveShadow>
-          <boxGeometry args={[vestWidth + 0.4, 0.22, 2.2]} />
-        </mesh>
-        {/* Low Entrance Steps */}
-        <mesh position={[0, 0.06, 2.2]} material={materials.plinthMat} receiveShadow>
-          <boxGeometry args={[vestWidth + 0.6, 0.12, 0.4]} />
-        </mesh>
-
-        {/* 1-Storey Projecting Vestibule Body (+0.22 to +4.00m) */}
-        {/* Massive White Architectural Fascia Band (+3.20 to +4.00m) */}
-        <mesh position={[0, 3.6, 0.22]} material={materials.trimMat} castShadow receiveShadow>
-          <boxGeometry args={[vestWidth + 0.2, 0.8, 0.45]} />
-        </mesh>
-        {/* Recessed Dark Shadow Reveal Line underneath Fascia */}
-        <mesh position={[0, 3.16, 0.23]} material={materials.jointMat}>
-          <boxGeometry args={[vestWidth + 0.2, 0.04, 0.46]} />
-        </mesh>
-        {/* Projecting Top Roof Drip Coping */}
-        <mesh position={[0, 4.02, 0.25]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[vestWidth + 0.3, 0.08, 0.52]} />
-        </mesh>
-
-        {/* Side Solid Wing Walls */}
-        <mesh position={[-vestWidth / 2 + 0.4, 1.7, 0.1]} material={materials.wallMat} castShadow receiveShadow>
-          <boxGeometry args={[0.8, 3.0, 0.3]} />
-        </mesh>
-        <mesh position={[vestWidth / 2 - 0.4, 1.7, 0.1]} material={materials.wallMat} castShadow receiveShadow>
-          <boxGeometry args={[0.8, 3.0, 0.3]} />
-        </mesh>
-
-        {/* Panoramic Glass Entrance Portal (+0.22 to +3.14m) */}
-        {/* Continuous Floor-to-Ceiling Dark Tinted Glass */}
-        <mesh position={[0, 1.68, 0.12]} material={materials.glassMat}>
-          <boxGeometry args={[vestWidth - 1.6, 2.92, 0.04]} />
-        </mesh>
-        {/* Interior Cavity Box */}
-        <mesh position={[0, 1.68, -0.05]} material={materials.cavityMat}>
-          <boxGeometry args={[vestWidth - 1.6, 2.92, 0.1]} />
-        </mesh>
-
-        {/* Aluminum Door & Window Mullion Grid (4 Double Doors = 8 glass bays) */}
-        {Array.from({ length: 9 }).map((_, mIdx) => {
-          const mx = -(vestWidth - 1.6) / 2 + mIdx * ((vestWidth - 1.6) / 8);
-          return (
-            <mesh key={`vest-mullion-${mIdx}`} position={[mx, 1.68, 0.15]} material={materials.frameMat} castShadow>
-              <boxGeometry args={[0.08, 2.92, 0.06]} />
-            </mesh>
-          );
-        })}
-        {/* Horizontal Transom at Y = 2.45m */}
-        <mesh position={[0, 2.45, 0.15]} material={materials.frameMat} castShadow>
-          <boxGeometry args={[vestWidth - 1.6, 0.06, 0.06]} />
-        </mesh>
-
-        {/* Stainless Steel Vertical Door Handles on 4 Main Entrance Doors */}
-        {[-3.0, -1.6, 1.6, 3.0].map((hx, hIdx) => (
-          <group key={`door-handle-${hIdx}`} position={[hx, 1.3, 0.2]}>
-            <mesh material={materials.handleMat} castShadow>
-              <cylinderGeometry args={[0.018, 0.018, 0.7, 12]} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-
-      {/* ============================================================== */}
-      {/* 3. SOUTH END FACADE OF BLOCK F (Width 20.0m at Z = -49.2m)     */}
-      {/* ============================================================== */}
-      <group position={[southEndCenterX, 0, southEndZ]}>
-        {/* Plinth */}
-        <mesh position={[0, plinthH / 2, 0.08]} material={materials.plinthMat} receiveShadow>
-          <boxGeometry args={[southEndWidth + 0.1, plinthH, 0.2]} />
-        </mesh>
-        {/* Plinth Drip Molding */}
-        <mesh position={[0, plinthH, 0.12]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[southEndWidth + 0.15, 0.08, 0.16]} />
-        </mesh>
-        {/* Wall Body */}
-        <mesh position={[0, (wallH + plinthH) / 2, 0]} material={materials.wallMat} castShadow receiveShadow>
-          <boxGeometry args={[southEndWidth, wallH - plinthH, 0.15]} />
-        </mesh>
-        {/* White Cornice & Parapet Cap (+7.85 to +8.35m) */}
-        <mesh position={[0, 8.05, 0.14]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[southEndWidth + 0.2, 0.35, 0.32]} />
-        </mesh>
-        <mesh position={[0, 8.35, 0.18]} material={materials.trimMat} castShadow>
-          <boxGeometry args={[southEndWidth + 0.25, 0.15, 0.38]} />
-        </mesh>
-
-        {/* 4 Windows on 1F and 4 Windows on 2F */}
-        {[-6.0, -2.0, 2.0, 6.0].map((ex, eIdx) => (
-          <group key={`south-end-wins-${eIdx}`}>
-            {/* 1F */}
-            <group position={[ex, f1WinY, 0.08]} rotation={[0, Math.PI / 2, 0]}>
-              <mesh geometry={standardFrameGeo} material={materials.frameMat} castShadow />
-              <mesh position={[0.015, 0, 0]} material={materials.glassMat}>
-                <boxGeometry args={[0.03, winH - 0.1, winW - 0.1]} />
-              </mesh>
-              <mesh geometry={standardTrimGeo} material={materials.trimMat} castShadow />
-            </group>
-            {/* 2F */}
-            <group position={[ex, f2WinY, 0.08]} rotation={[0, Math.PI / 2, 0]}>
-              <mesh geometry={standardFrameGeo} material={materials.frameMat} castShadow />
-              <mesh position={[0.015, 0, 0]} material={materials.glassMat}>
-                <boxGeometry args={[0.03, winH - 0.1, winW - 0.1]} />
-              </mesh>
-              <mesh geometry={standardTrimGeo} material={materials.trimMat} castShadow />
-            </group>
-          </group>
-        ))}
-      </group>
+      {merged.plinth && <mesh geometry={merged.plinth} material={materials.plinthMat} receiveShadow raycast={NO_RAYCAST} />}
+      {merged.wall && <mesh geometry={merged.wall} material={materials.wallMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.trim && <mesh geometry={merged.trim} material={materials.trimMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.frame && <mesh geometry={merged.frame} material={materials.frameMat} raycast={NO_RAYCAST} />}
+      {merged.glass && <mesh geometry={merged.glass} material={materials.glassMat} raycast={NO_RAYCAST} />}
+      {merged.cavity && <mesh geometry={merged.cavity} material={materials.cavityMat} raycast={NO_RAYCAST} />}
+      {merged.hood && <mesh geometry={merged.hood} material={materials.hoodMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.pipe && <mesh geometry={merged.pipe} material={materials.pipeMat} raycast={NO_RAYCAST} />}
+      {merged.roof && <mesh geometry={merged.roof} material={materials.roofMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.joint && <mesh geometry={merged.joint} material={materials.jointMat} raycast={NO_RAYCAST} />}
+      {merged.handle && <mesh geometry={merged.handle} material={materials.handleMat} raycast={NO_RAYCAST} />}
     </group>
   );
 }

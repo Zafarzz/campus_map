@@ -22,6 +22,7 @@ import { BlockEFacade } from './facades/BlockEFacade';
 import { BlockFCourtyardFacade } from './facades/BlockFCourtyardFacade';
 import { SportsComplexRoof, SportsComplexFrontFacade } from './facades/SportsComplexFacade';
 import { getArchitecturalWallTextures, getWindowGlassTexture } from './materials/pbrMaterials';
+import { NO_RAYCAST } from './geometry/staticGeometryMerger';
 
 type Props = {
   building: BuildingData;
@@ -367,8 +368,10 @@ function InstancedWindows({
     const glassMesh = new THREE.InstancedMesh(sharedWindowGlassGeo, glassMaterial, count);
     frameMesh.castShadow = false;
     frameMesh.receiveShadow = true;
+    frameMesh.raycast = NO_RAYCAST;
     glassMesh.castShadow = false;
     glassMesh.receiveShadow = false;
+    glassMesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     let idx = 0;

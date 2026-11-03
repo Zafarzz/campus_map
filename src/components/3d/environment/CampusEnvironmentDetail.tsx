@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { CampusGeometry, Footprint } from '../../../domain/geometry/types';
+import { NO_RAYCAST } from '../geometry/staticGeometryMerger';
 
 export interface StreetLampSpec {
   x: number;
@@ -481,6 +482,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, lamps.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <cylinderGeometry args={[0.065, 0.1, 4.6, 8]} />
               <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.75} />
@@ -491,13 +493,18 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               ref={armMeshRef}
               args={[undefined, undefined, lamps.length]}
               castShadow={castPropShadow}
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[0.06, 0.06, 0.55]} />
               <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.75} />
             </instancedMesh>
 
             {/* Street Lamp Lantern Globes */}
-            <instancedMesh ref={lanternMeshRef} args={[undefined, undefined, lamps.length]}>
+            <instancedMesh
+              ref={lanternMeshRef}
+              args={[undefined, undefined, lamps.length]}
+              raycast={NO_RAYCAST}
+            >
               <cylinderGeometry args={[0.16, 0.11, 0.26, 8]} />
               <meshStandardMaterial
                 color={enableNightLights ? '#fef3c7' : '#f8fafc'}
@@ -526,6 +533,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, benches.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[1.85, 0.08, 0.52]} />
               <meshStandardMaterial color="#92400e" roughness={0.72} metalness={0.08} />
@@ -537,6 +545,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, benches.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[1.85, 0.42, 0.07]} />
               <meshStandardMaterial color="#b45309" roughness={0.7} metalness={0.08} />
@@ -547,6 +556,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               ref={benchLegsRef}
               args={[undefined, undefined, benches.length]}
               castShadow={castPropShadow}
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[1.65, 0.42, 0.46]} />
               <meshStandardMaterial color="#1e293b" roughness={0.5} metalness={0.7} />
@@ -558,6 +568,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, bins.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <cylinderGeometry args={[0.22, 0.2, 0.82, 10]} />
               <meshStandardMaterial color="#334155" roughness={0.45} metalness={0.6} />
@@ -569,13 +580,18 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, totems.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[0.68, 2.7, 0.18]} />
               <meshStandardMaterial color="#1e3a8a" roughness={0.35} metalness={0.45} />
             </instancedMesh>
 
             {/* Wayfinding Illuminated Gold Accent Header */}
-            <instancedMesh ref={totemHeaderRef} args={[undefined, undefined, totems.length]}>
+            <instancedMesh
+              ref={totemHeaderRef}
+              args={[undefined, undefined, totems.length]}
+              raycast={NO_RAYCAST}
+            >
               <boxGeometry args={[0.7, 0.34, 0.2]} />
               <meshStandardMaterial
                 color="#f59e0b"
@@ -594,6 +610,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
             <instancedMesh
               ref={birdsRef}
               args={[soaringBirdGeo, undefined, birdCount]}
+              raycast={NO_RAYCAST}
             >
               <meshBasicMaterial color="#334155" side={THREE.DoubleSide} />
             </instancedMesh>

@@ -13,8 +13,8 @@ export function getAtticBannerTexture(): THREE.CanvasTexture | null {
   if (cachedAtticTexture) return cachedAtticTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 256;
+  canvas.width = 1024;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -24,19 +24,19 @@ export function getAtticBannerTexture(): THREE.CanvasTexture | null {
 
   // Subtle stone joint borders
   ctx.strokeStyle = '#d5ccbc';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
 
   // Text setup
   ctx.fillStyle = '#2d2824';
-  ctx.font = 'bold 82px "Montserrat", "Arial", sans-serif';
+  ctx.font = 'bold 41px "Montserrat", "Arial", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   // Crisp embossed shadow
   ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
   ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 2;
+  ctx.shadowOffsetY = 1;
   ctx.shadowBlur = 0;
 
   const text = 'TOSHKENT SHAHRIDAGI ADJU UNIVERSITETI';
@@ -58,8 +58,8 @@ export function getCanopySignTexture(): THREE.CanvasTexture | null {
   if (cachedCanopyTexture) return cachedCanopyTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 256;
+  canvas.width = 1024;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -69,14 +69,14 @@ export function getCanopySignTexture(): THREE.CanvasTexture | null {
 
   // High-contrast clean architectural text
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 96px "Montserrat", "Arial", sans-serif';
+  ctx.font = 'bold 48px "Montserrat", "Arial", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
   ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 3;
-  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  ctx.shadowBlur = 2;
 
   const text = 'AJOU UNIVERSITY IN TASHKENT';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -102,8 +102,8 @@ export function getAjouEnglishFriezeTexture(): THREE.CanvasTexture | null {
   if (cachedEnglishFriezeTexture) return cachedEnglishFriezeTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 4096;
-  canvas.height = 512;
+  canvas.width = 2048;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -113,40 +113,40 @@ export function getAjouEnglishFriezeTexture(): THREE.CanvasTexture | null {
 
   // Architectural panel border
   ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(6, 6, canvas.width - 12, canvas.height - 12);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
 
   // Horizontal reveal shadow lines top and bottom
   ctx.fillStyle = '#cbd5e1';
-  ctx.fillRect(6, 12, canvas.width - 12, 4);
-  ctx.fillRect(6, canvas.height - 16, canvas.width - 12, 4);
+  ctx.fillRect(3, 6, canvas.width - 6, 2);
+  ctx.fillRect(3, canvas.height - 8, canvas.width - 6, 2);
 
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
 
   // Volumetric English text: "AJOU UNIVERSITY IN TASHKENT" (calibrated height to fit cleanly below cornice)
-  ctx.font = '900 160px "Montserrat", "Arial Black", "Arial", sans-serif';
+  ctx.font = '900 80px "Montserrat", "Arial Black", "Arial", sans-serif';
   if ('letterSpacing' in ctx) {
-    ctx.letterSpacing = '6px';
+    ctx.letterSpacing = '3px';
   }
   ctx.shadowColor = 'rgba(0, 43, 102, 0.35)';
-  ctx.shadowOffsetX = 4;
-  ctx.shadowOffsetY = 6;
-  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 3;
 
   // Dark navy stroke outline + rich cobalt/navy fill
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 4;
   ctx.strokeStyle = '#001433';
-  ctx.strokeText('AJOU UNIVERSITY IN TASHKENT', canvas.width / 2, canvas.height / 2 + 4);
+  ctx.strokeText('AJOU UNIVERSITY IN TASHKENT', canvas.width / 2, canvas.height / 2 + 2);
   ctx.fillStyle = '#002b66';
-  ctx.fillText('AJOU UNIVERSITY IN TASHKENT', canvas.width / 2, canvas.height / 2 + 4);
+  ctx.fillText('AJOU UNIVERSITY IN TASHKENT', canvas.width / 2, canvas.height / 2 + 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  texture.anisotropy = 16;
+  texture.anisotropy = 8;
   texture.needsUpdate = true;
   cachedEnglishFriezeTexture = texture;
   return texture;
@@ -162,8 +162,8 @@ export function getAjouKoreanFriezeTexture(): THREE.CanvasTexture | null {
   if (cachedKoreanFriezeTexture) return cachedKoreanFriezeTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 3072;
-  canvas.height = 512;
+  canvas.width = 1536;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -173,40 +173,40 @@ export function getAjouKoreanFriezeTexture(): THREE.CanvasTexture | null {
 
   // Architectural panel border
   ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(6, 6, canvas.width - 12, canvas.height - 12);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
 
   // Horizontal reveal shadow lines top and bottom
   ctx.fillStyle = '#cbd5e1';
-  ctx.fillRect(6, 12, canvas.width - 12, 4);
-  ctx.fillRect(6, canvas.height - 16, canvas.width - 12, 4);
+  ctx.fillRect(3, 6, canvas.width - 6, 2);
+  ctx.fillRect(3, canvas.height - 8, canvas.width - 6, 2);
 
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
 
   // Volumetric Korean CJK typography using installed Noto Sans CJK KR: "아주대학교 타슈켄트"
-  ctx.font = '900 170px "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+  ctx.font = '900 85px "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
   if ('letterSpacing' in ctx) {
-    ctx.letterSpacing = '8px';
+    ctx.letterSpacing = '4px';
   }
   ctx.shadowColor = 'rgba(0, 43, 102, 0.35)';
-  ctx.shadowOffsetX = 4;
-  ctx.shadowOffsetY = 6;
-  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 3;
 
   // Dual-pass stroke + fill for razor-sharp legibility
-  ctx.lineWidth = 9;
+  ctx.lineWidth = 4.5;
   ctx.strokeStyle = '#001433';
-  ctx.strokeText('아주대학교 타슈켄트', canvas.width / 2, canvas.height / 2 + 4);
+  ctx.strokeText('아주대학교 타슈켄트', canvas.width / 2, canvas.height / 2 + 2);
   ctx.fillStyle = '#002b66';
-  ctx.fillText('아주대학교 타슈켄트', canvas.width / 2, canvas.height / 2 + 4);
+  ctx.fillText('아주대학교 타슈켄트', canvas.width / 2, canvas.height / 2 + 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  texture.anisotropy = 16;
+  texture.anisotropy = 8;
   texture.needsUpdate = true;
   cachedKoreanFriezeTexture = texture;
   return texture;
@@ -223,9 +223,8 @@ export function getAjouDualFriezeTexture(): THREE.CanvasTexture | null {
   if (cachedDualFriezeTexture) return cachedDualFriezeTexture;
 
   const canvas = document.createElement('canvas');
-  // High-density 8K canvas for ultra-sharp letterforms at steep oblique viewing angles
-  canvas.width = 8192;
-  canvas.height = 512;
+  canvas.width = 2048;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -235,53 +234,53 @@ export function getAjouDualFriezeTexture(): THREE.CanvasTexture | null {
 
   // Architectural architrave panel border
   ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
 
   // Subtle horizontal reveal shadow line along top and bottom
   ctx.fillStyle = '#cbd5e1';
-  ctx.fillRect(8, 16, canvas.width - 16, 6);
-  ctx.fillRect(8, canvas.height - 22, canvas.width - 16, 6);
+  ctx.fillRect(3, 6, canvas.width - 6, 2);
+  ctx.fillRect(3, canvas.height - 8, canvas.width - 6, 2);
 
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
 
-  // 1. English text centered over Bays 2–3 (Axes 2–4, center at 2730 px):
-  ctx.font = '900 190px "Montserrat", "Arial Black", "Arial", sans-serif';
+  // 1. English text centered over Bays 2–3:
+  ctx.font = '900 48px "Montserrat", "Arial Black", "Arial", sans-serif';
   if ('letterSpacing' in ctx) {
-    ctx.letterSpacing = '4px';
+    ctx.letterSpacing = '1px';
   }
   ctx.shadowColor = 'rgba(0, 43, 102, 0.4)';
-  ctx.shadowOffsetX = 5;
-  ctx.shadowOffsetY = 8;
-  ctx.shadowBlur = 6;
-  ctx.lineWidth = 10;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 2;
+  ctx.lineWidth = 3;
   ctx.strokeStyle = '#001433';
-  ctx.strokeText('AJOU UNIVERSITY IN TASHKENT', 2730, canvas.height / 2);
+  ctx.strokeText('AJOU UNIVERSITY IN TASHKENT', 682, canvas.height / 2);
   ctx.fillStyle = '#002b66';
-  ctx.fillText('AJOU UNIVERSITY IN TASHKENT', 2730, canvas.height / 2);
+  ctx.fillText('AJOU UNIVERSITY IN TASHKENT', 682, canvas.height / 2);
 
-  // 2. Korean text centered over Bay 5 (Axes 5–6, center at 6144 px):
-  ctx.font = '900 200px "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "NanumGothic", "Arial Unicode MS", sans-serif';
+  // 2. Korean text centered over Bay 5:
+  ctx.font = '900 50px "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "NanumGothic", "Arial Unicode MS", sans-serif';
   if ('letterSpacing' in ctx) {
-    ctx.letterSpacing = '8px';
+    ctx.letterSpacing = '2px';
   }
   ctx.shadowColor = 'rgba(0, 43, 102, 0.45)';
-  ctx.shadowOffsetX = 5;
-  ctx.shadowOffsetY = 8;
-  ctx.shadowBlur = 6;
-  ctx.lineWidth = 12;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 2;
+  ctx.lineWidth = 3;
   ctx.strokeStyle = '#001433';
-  ctx.strokeText('아주대학교 타슈켄트', 6144, canvas.height / 2);
+  ctx.strokeText('아주대학교 타슈켄트', 1536, canvas.height / 2);
   ctx.fillStyle = '#002b66';
-  ctx.fillText('아주대학교 타슈켄트', 6144, canvas.height / 2);
+  ctx.fillText('아주대학교 타슈켄트', 1536, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  texture.anisotropy = 16;
+  texture.anisotropy = 8;
   texture.needsUpdate = true;
   cachedDualFriezeTexture = texture;
   return texture;

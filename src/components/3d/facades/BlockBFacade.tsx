@@ -1,5 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import {
+  NO_RAYCAST,
+  StaticGeometryBatcher,
+  disposeMergedMap,
+} from '../geometry/staticGeometryMerger';
 import { getArchitecturalWallTextures, getWindowGlassTexture } from '../materials/pbrMaterials';
 import { BlockBLandscape } from './BlockBLandscape';
 
@@ -39,35 +44,19 @@ function createTriangularDormerGeometry(baseWidth: number, height: number, depth
 
 /**
  * Highly accurate 3D architectural facade for Block B (Учебный корпус №2), facing the courtyard/driveway.
- * Reconstructed directly from CAD blueprints:
- * 1. "ФАСАД В ОСЯХ 1-24" (М 1:100) — Section 1-1, full 4-storey volume.
- * 2. "Фасад в осях 1-20 / Благоустройство территории" — Perspective & landscaping.
- *
- * Composition (Axes 1–24):
- * - Total length: 55.0m, 4 storeys (13.2m to cornice, 15.2m to ridge).
- * - Section 1 (axes 1–5): 4 standard 3-pane window bays with top transoms.
- * - Section 2 (axes 5–14):
- *     - Staircase core: horizontal ribbon windows (floors 2–4) & entrance door (floor 1).
- *     - 4 standard 3-pane window bays with top transoms.
- * - Section 3 (axes 15–24):
- *     - Staircase core: horizontal ribbon windows (floors 2–4) & entrance door (floor 1).
- *     - 3 standard 3-pane window bays with top transoms.
- * - Roof: 2 triangular dormers (слуховые окна) on the hip roof slope over the staircase bays.
- * - Downpipes: 4 full-height vertical downpipes with hoppers and shoes.
- * - Landscaping: Architectural gazebo (Беседка) and elevated heating pipeline with П-образный компенсатор.
+ * Optimized via StaticGeometryBatcher: merges all 44 classroom windows, stair ribbon windows, dormers,
+ * rustication joints, and downpipes into 8 material-batched draw calls instead of ~340 individual meshes.
  */
 export function BlockBFacade({
   buildingWidth,
   buildingDepth,
   facing = 'north',
   wallHeight = 14.4,
-  roofHeight = 3.6,
   opacity = 1,
   transparent = false,
   wallColor = '#ebdcc5',
   trimColor = '#f1e6cf',
   plinthColor = '#5c2d22',
-  frameColor = '#4a5561',
   roofColor = '#991b1b',
   includeLandscape = true,
 }: BlockBFacadeProps) {
@@ -80,419 +69,247 @@ export function BlockBFacade({
   const signX = 1;
   const wallZ = sign * (buildingDepth / 2);
 
-  const plinthHeight = 1.0; // Plinth up to +1.000m
-  const glassColor = '#0f172a'; // Deep architectural tinted glass
-  const pipeColor = '#853629'; // Terracotta downpipes
+  const plinthHeight = 1.0;
+  const glassColor = '#0f172a';
+  const pipeColor = '#853629';
 
   const wallTextures = useMemo(() => getArchitecturalWallTextures(14, 4), []);
   const glassTexture = useMemo(() => getWindowGlassTexture(), []);
 
-  // Materials
-  const wallMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: wallColor,
-        map: wallTextures?.map ?? null,
-        normalMap: wallTextures?.normalMap ?? null,
-        normalScale: new THREE.Vector2(0.25, 0.25),
-        roughnessMap: wallTextures?.roughnessMap ?? null,
-        roughness: 0.78,
-        metalness: 0.03,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [wallColor, wallTextures, transparent, opacity]
-  );
+  const materials = useMemo(() => {
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: wallColor,
+      map: wallTextures?.map ?? null,
+      normalMap: wallTextures?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.25, 0.25),
+      roughnessMap: wallTextures?.roughnessMap ?? null,
+      roughness: 0.78,
+      metalness: 0.03,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  const plinthMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: plinthColor,
-        roughness: 0.85,
-        metalness: 0.06,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [plinthColor, transparent, opacity]
-  );
+    const plinthMat = new THREE.MeshStandardMaterial({
+      color: plinthColor,
+      roughness: 0.85,
+      metalness: 0.06,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  const trimMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: trimColor,
-        roughness: 0.7,
-        metalness: 0.05,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [trimColor, transparent, opacity]
-  );
+    const trimMat = new THREE.MeshStandardMaterial({
+      color: trimColor,
+      roughness: 0.7,
+      metalness: 0.05,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  const frameMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#27272a',
-        roughness: 0.35,
-        metalness: 0.65,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [transparent, opacity]
-  );
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: '#27272a',
+      roughness: 0.35,
+      metalness: 0.65,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  const glassMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: glassColor,
-        map: glassTexture ?? null,
-        roughness: 0.12,
-        metalness: 0.78,
-        envMapIntensity: 1.45,
-        transparent: true,
-        opacity: transparent ? opacity * 0.85 : 0.94,
-        depthWrite: !transparent,
-      }),
-    [glassColor, glassTexture, transparent, opacity]
-  );
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: glassColor,
+      map: glassTexture ?? null,
+      roughness: 0.12,
+      metalness: 0.78,
+      envMapIntensity: 1.45,
+      transparent: true,
+      opacity: transparent ? opacity * 0.85 : 0.94,
+      depthWrite: !transparent,
+    });
 
-  const jointMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(wallColor).multiplyScalar(0.85),
-        roughness: 0.9,
-        metalness: 0,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [wallColor, transparent, opacity]
-  );
+    const jointMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(wallColor).multiplyScalar(0.85),
+      roughness: 0.9,
+      metalness: 0,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  const roofMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: roofColor,
-        roughness: 0.7,
-        metalness: 0.1,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [roofColor, transparent, opacity]
-  );
+    const roofMat = new THREE.MeshStandardMaterial({
+      color: roofColor,
+      roughness: 0.7,
+      metalness: 0.1,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  const pipeMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: pipeColor,
-        roughness: 0.5,
-        metalness: 0.5,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
-    [pipeColor, transparent, opacity]
-  );
+    const pipeMat = new THREE.MeshStandardMaterial({
+      color: pipeColor,
+      roughness: 0.5,
+      metalness: 0.5,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+    });
 
-  // 13 Window Bays across axes 1 to 24:
-  // Section 1: 4 standard bays
-  const leftBayOffsets = [-24.0, -20.2, -16.4, -12.6];
-  // Left Staircase Core: 1 bay
-  const leftStairOffset = -9.2;
-  // Section 2: 4 standard bays
-  const midBayOffsets = [-5.8, -2.0, 1.8, 5.6];
-  // Right Staircase Core: 1 bay
-  const rightStairOffset = 9.2;
-  // Section 3: 3 standard bays
-  const rightBayOffsets = [13.5, 18.0, 22.5];
+    return { wallMat, plinthMat, trimMat, frameMat, glassMat, jointMat, roofMat, pipeMat };
+  }, [wallColor, plinthColor, trimColor, roofColor, wallTextures, glassTexture, transparent, opacity]);
 
-  // Combined standard classroom window bays (11 bays)
-  const standardBayOffsets = [...leftBayOffsets, ...midBayOffsets, ...rightBayOffsets];
+  const merged = useMemo(() => {
+    const batcher = new StaticGeometryBatcher();
 
-  // 2 Staircase bays
-  const stairBayOffsets = [leftStairOffset, rightStairOffset];
+    const standardBayOffsets = [-24.0, -20.2, -16.4, -12.6, -5.8, -2.0, 1.8, 5.6, 13.5, 18.0, 22.5];
+    const stairBayOffsets = [-9.2, 9.2];
+    const downpipeOffsets = [-26.8, -10.8, 7.5, 26.8];
 
-  // Downpipes at 4 structural boundaries
-  const downpipeOffsets = [-26.8, -10.8, 7.5, 26.8];
+    const floorHeight = (wallHeight - plinthHeight) / 4;
+    const floorCenterYs = [
+      plinthHeight + floorHeight * 0.45,
+      plinthHeight + floorHeight * 1.42,
+      plinthHeight + floorHeight * 2.42,
+      plinthHeight + floorHeight * 3.42,
+    ];
 
-  // Floor heights calculation
-  const floorHeight = (wallHeight - plinthHeight) / 4;
-  const floorCenterYs = [
-    plinthHeight + floorHeight * 0.45, // Floor 1
-    plinthHeight + floorHeight * 1.42, // Floor 2
-    plinthHeight + floorHeight * 2.42, // Floor 3
-    plinthHeight + floorHeight * 3.42, // Floor 4
-  ];
+    // 1. Plinth & Main Wall
+    batcher.addBox('plinth', [facadeWidth + 0.1, plinthHeight, 0.22], [0, plinthHeight / 2, sign * 0.08]);
+    batcher.addBox('trim', [facadeWidth + 0.15, 0.06, 0.16], [0, plinthHeight + 0.03, sign * 0.12]);
+    batcher.addBox('wall', [facadeWidth, wallHeight, 0.15], [0, wallHeight / 2, 0]);
 
-  // Horizontal rustication seams (panel joints across all 4 floors)
-  const rusticationLines = useMemo(() => {
-    const lines: number[] = [plinthHeight];
+    // 2. Rustication seams & vertical joints
+    batcher.addBox('joint', [facadeWidth, 0.025, 0.01], [0, plinthHeight, sign * 0.078]);
     for (let f = 0; f < 4; f++) {
       const base = plinthHeight + f * floorHeight;
-      lines.push(base + floorHeight * 0.15); // Sill level
-      lines.push(base + floorHeight * 0.72); // Lintel level
-      lines.push(base + floorHeight);        // Floor division
+      for (const yVal of [base + floorHeight * 0.15, base + floorHeight * 0.72, base + floorHeight]) {
+        batcher.addBox('joint', [facadeWidth, 0.025, 0.01], [0, yVal, sign * 0.078]);
+      }
     }
-    return lines;
-  }, [plinthHeight, floorHeight]);
+    for (const jx of [-10.8, 7.5]) {
+      batcher.addBox('joint', [0.04, wallHeight, 0.015], [jx * scaleX * signX, wallHeight / 2, sign * 0.078]);
+    }
 
-  // Dormer Geometries for the 2 triangular dormers on the roof
-  const dormerWallGeo = useMemo(() => createTriangularDormerGeometry(2.4 * scaleX, 1.7, 1.4), [scaleX]);
-  const dormerFrameGeo = useMemo(() => createTriangularDormerGeometry(1.6 * scaleX, 1.15, 0.08), [scaleX]);
-  const dormerGlassGeo = useMemo(() => createTriangularDormerGeometry(1.48 * scaleX, 1.05, 0.04), [scaleX]);
+    // 3. 44 Standard Classroom Windows
+    const ww = 2.4 * scaleX;
+    const wh = 1.8;
+    const wz = sign * 0.08;
+    for (const bayX of standardBayOffsets) {
+      const wx = bayX * scaleX * signX;
+      for (const wy of floorCenterYs) {
+        batcher.addBox('frame', [ww, wh, 0.06], [wx, wy, wz]);
+        batcher.addBox('glass', [ww - 0.12 * scaleX, wh - 0.14, 0.03], [wx, wy, wz + sign * 0.025]);
+        for (const mx of [-ww / 3, ww / 3]) {
+          batcher.addBox('frame', [0.06 * scaleX, wh - 0.14, 0.04], [wx + mx, wy, wz + sign * 0.045]);
+        }
+        batcher.addBox('frame', [ww - 0.12 * scaleX, 0.05, 0.04], [wx, wy + wh / 2 - 0.45, wz + sign * 0.045]);
+        batcher.addBox('trim', [ww + 0.3 * scaleX, 0.1, 0.18], [wx, wy - wh / 2 - 0.05, wz + sign * 0.06]);
+        batcher.addBox('trim', [ww + 0.2 * scaleX, 0.08, 0.14], [wx, wy + wh / 2 + 0.05, wz + sign * 0.04]);
+      }
+    }
+
+    // 4. Staircase Bays
+    const ribbonW = 2.8 * scaleX;
+    const ribbonH = 0.75;
+    for (const stairX of stairBayOffsets) {
+      const sx = stairX * scaleX * signX;
+      const dy = floorCenterYs[0] - 0.1;
+
+      batcher.addBox('frame', [2.4 * scaleX, 2.3, 0.06], [sx, dy, wz]);
+      batcher.addBox('glass', [2.24 * scaleX, 2.14, 0.03], [sx, dy, wz + sign * 0.025]);
+      batcher.addBox('frame', [0.06 * scaleX, 2.14, 0.05], [sx, dy, wz + sign * 0.045]);
+      batcher.addBox('trim', [2.8 * scaleX, 0.12, 0.8], [sx, dy + 1.25, wz + sign * 0.4]);
+      for (const hx of [-0.15 * scaleX, 0.15 * scaleX]) {
+        batcher.addBox('trim', [0.04, 0.7, 0.03], [sx + hx, dy, wz + sign * 0.07]);
+      }
+
+      for (const fIdx of [1, 2, 3]) {
+        const ry = floorCenterYs[fIdx] + 0.35;
+        batcher.addBox('frame', [ribbonW, ribbonH, 0.06], [sx, ry, wz]);
+        batcher.addBox('glass', [ribbonW - 0.12 * scaleX, ribbonH - 0.12, 0.03], [sx, ry, wz + sign * 0.025]);
+        for (const mx of [-ribbonW * 0.25, 0, ribbonW * 0.25]) {
+          batcher.addBox('frame', [0.05 * scaleX, ribbonH - 0.12, 0.04], [sx + mx, ry, wz + sign * 0.045]);
+        }
+        batcher.addBox('trim', [ribbonW + 0.2 * scaleX, 0.08, 0.14], [sx, ry - ribbonH / 2 - 0.04, wz + sign * 0.05]);
+        batcher.addBox('trim', [ribbonW + 0.2 * scaleX, 0.06, 0.12], [sx, ry + ribbonH / 2 + 0.04, wz + sign * 0.04]);
+      }
+    }
+
+    // 5. Roof Cornice
+    batcher.addBox('trim', [facadeWidth + 0.4, 0.24, 0.36], [0, wallHeight + 0.12, sign * 0.16]);
+    batcher.addBox('trim', [facadeWidth + 0.6, 0.08, 0.44], [0, wallHeight + 0.26, sign * 0.2]);
+
+    // 6. Twin Triangular Roof Dormers
+    const dormerWallGeo = createTriangularDormerGeometry(2.4 * scaleX, 1.7, 1.4);
+    const dormerFrameGeo = createTriangularDormerGeometry(1.6 * scaleX, 1.15, 0.08);
+    const dormerGlassGeo = createTriangularDormerGeometry(1.48 * scaleX, 1.05, 0.04);
+    const rakeBase = 1.2 * scaleX;
+    const rakeH = 1.7;
+    const rakeLen = Math.hypot(rakeBase, rakeH);
+    const angle = Math.atan2(rakeH, rakeBase);
+
+    for (const dormerX of stairBayOffsets) {
+      const dx = dormerX * scaleX * signX;
+      const dBaseY = wallHeight + 0.05;
+      const dz = sign * 0.2;
+
+      batcher.addGeometry('wall', dormerWallGeo, [dx, dBaseY, dz]);
+      batcher.addGeometry('frame', dormerFrameGeo, [dx, dBaseY + 0.22, dz + sign * 0.06]);
+      batcher.addGeometry('glass', dormerGlassGeo, [dx, dBaseY + 0.22, dz + sign * 0.08]);
+      batcher.addBox('trim', [rakeLen + 0.15, 0.14, 0.2], [dx - rakeBase / 2, dBaseY + rakeH / 2, dz + sign * 0.05], [0, 0, angle]);
+      batcher.addBox('trim', [rakeLen + 0.15, 0.14, 0.2], [dx + rakeBase / 2, dBaseY + rakeH / 2, dz + sign * 0.05], [0, 0, -angle]);
+      batcher.addBox('roof', [2.2 * scaleX, 1.6, 1.0], [dx, dBaseY + 0.85, dz - sign * 0.4]);
+    }
+    dormerWallGeo.dispose();
+    dormerFrameGeo.dispose();
+    dormerGlassGeo.dispose();
+
+    // 7. 4 Vertical Drainpipes
+    const pipeH = wallHeight - 0.4;
+    const pipeCy = pipeH / 2 + 0.4;
+    const pz = sign * 0.18;
+    for (const px of downpipeOffsets) {
+      const pipeX = px * scaleX * signX;
+      batcher.addCylinder('pipe', [0.06, 0.06, pipeH, 8], [pipeX, pipeCy, pz]);
+      batcher.addCylinder('pipe', [0.12, 0.06, 0.2, 8], [pipeX, pipeCy + pipeH / 2 + 0.05, pz]);
+      batcher.addCylinder('pipe', [0.06, 0.06, 0.25, 8], [pipeX, pipeCy - pipeH / 2 + 0.1, pz + sign * 0.08], [sign * 0.5, 0, 0]);
+      for (const by of [-pipeH / 2 + 1.8, -pipeH / 2 + 5.4, -pipeH / 2 + 9.0, -pipeH / 2 + 12.6]) {
+        batcher.addBox('frame', [0.18, 0.04, 0.12], [pipeX, pipeCy + by, pz - sign * 0.06]);
+      }
+    }
+
+    return batcher.buildAll();
+  }, [facadeWidth, scaleX, sign, signX, wallHeight]);
+
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   return (
     <group position={[0, 0, wallZ]}>
-      {/* ============================================================== */}
-      {/* 1. DARK GRANITE PLINTH (-1.000 to 0.000 / 0 to +1.000 in CAD)   */}
-      {/* ============================================================== */}
-      <mesh position={[0, plinthHeight / 2, sign * 0.08]} material={plinthMat} castShadow receiveShadow>
-        <boxGeometry args={[facadeWidth + 0.1, plinthHeight, 0.22]} />
-      </mesh>
-      {/* Plinth top drip edge molding at y = 1.000 */}
-      <mesh position={[0, plinthHeight + 0.03, sign * 0.12]} material={trimMat} castShadow>
-        <boxGeometry args={[facadeWidth + 0.15, 0.06, 0.16]} />
-      </mesh>
+      {merged.plinth && (
+        <mesh geometry={merged.plinth} material={materials.plinthMat} raycast={NO_RAYCAST} castShadow receiveShadow />
+      )}
+      {merged.wall && (
+        <mesh geometry={merged.wall} material={materials.wallMat} raycast={NO_RAYCAST} castShadow receiveShadow />
+      )}
+      {merged.joint && (
+        <mesh geometry={merged.joint} material={materials.jointMat} raycast={NO_RAYCAST} />
+      )}
+      {merged.trim && (
+        <mesh geometry={merged.trim} material={materials.trimMat} raycast={NO_RAYCAST} castShadow />
+      )}
+      {merged.frame && (
+        <mesh geometry={merged.frame} material={materials.frameMat} raycast={NO_RAYCAST} />
+      )}
+      {merged.glass && (
+        <mesh geometry={merged.glass} material={materials.glassMat} raycast={NO_RAYCAST} />
+      )}
+      {merged.roof && (
+        <mesh geometry={merged.roof} material={materials.roofMat} raycast={NO_RAYCAST} />
+      )}
+      {merged.pipe && (
+        <mesh geometry={merged.pipe} material={materials.pipeMat} raycast={NO_RAYCAST} />
+      )}
 
-      {/* ============================================================== */}
-      {/* 2. MAIN MODULAR MASONRY FACADE WALL                            */}
-      {/* ============================================================== */}
-      <mesh position={[0, wallHeight / 2, 0]} material={wallMat} castShadow receiveShadow>
-        <boxGeometry args={[facadeWidth, wallHeight, 0.15]} />
-      </mesh>
-
-      {/* Horizontal rustication panel seams */}
-      {rusticationLines.map((yVal, idx) => (
-        <mesh key={`rust-${idx}`} position={[0, yVal, sign * 0.078]} material={jointMat}>
-          <boxGeometry args={[facadeWidth, 0.025, 0.01]} />
-        </mesh>
-      ))}
-
-      {/* Vertical expansion joints between the 3 sections */}
-      {[-10.8, 7.5].map((jx, idx) => (
-        <mesh key={`v-joint-${idx}`} position={[jx * scaleX * signX, wallHeight / 2, sign * 0.078]} material={jointMat}>
-          <boxGeometry args={[0.04, wallHeight, 0.015]} />
-        </mesh>
-      ))}
-
-      {/* ============================================================== */}
-      {/* 3. STANDARD CLASSROOM WINDOWS (11 BAYS × 4 FLOORS = 44 WINDOWS) */}
-      {/* 3-leaf casement windows with upper transom bar (ОК-1 / ОК-2)   */}
-      {/* ============================================================== */}
-      {standardBayOffsets.map((bayX, bIdx) => {
-        const wx = bayX * scaleX * signX;
-        const ww = 2.4 * scaleX;
-        const wh = 1.8;
-
-        return (
-          <group key={`std-bay-${bIdx}`}>
-            {floorCenterYs.map((wy, fIdx) => (
-              <group key={`win-f${fIdx}-${bIdx}`} position={[wx, wy, sign * 0.08]}>
-                {/* Window Outer Frame */}
-                <mesh material={frameMat}>
-                  <boxGeometry args={[ww, wh, 0.06]} />
-                </mesh>
-                {/* Window Glass Pane */}
-                <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
-                  <boxGeometry args={[ww - 0.12 * scaleX, wh - 0.14, 0.03]} />
-                </mesh>
-                {/* 2 Vertical Mullions (3-pane casement) */}
-                {[-ww / 3, ww / 3].map((mx, mIdx) => (
-                  <mesh key={`m-${mIdx}`} position={[mx, 0, sign * 0.045]} material={frameMat}>
-                    <boxGeometry args={[0.06 * scaleX, wh - 0.14, 0.04]} />
-                  </mesh>
-                ))}
-                {/* Upper Horizontal Transom Beam (Фрамуга) */}
-                <mesh position={[0, wh / 2 - 0.45, sign * 0.045]} material={frameMat}>
-                  <boxGeometry args={[ww - 0.12 * scaleX, 0.05, 0.04]} />
-                </mesh>
-                {/* Stone Sill Molding */}
-                <mesh position={[0, -wh / 2 - 0.05, sign * 0.06]} material={trimMat}>
-                  <boxGeometry args={[ww + 0.3 * scaleX, 0.1, 0.18]} />
-                </mesh>
-                {/* Stone Lintel Molding */}
-                <mesh position={[0, wh / 2 + 0.05, sign * 0.04]} material={trimMat}>
-                  <boxGeometry args={[ww + 0.2 * scaleX, 0.08, 0.14]} />
-                </mesh>
-              </group>
-            ))}
-          </group>
-        );
-      })}
-
-      {/* ============================================================== */}
-      {/* 4. STAIRCASE / CIRCULATION BAYS (2 BAYS)                       */}
-      {/* Floor 1: Entrance Doors. Floors 2–4: Horizontal Ribbon Windows */}
-      {/* ============================================================== */}
-      {stairBayOffsets.map((stairX, sIdx) => {
-        const sx = stairX * scaleX * signX;
-        const ribbonW = 2.8 * scaleX;
-        const ribbonH = 0.75; // Narrow horizontal strip window
-
-        return (
-          <group key={`stair-core-${sIdx}`}>
-            {/* Ground Floor Entrance Door */}
-            <group position={[sx, floorCenterYs[0] - 0.1, sign * 0.08]}>
-              {/* Outer Door Frame */}
-              <mesh material={frameMat}>
-                <boxGeometry args={[2.4 * scaleX, 2.3, 0.06]} />
-              </mesh>
-              {/* Glazed Twin Doors */}
-              <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
-                <boxGeometry args={[2.24 * scaleX, 2.14, 0.03]} />
-              </mesh>
-              {/* Central Stile Divider */}
-              <mesh position={[0, 0, sign * 0.045]} material={frameMat}>
-                <boxGeometry args={[0.06 * scaleX, 2.14, 0.05]} />
-              </mesh>
-              {/* Entrance Overhead Canopy */}
-              <mesh position={[0, 1.25, sign * 0.4]} material={trimMat} castShadow>
-                <boxGeometry args={[2.8 * scaleX, 0.12, 0.8]} />
-              </mesh>
-              {/* Door Handles */}
-              {[-0.15 * scaleX, 0.15 * scaleX].map((hx, hIdx) => (
-                <mesh key={`dh-${hIdx}`} position={[hx, 0, sign * 0.07]} material={trimMat}>
-                  <boxGeometry args={[0.04, 0.7, 0.03]} />
-                </mesh>
-              ))}
-            </group>
-
-            {/* Floors 2, 3, 4: Horizontal Ribbon Transom Windows */}
-            {[1, 2, 3].map((fIdx) => {
-              const ry = floorCenterYs[fIdx] + 0.35; // Positioned high in the floor wall
-              return (
-                <group key={`ribbon-f${fIdx}-${sIdx}`} position={[sx, ry, sign * 0.08]}>
-                  {/* Ribbon Outer Frame */}
-                  <mesh material={frameMat}>
-                    <boxGeometry args={[ribbonW, ribbonH, 0.06]} />
-                  </mesh>
-                  {/* Ribbon Glass Pane */}
-                  <mesh position={[0, 0, sign * 0.025]} material={glassMat}>
-                    <boxGeometry args={[ribbonW - 0.12 * scaleX, ribbonH - 0.12, 0.03]} />
-                  </mesh>
-                  {/* 3 Vertical Mullions dividing ribbon into 4 panes */}
-                  {[-ribbonW * 0.25, 0, ribbonW * 0.25].map((mx, mIdx) => (
-                    <mesh key={`rm-${mIdx}`} position={[mx, 0, sign * 0.045]} material={frameMat}>
-                      <boxGeometry args={[0.05 * scaleX, ribbonH - 0.12, 0.04]} />
-                    </mesh>
-                  ))}
-                  {/* Lintel and Sill Trim */}
-                  <mesh position={[0, -ribbonH / 2 - 0.04, sign * 0.05]} material={trimMat}>
-                    <boxGeometry args={[ribbonW + 0.2 * scaleX, 0.08, 0.14]} />
-                  </mesh>
-                  <mesh position={[0, ribbonH / 2 + 0.04, sign * 0.04]} material={trimMat}>
-                    <boxGeometry args={[ribbonW + 0.2 * scaleX, 0.06, 0.12]} />
-                  </mesh>
-                </group>
-              );
-            })}
-          </group>
-        );
-      })}
-
-      {/* ============================================================== */}
-      {/* 5. ROOF CORNICE / EAVES BEAM (+13.200 / +14.400)               */}
-      {/* ============================================================== */}
-      <mesh position={[0, wallHeight + 0.12, sign * 0.16]} material={trimMat} castShadow>
-        <boxGeometry args={[facadeWidth + 0.4, 0.24, 0.36]} />
-      </mesh>
-      <mesh position={[0, wallHeight + 0.26, sign * 0.2]} material={trimMat} castShadow>
-        <boxGeometry args={[facadeWidth + 0.6, 0.08, 0.44]} />
-      </mesh>
-
-      {/* ============================================================== */}
-      {/* 6. TWIN TRIANGULAR ROOF DORMERS (СЛУХОВЫЕ ОКНА)                */}
-      {/* Positioned directly over the two staircase bays                */}
-      {/* ============================================================== */}
-      {stairBayOffsets.map((dormerX, dIdx) => {
-        const dx = dormerX * scaleX * signX;
-        const dormerBaseY = wallHeight + 0.05;
-
-        return (
-          <group key={`dormer-${dIdx}`} position={[dx, dormerBaseY, sign * 0.2]}>
-            {/* Triangular Dormer Wall Body */}
-            <mesh geometry={dormerWallGeo} material={wallMat} castShadow receiveShadow />
-
-            {/* Triangular Louver / Glass Window */}
-            <mesh position={[0, 0.22, sign * 0.06]} geometry={dormerFrameGeo} material={frameMat} />
-            <mesh position={[0, 0.22, sign * 0.08]} geometry={dormerGlassGeo} material={glassMat} />
-
-            {/* Sloped Rake Cornice Beams */}
-            {(() => {
-              const rakeBase = 1.2 * scaleX;
-              const rakeH = 1.7;
-              const rakeLen = Math.hypot(rakeBase, rakeH);
-              const angle = Math.atan2(rakeH, rakeBase);
-
-              return (
-                <>
-                  <mesh
-                    position={[-rakeBase / 2, rakeH / 2, sign * 0.05]}
-                    rotation={[0, 0, angle]}
-                    material={trimMat}
-                    castShadow
-                  >
-                    <boxGeometry args={[rakeLen + 0.15, 0.14, 0.2]} />
-                  </mesh>
-                  <mesh
-                    position={[rakeBase / 2, rakeH / 2, sign * 0.05]}
-                    rotation={[0, 0, -angle]}
-                    material={trimMat}
-                    castShadow
-                  >
-                    <boxGeometry args={[rakeLen + 0.15, 0.14, 0.2]} />
-                  </mesh>
-                </>
-              );
-            })()}
-
-            {/* Roof Top Ridge Shingles behind dormer gable */}
-            <mesh position={[0, 0.85, -sign * 0.4]} material={roofMat}>
-              <boxGeometry args={[2.2 * scaleX, 1.6, 1.0]} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* ============================================================== */}
-      {/* 7. 4 VERTICAL DRAINPIPES (ВОДОСТОЧНЫЕ ТРУБЫ)                   */}
-      {/* ============================================================== */}
-      {downpipeOffsets.map((px, idx) => {
-        const pipeX = px * scaleX * signX;
-        const pipeH = wallHeight - 0.4;
-
-        return (
-          <group key={`pipe-${idx}`} position={[pipeX, pipeH / 2 + 0.4, sign * 0.18]}>
-            {/* Vertical pipe */}
-            <mesh material={pipeMat} castShadow>
-              <cylinderGeometry args={[0.06, 0.06, pipeH, 12]} />
-            </mesh>
-            {/* Top hopper funnel */}
-            <mesh position={[0, pipeH / 2 + 0.05, 0]} material={pipeMat}>
-              <cylinderGeometry args={[0.12, 0.06, 0.2, 12]} />
-            </mesh>
-            {/* Bottom shoe / discharge spout */}
-            <mesh position={[0, -pipeH / 2 + 0.1, sign * 0.08]} rotation={[sign * 0.5, 0, 0]} material={pipeMat}>
-              <cylinderGeometry args={[0.06, 0.06, 0.25, 12]} />
-            </mesh>
-            {/* Wall fastening brackets */}
-            {[-pipeH / 2 + 1.8, -pipeH / 2 + 5.4, -pipeH / 2 + 9.0, -pipeH / 2 + 12.6].map((by, bIdx) => (
-              <mesh key={`bracket-${bIdx}`} position={[0, by, -sign * 0.06]} material={frameMat}>
-                <boxGeometry args={[0.18, 0.04, 0.12]} />
-              </mesh>
-            ))}
-          </group>
-        );
-      })}
-
-      {/* ============================================================== */}
-      {/* 8. ARCHITECTURAL LANDSCAPING (БЕСЕДКА & ТЕПЛОТРАССА)           */}
-      {/* Mounted directly in front of Block B facing the courtyard      */}
-      {/* ============================================================== */}
       {includeLandscape && (
         <BlockBLandscape
           scaleX={scaleX}
