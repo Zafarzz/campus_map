@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { AMPHITHEATER_HALL } from '../../data/amphitheater-hall';
 import type { CampusGeometry } from '../../domain/geometry/types';
+import { NO_RAYCAST } from './geometry/staticGeometryMerger';
 
 // Deterministic Pseudo-Random Number Generator (Mulberry32)
 function createPRNG(seed: number) {
@@ -927,6 +928,7 @@ export function Vegetation({
     const mesh = new THREE.InstancedMesh(trunkGeo, trunkMat, placements.length);
     mesh.castShadow = castShadows;
     mesh.receiveShadow = true;
+    mesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     placements.forEach((item, i) => {
@@ -948,6 +950,7 @@ export function Vegetation({
     const mesh = new THREE.InstancedMesh(deciduousFoliageGeo, deciduousMat, deciduousItems.length);
     mesh.castShadow = castShadows;
     mesh.receiveShadow = true;
+    mesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
@@ -978,6 +981,7 @@ export function Vegetation({
     const mesh = new THREE.InstancedMesh(coniferFoliageGeo, coniferMat, coniferItems.length);
     mesh.castShadow = castShadows;
     mesh.receiveShadow = true;
+    mesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
@@ -1005,6 +1009,7 @@ export function Vegetation({
     const mesh = new THREE.InstancedMesh(shrubGeo, shrubMat, shrubs.length);
     mesh.castShadow = castShadows;
     mesh.receiveShadow = true;
+    mesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();

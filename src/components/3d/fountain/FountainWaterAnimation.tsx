@@ -508,6 +508,7 @@ export function FountainWaterAnimation() {
       geometry={geometry}
       material={material}
       frustumCulled={false}
+      raycast={() => null}
     />
   );
 }

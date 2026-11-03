@@ -993,15 +993,15 @@
     "semantic_hash": "6759820e1d2f9b7c30b4b5578d1f7ef3"
   },
   "src/components/3d/AjouArtObject.tsx": {
-    "mtime": 1792939304.1230528,
-    "seen": 1793449143.9434156,
-    "ast_hash": "62da92efda96f52bcd20e43b5363453c",
-    "semantic_hash": "62da92efda96f52bcd20e43b5363453c"
+    "mtime": 1793723887.0498192,
+    "seen": 1793725214.386337,
+    "ast_hash": "2550852427782d10992a0ef657f44a10",
+    "semantic_hash": ""
   },
   "src/components/3d/BlockFLibraryInterior.tsx": {
-    "mtime": 1793720811.826136,
-    "seen": 1793721025.8251345,
-    "ast_hash": "53d5036b506c94fa1e690c56637cb04e",
+    "mtime": 1793726090.5455444,
+    "seen": 1793726319.7211301,
+    "ast_hash": "e57c8e57349ae76f80fc8e9a290dd333",
     "semantic_hash": ""
   },
   "src/components/3d/Building.tsx": {
@@ -1035,39 +1035,39 @@
     "semantic_hash": "5112ce4f4b91e68cccf0bf976d9f9f7c"
   },
   "src/components/3d/CampusConnectors.tsx": {
-    "mtime": 1793715683.0485423,
-    "seen": 1793716405.958555,
-    "ast_hash": "c3d112779a0e049fcc1e3b971d2c12c8",
+    "mtime": 1793724674.9319668,
+    "seen": 1793725214.3864532,
+    "ast_hash": "b64545fada8001ac2e70e89fd01052f1",
     "semantic_hash": ""
   },
   "src/components/3d/CampusFountain.tsx": {
-    "mtime": 1793715683.0485423,
-    "seen": 1793716405.9585576,
-    "ast_hash": "c7100c939bc5e83c92cd6ee2c2b70388",
+    "mtime": 1793726070.4224641,
+    "seen": 1793726319.7212434,
+    "ast_hash": "d0f6f8fd0ebf6050a2c713aa90a7ef9d",
     "semantic_hash": ""
   },
   "src/components/3d/CampusMap.tsx": {
-    "mtime": 1793715683.0495424,
-    "seen": 1793716405.95856,
-    "ast_hash": "8998bebe30341ce5e58643bf6440adaa",
+    "mtime": 1793725061.2354677,
+    "seen": 1793725214.3864558,
+    "ast_hash": "95ed45b89b81785a849228724b17750e",
     "semantic_hash": ""
   },
   "src/components/3d/CampusWalkways.tsx": {
-    "mtime": 1793715683.0495424,
-    "seen": 1793716405.9585626,
-    "ast_hash": "2469cd9ae8bf7fe3ee189fa212ac4a4d",
+    "mtime": 1793724670.9519515,
+    "seen": 1793725214.3864567,
+    "ast_hash": "71ae03da311384b74507ff7adb288f7b",
     "semantic_hash": ""
   },
   "src/components/3d/ContextLayer.tsx": {
-    "mtime": 1793717909.1668918,
-    "seen": 1793718033.5042624,
-    "ast_hash": "cb1434354f6937c63cb6629df9d37344",
+    "mtime": 1793726059.069419,
+    "seen": 1793726319.721283,
+    "ast_hash": "b69898c5de58f8cde13a2230a96334dd",
     "semantic_hash": ""
   },
   "src/components/3d/DetailedBuilding.tsx": {
-    "mtime": 1793720616.2272632,
-    "seen": 1793721025.8253398,
-    "ast_hash": "a32680276708c742dd0e561e0ba84e63",
+    "mtime": 1793725687.4289372,
+    "seen": 1793726319.7212842,
+    "ast_hash": "269a93cad019faf819c491513e0297e9",
     "semantic_hash": ""
   },
   "src/components/3d/ExtrudedFootprint.tsx": {
@@ -1083,10 +1083,10 @@
     "semantic_hash": ""
   },
   "src/components/3d/MainEntranceGate.tsx": {
-    "mtime": 1792614420.7129478,
-    "seen": 1793449143.9442337,
-    "ast_hash": "b776871332d980fab81d8769fc1d50f5",
-    "semantic_hash": "b776871332d980fab81d8769fc1d50f5"
+    "mtime": 1793723832.367595,
+    "seen": 1793725214.3865163,
+    "ast_hash": "845045ed84e8faf72ed1f56f3b2c7516",
+    "semantic_hash": ""
   },
   "src/components/3d/ReferenceOverlay.tsx": {
     "mtime": 1791328377.1628773,
@@ -1101,21 +1101,21 @@
     "semantic_hash": ""
   },
   "src/components/3d/SiteFurniture.tsx": {
-    "mtime": 1793720806.8111136,
-    "seen": 1793721025.8254333,
-    "ast_hash": "047056073f0c6ff369a90c6d5b7f44dc",
+    "mtime": 1793724231.3432305,
+    "seen": 1793725214.3865538,
+    "ast_hash": "02b8539259dd6f3d047c36bf45edb2a3",
     "semantic_hash": ""
   },
   "src/components/3d/SolarCanopies.tsx": {
-    "mtime": 1793715683.0495424,
-    "seen": 1793716405.9587119,
-    "ast_hash": "8fb38c0edac86a50505b7ebe41a45346",
+    "mtime": 1793724430.189016,
+    "seen": 1793725214.386555,
+    "ast_hash": "96e4056ab018c1620385b8bb804f1d69",
     "semantic_hash": ""
   },
   "src/components/3d/SportsFacilities.tsx": {
-    "mtime": 1793720804.205102,
-    "seen": 1793721025.8254528,
-    "ast_hash": "79bf71fcf8d7b56d605068d46113d60b",
+    "mtime": 1793725103.7176328,
+    "seen": 1793725214.3865561,
+    "ast_hash": "b0760428c61b84bec98496b349064c55",
     "semantic_hash": ""
   },
   "src/components/3d/TennisCourt.tsx": {
@@ -1125,75 +1125,75 @@
     "semantic_hash": "588ae4ab7d8284c9f8fdaa687806703b"
   },
   "src/components/3d/Vegetation.tsx": {
-    "mtime": 1793717880.7096968,
-    "seen": 1793718033.5044308,
-    "ast_hash": "5b7d3915c8b1f8613692cb2f2f602d71",
+    "mtime": 1793725037.2683747,
+    "seen": 1793725214.386576,
+    "ast_hash": "060b2616d1654c0f605dd62af3e78765",
     "semantic_hash": ""
   },
   "src/components/3d/amphitheater/AmphitheaterHall.tsx": {
-    "mtime": 1792943066.6991413,
-    "seen": 1793449143.9446054,
-    "ast_hash": "2295964e7ae9fbadeb41c2bab96f408e",
-    "semantic_hash": "2295964e7ae9fbadeb41c2bab96f408e"
+    "mtime": 1793724931.066962,
+    "seen": 1793725214.3865771,
+    "ast_hash": "ff162c742e947cc940dd027917c011e5",
+    "semantic_hash": ""
   },
   "src/components/3d/amphitheater/amphitheaterTextures.ts": {
-    "mtime": 1792939304.124118,
-    "seen": 1793449143.9446523,
-    "ast_hash": "9c70cb73a073f41daa9b454a173264ba",
-    "semantic_hash": "9c70cb73a073f41daa9b454a173264ba"
+    "mtime": 1793724926.0429425,
+    "seen": 1793725214.386578,
+    "ast_hash": "4d37e6e02dcbfc83932cfb80f7b27cf1",
+    "semantic_hash": ""
   },
   "src/components/3d/environment/CampusEnvironmentDetail.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.958866,
-    "ast_hash": "967414aee0c961597677a74fb2a3317e",
+    "mtime": 1793725046.1944091,
+    "seen": 1793725214.3865795,
+    "ast_hash": "c4130c70c27ed5297c05757b8aac4812",
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockBFacade.tsx": {
-    "mtime": 1792943007.1610394,
-    "seen": 1793449143.9447436,
-    "ast_hash": "236e9247572dab923195f00ad38fa4a4",
-    "semantic_hash": "236e9247572dab923195f00ad38fa4a4"
+    "mtime": 1793725812.2174346,
+    "seen": 1793726319.7215552,
+    "ast_hash": "de70c5b28ace4fc912879be009ec6966",
+    "semantic_hash": ""
   },
   "src/components/3d/facades/BlockBLandscape.tsx": {
-    "mtime": 1792614420.7150724,
-    "seen": 1793449143.9447892,
-    "ast_hash": "3ea066accfcf7a2dae8d86ab63d03c7c",
-    "semantic_hash": "3ea066accfcf7a2dae8d86ab63d03c7c"
+    "mtime": 1793722576.1661594,
+    "seen": 1793725214.386584,
+    "ast_hash": "57249088b40f303e29edbb8d6ff845d5",
+    "semantic_hash": ""
   },
   "src/components/3d/facades/BlockBSouthFacade.tsx": {
-    "mtime": 1792943023.4840674,
-    "seen": 1793449143.944834,
-    "ast_hash": "99c42a8286a38b290892c0f3506a19bb",
-    "semantic_hash": "99c42a8286a38b290892c0f3506a19bb"
+    "mtime": 1793725939.2659414,
+    "seen": 1793726319.7215774,
+    "ast_hash": "bbee76cdbc7c79691f8c51325671bfc3",
+    "semantic_hash": ""
   },
   "src/components/3d/facades/BlockCFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.959015,
-    "ast_hash": "ab001411daafe01a9fe79b1360a2c3a8",
+    "mtime": 1793725949.3109813,
+    "seen": 1793726319.7215788,
+    "ast_hash": "eaae5661fb926884fcf76d11f1073d52",
     "semantic_hash": ""
   },
   "src/components/3d/facades/DaewooHallFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.959027,
-    "ast_hash": "4d7a8971ec99cef589c554e387f0bdce",
+    "mtime": 1793723449.8250268,
+    "seen": 1793725214.386591,
+    "ast_hash": "5ca2e8b4580b048e971f57e1d7b93bc5",
     "semantic_hash": ""
   },
   "src/components/3d/facades/SportsComplexFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.959029,
-    "ast_hash": "07637e8d61501490096fcbb3fb8223d2",
+    "mtime": 1793723444.8090062,
+    "seen": 1793725214.3865921,
+    "ast_hash": "daa1013d1d42a66782c7a1bfe6e46757",
     "semantic_hash": ""
   },
   "src/components/3d/facades/facadeTextures.ts": {
-    "mtime": 1793715683.0515423,
-    "seen": 1793716405.9590333,
-    "ast_hash": "647b39bee73b5e5417d31f57efa203b6",
+    "mtime": 1793722385.9082994,
+    "seen": 1793725214.3865945,
+    "ast_hash": "7842e9cec57811852cd3992e94ecbf6c",
     "semantic_hash": ""
   },
   "src/components/3d/fountain/FountainWaterAnimation.tsx": {
-    "mtime": 1793717928.0910215,
-    "seen": 1793718033.5047736,
-    "ast_hash": "141962be692c8ecf6ac055752910ebff",
+    "mtime": 1793724440.0220542,
+    "seen": 1793725214.3865955,
+    "ast_hash": "c98775f579ec1bc8e2cd9de906ab45fe",
     "semantic_hash": ""
   },
   "src/components/3d/geometryUtils.ts": {
@@ -1203,10 +1203,10 @@
     "semantic_hash": "540b46f3c0862e37a1d2d6c800ea70ee"
   },
   "src/components/3d/materials/pbrMaterials.ts": {
-    "mtime": 1792942935.4389167,
-    "seen": 1793449143.9451656,
-    "ast_hash": "9c02557ec1fbd1409c811979154c116f",
-    "semantic_hash": "9c02557ec1fbd1409c811979154c116f"
+    "mtime": 1793725546.222374,
+    "seen": 1793726319.7217262,
+    "ast_hash": "1f35ddd76ddff0c32e9c4211cb806801",
+    "semantic_hash": ""
   },
   "src/components/3d/pointer.ts": {
     "mtime": 1791328338.736875,
@@ -1317,9 +1317,9 @@
     "semantic_hash": "172776318a5104d110b9b66882b12809"
   },
   "src/domain/appearance/presets.ts": {
-    "mtime": 1793715683.0515423,
-    "seen": 1793716405.9596248,
-    "ast_hash": "37f75e97de6b4cfdd9af5cccde8ae395",
+    "mtime": 1793725611.2016332,
+    "seen": 1793726319.722125,
+    "ast_hash": "1b497b71da9b35a3d5e3f9fe1b3e8940",
     "semantic_hash": ""
   },
   "src/domain/appearance/types.ts": {
@@ -1461,9 +1461,9 @@
     "semantic_hash": "2a945ddc7a9519a828243c76f97605c4"
   },
   "src/game/GameScene.tsx": {
-    "mtime": 1793719295.237586,
-    "seen": 1793719411.3089175,
-    "ast_hash": "39023095a65f32b70ad329a809c0693d",
+    "mtime": 1793721900.4970849,
+    "seen": 1793725214.38746,
+    "ast_hash": "328dd02474159dcd09fa3453682d7a45",
     "semantic_hash": ""
   },
   "src/game/audio/campusAudioEngine.ts": {
@@ -1618,13 +1618,13 @@
   },
   "backend/docker/initdb/10-roles-and-schema.sql": {
     "mtime": 1793446845.5013049,
-    "seen": 1793719465.6766672,
+    "seen": 1793725292.5747235,
     "ast_hash": "",
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
     "mtime": 1793446845.509305,
-    "seen": 1793719465.6767094,
+    "seen": 1793725292.574765,
     "ast_hash": "",
     "semantic_hash": ""
   },
@@ -2073,15 +2073,15 @@
     "semantic_hash": ""
   },
   "src/components/3d/BlockCorridor3D.tsx": {
-    "mtime": 1793717739.63487,
-    "seen": 1793718033.5040917,
-    "ast_hash": "2abad019008d865adc0c2a49f0aa59f7",
+    "mtime": 1793726100.1175826,
+    "seen": 1793726319.7211285,
+    "ast_hash": "ddd0b987e9eb2a8490466b11ff00be3f",
     "semantic_hash": ""
   },
   "src/components/3d/ClassroomInterior3D.tsx": {
-    "mtime": 1793717664.5855005,
-    "seen": 1793718033.504261,
-    "ast_hash": "b6ec84c6de5f68b5f80ec6db2ec1574a",
+    "mtime": 1793726080.4845045,
+    "seen": 1793726319.7212815,
+    "ast_hash": "1c26ca47cb94141f947998b29a0d2cbd",
     "semantic_hash": ""
   },
   "src/__tests__/blockAFacade.test.ts": {
@@ -2091,45 +2091,45 @@
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockAFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9588711,
-    "ast_hash": "bba54cdd4a06f013fe3719d55aa4de01",
+    "mtime": 1793725738.31314,
+    "seen": 1793726319.7215538,
+    "ast_hash": "a69362db54b3eadeec50944f6e0f2492",
     "semantic_hash": ""
   },
   "src/components/3d/facades/AjouLogoMedallion.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9588687,
-    "ast_hash": "4860d9b4db7151b1513fdd986ba22d12",
+    "mtime": 1793722977.5889733,
+    "seen": 1793725214.3865807,
+    "ast_hash": "ef8081bd59df9373749d196304b2d804",
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockFFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9590247,
-    "ast_hash": "ea8f08d831166548d4d180a0b33d9f80",
+    "mtime": 1793726004.875203,
+    "seen": 1793726319.7215836,
+    "ast_hash": "92c9e91e835c970a7e18cd875e2bca08",
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockDFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9590175,
-    "ast_hash": "f3f00558a3909af5ade32d133f86321e",
+    "mtime": 1793725984.0271196,
+    "seen": 1793726319.7215803,
+    "ast_hash": "c280ab60ffdfbe7c01d93b63d955af3b",
     "semantic_hash": ""
   },
   "src/components/3d/facades/SuwonHallFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9590313,
-    "ast_hash": "708992548501d47f9dcf6911454124d7",
+    "mtime": 1793723454.8390474,
+    "seen": 1793725214.3865933,
+    "ast_hash": "6f831f03a783c715c1ec2a25d37c7459",
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockEFacade.tsx": {
-    "mtime": 1793715683.0505424,
-    "seen": 1793716405.9590201,
-    "ast_hash": "6210afe50e4e0a8ed4be9b3093f05c45",
+    "mtime": 1793725995.4081652,
+    "seen": 1793726319.7215812,
+    "ast_hash": "e904bd8f0c9082c034097097055fd418",
     "semantic_hash": ""
   },
   "src/components/3d/facades/BlockFCourtyardFacade.tsx": {
-    "mtime": 1793720706.2906644,
-    "seen": 1793721025.8257172,
-    "ast_hash": "166ab94947301b8c6c1300bea99032b6",
+    "mtime": 1793725900.7387877,
+    "seen": 1793726319.7215824,
+    "ast_hash": "0fd0836084e79df36d30387fc25eeb7f",
     "semantic_hash": ""
   },
   "src/__tests__/uiAndPerformance.test.ts": {
@@ -2148,6 +2148,36 @@
     "mtime": 1793716782.8042068,
     "seen": 1793718033.5048876,
     "ast_hash": "84c21a0e2e8b9869448cdb2ba5576e7d",
+    "semantic_hash": ""
+  },
+  "src/__tests__/staticGeometryMerger.test.ts": {
+    "mtime": 1793725166.4878767,
+    "seen": 1793725214.3860927,
+    "ast_hash": "c1bc27de5ee2591d5b062b7d8df21a35",
+    "semantic_hash": ""
+  },
+  "src/components/3d/geometry/staticGeometryMerger.ts": {
+    "mtime": 1793724151.0519013,
+    "seen": 1793725214.386597,
+    "ast_hash": "98227d432005c08bbaa7afbfa9a58245",
+    "semantic_hash": ""
+  },
+  "src/components/3d/spatial/SpatialSceneManager.tsx": {
+    "mtime": 1793722283.9348385,
+    "seen": 1793725214.3866575,
+    "ast_hash": "0f60538391b348436bbbfe83e4901af4",
+    "semantic_hash": ""
+  },
+  "src/__tests__/pbrAndShaders.test.ts": {
+    "mtime": 1793726270.5242622,
+    "seen": 1793726319.7207959,
+    "ast_hash": "8863a066a9d3727c995d91f23aa8b97b",
+    "semantic_hash": ""
+  },
+  "src/components/3d/shaders/architecturalShaders.ts": {
+    "mtime": 1793725437.9069421,
+    "seen": 1793726319.7217462,
+    "ast_hash": "cd8aa65436bac060c2ff2cd1e671806b",
     "semantic_hash": ""
   },
   "package-lock.json": {

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { getInteriorWoodTextures } from './materials/pbrMaterials';
 
 export type ClassroomInteriorProps = {
   position: [number, number, number];
@@ -151,24 +152,35 @@ function getSharedClassroomMaterials(): SharedClassroomMaterials {
   if (sharedMaterials) return sharedMaterials;
 
   const wbTex = getWhiteboardTexture();
+  const woodPbr = getInteriorWoodTextures(4, 4);
   sharedMaterials = {
     floorMat: new THREE.MeshStandardMaterial({
       color: '#e7dfd1',
-      roughness: 0.65,
-      metalness: 0.05,
+      map: woodPbr?.map ?? null,
+      normalMap: woodPbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.15, 0.15),
+      roughnessMap: woodPbr?.roughnessMap ?? null,
+      roughness: 0.58,
+      metalness: 0.0,
     }),
     wallCreamMat: new THREE.MeshStandardMaterial({
       color: '#f8fafc',
-      roughness: 0.8,
+      roughness: 0.82,
+      metalness: 0.0,
     }),
     frontAccentMat: new THREE.MeshStandardMaterial({
       color: '#476558',
-      roughness: 0.75,
+      roughness: 0.78,
+      metalness: 0.0,
     }),
     deskTopMat: new THREE.MeshStandardMaterial({
       color: '#decbb2',
-      roughness: 0.5,
-      metalness: 0.04,
+      map: woodPbr?.map ?? null,
+      normalMap: woodPbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.12, 0.12),
+      roughnessMap: woodPbr?.roughnessMap ?? null,
+      roughness: 0.48,
+      metalness: 0.0,
     }),
     deskModestyMat: new THREE.MeshStandardMaterial({
       color: '#cbd5e1',

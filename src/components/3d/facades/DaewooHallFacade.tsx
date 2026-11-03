@@ -1,5 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import {
+  StaticGeometryBatcher,
+  disposeMergedMap,
+  NO_RAYCAST,
+} from '../geometry/staticGeometryMerger';
 
 export type DaewooHallFacadeProps = {
   width?: number;
@@ -11,13 +16,9 @@ export type DaewooHallFacadeProps = {
   includeTrees?: boolean;
 };
 
-/**
- * Creates 3D extruded vector geometry for individual capital letters of «DAEWOO HALL».
- * Extruded locally without any external font/CDN dependency.
- */
 function createLetterGeometry(letter: string, height: number = 0.72, depth: number = 0.08): THREE.BufferGeometry {
   const shape = new THREE.Shape();
-  const w = height * 0.75; // Standard letter aspect ratio
+  const w = height * 0.75;
   const barThick = height * 0.16;
 
   switch (letter) {
@@ -159,18 +160,6 @@ function createLetterGeometry(letter: string, height: number = 0.72, depth: numb
 
 /**
  * Architectural 3D Reconstruction of the «DAEWOO HALL» Entrance Pavilion / Corridor Facade.
- * Based on Blueprint: "ФАСАД ВХОДНОЙ ГРУППЫ «DAEWOO HALL» В ОСЯХ А-В (2D ЧЕРТЕЖ)".
- *
- * Dimensions:
- * - Width: 14.000m (7 bays x 2.000m)
- * - Parapet Height: 8.200m
- * - Rooftop Letter Sign: +8.200m to +9.050m («DAEWOO HALL» on steel frame)
- * - Attic Frieze: +6.800m to +8.200m (1.400m high, light-gray composite panel)
- * - Curtain Wall: 0.000m to +6.800m (6.800m high, 4 vertical tiers):
- *    * Tier 1 (Portal): 3.000m high, double entrance doors + steps + handrails
- *    * Tier 2: 1.250m high (+3.000 to +4.250)
- *    * Tier 3: 1.250m high (+4.250 to +5.500)
- *    * Tier 4: 1.300m high (+5.500 to +6.800)
  */
 export function DaewooHallFacade({
   width = 14.0,
@@ -184,9 +173,7 @@ export function DaewooHallFacade({
   const numBays = 7;
   const bayWidth = facadeWidth / numBays;
 
-  // Materials
   const materials = useMemo(() => {
-    // Dark graphite anodized aluminum framing
     const frameMat = new THREE.MeshStandardMaterial({
       color: '#1e293b',
       roughness: 0.35,
@@ -195,7 +182,6 @@ export function DaewooHallFacade({
       opacity,
     });
 
-    // Deep tinted architectural glass
     const glassMat = new THREE.MeshStandardMaterial({
       color: '#0f172a',
       roughness: 0.12,
@@ -204,7 +190,6 @@ export function DaewooHallFacade({
       opacity: transparent ? opacity * 0.5 : 0.94,
     });
 
-    // Light-gray attic frieze panels
     const friezeMat = new THREE.MeshStandardMaterial({
       color: '#e2e8f0',
       roughness: 0.85,
@@ -213,7 +198,6 @@ export function DaewooHallFacade({
       opacity,
     });
 
-    // Dark granite / basalt entrance steps
     const stepsMat = new THREE.MeshStandardMaterial({
       color: '#334155',
       roughness: 0.8,
@@ -222,7 +206,6 @@ export function DaewooHallFacade({
       opacity,
     });
 
-    // Brushed stainless steel for handrails & door handles
     const steelMat = new THREE.MeshStandardMaterial({
       color: '#cbd5e1',
       roughness: 0.25,
@@ -231,7 +214,6 @@ export function DaewooHallFacade({
       opacity,
     });
 
-    // Rooftop 3D letters dark charcoal finish
     const lettersMat = new THREE.MeshStandardMaterial({
       color: '#0f172a',
       roughness: 0.25,
@@ -243,9 +225,61 @@ export function DaewooHallFacade({
     return { frameMat, glassMat, friezeMat, stepsMat, steelMat, lettersMat };
   }, [opacity, transparent]);
 
-  // Pre-generate 3D letter geometries for "DAEWOO HALL"
-  const letterGeometries = useMemo(() => {
-    return {
+  const merged = useMemo(() => {
+    const b = new StaticGeometryBatcher();
+
+    // 1. Entrance steps & steel handrails
+    b.addBox('steps', [6.2, 0.12, 1.2], [0, 0.11, 0.6]);
+    b.addBox('steps', [6.1, 0.12, 0.8], [0, 0.23, 0.4]);
+    b.addBox('steps', [6.0, 0.12, 0.4], [0, 0.35, 0.2]);
+
+    for (const rx of [-3.0, 3.0]) {
+      b.addCylinder('steel', [0.025, 0.025, 0.9, 8], [rx, 0.8, 0.2]);
+      b.addCylinder('steel', [0.025, 0.025, 0.9, 8], [rx, 0.8, 1.0]);
+      b.addBox('steel', [0.05, 0.05, 1.25], [rx, 1.25, 0.6], [-0.14, 0, 0]);
+    }
+
+    // 2. Structural aluminum mullions (8 vertical posts)
+    for (let i = 0; i <= numBays; i++) {
+      const mx = -facadeWidth / 2 + i * bayWidth;
+      b.addBox('frame', [0.08, 6.8, 0.12], [mx, 3.4, 0]);
+    }
+
+    // 3. Horizontal transoms & header rails
+    b.addBox('frame', [facadeWidth, 0.08, 0.14], [0, 0.04, 0]);
+    b.addBox('frame', [facadeWidth, 0.08, 0.14], [0, 3.0, 0]);
+    b.addBox('frame', [facadeWidth, 0.06, 0.12], [0, 4.25, 0]);
+    b.addBox('frame', [facadeWidth, 0.06, 0.12], [0, 5.5, 0]);
+    b.addBox('frame', [facadeWidth, 0.08, 0.16], [0, 6.8, 0]);
+
+    // 4. Glass panes per tier
+    for (let bIdx = 0; bIdx < numBays; bIdx++) {
+      const cx = -facadeWidth / 2 + (bIdx + 0.5) * bayWidth;
+      if (bIdx === 3) {
+        b.addBox('glass', [0.92, 2.3, 0.04], [cx - 0.48, 1.5, 0.02]);
+        b.addBox('frame', [0.96, 2.34, 0.06], [cx - 0.48, 1.5, 0.02]);
+        b.addCylinder('steel', [0.018, 0.018, 0.95, 8], [cx - 0.08, 1.45, 0.08]);
+
+        b.addBox('glass', [0.92, 2.3, 0.04], [cx + 0.48, 1.5, 0.02]);
+        b.addBox('frame', [0.96, 2.34, 0.06], [cx + 0.48, 1.5, 0.02]);
+        b.addCylinder('steel', [0.018, 0.018, 0.95, 8], [cx + 0.08, 1.45, 0.08]);
+
+        b.addBox('frame', [bayWidth - 0.08, 0.06, 0.1], [cx, 2.65, 0]);
+        b.addBox('glass', [bayWidth - 0.08, 0.3, 0.03], [cx, 2.825, 0]);
+      } else {
+        b.addBox('glass', [bayWidth - 0.08, 2.9, 0.03], [cx, 1.5, 0]);
+      }
+      b.addBox('glass', [bayWidth - 0.08, 1.18, 0.03], [cx, 3.625, 0]);
+      b.addBox('glass', [bayWidth - 0.08, 1.18, 0.03], [cx, 4.875, 0]);
+      b.addBox('glass', [bayWidth - 0.08, 1.22, 0.03], [cx, 6.15, 0]);
+    }
+
+    // 5. Attic frieze & signage letters
+    b.addBox('frieze', [facadeWidth + 0.1, 1.3, 0.28], [0, 6.45, 0.04]);
+    b.addBox('frame', [facadeWidth + 0.15, 0.06, 0.14], [0, 5.82, 0.12]);
+    b.addBox('frame', [facadeWidth + 0.2, 0.08, 0.36], [0, 7.12, 0.06]);
+
+    const letterGeoms: Record<string, THREE.BufferGeometry> = {
       D: createLetterGeometry('D'),
       A: createLetterGeometry('A'),
       E: createLetterGeometry('E'),
@@ -254,12 +288,6 @@ export function DaewooHallFacade({
       H: createLetterGeometry('H'),
       L: createLetterGeometry('L'),
     };
-  }, []);
-
-  // Letters layout: offsets along the 14m width
-  const letterLayout = useMemo(() => {
-    // Word 1: "DAEWOO" centered on left, Word 2: "HALL" on right
-    // Overall text centered around X = 0
     const chars = [
       { char: 'D', x: -4.3 },
       { char: 'A', x: -3.5 },
@@ -267,233 +295,40 @@ export function DaewooHallFacade({
       { char: 'W', x: -1.95 },
       { char: 'O', x: -1.15 },
       { char: 'O', x: -0.4 },
-      // space
       { char: 'H', x: 0.7 },
       { char: 'A', x: 1.5 },
       { char: 'L', x: 2.25 },
       { char: 'L', x: 2.95 },
-    ] as const;
-    return chars;
-  }, []);
-
-  // Mullion X coordinates: 8 vertical posts for 7 bays
-  const mullionPositions = useMemo(() => {
-    const list: number[] = [];
-    for (let i = 0; i <= numBays; i++) {
-      list.push(-facadeWidth / 2 + i * bayWidth);
+    ];
+    for (const { char, x } of chars) {
+      const geom = letterGeoms[char];
+      if (geom) {
+        b.addGeometry('letters', geom, [x, 6.35, 0.2]);
+      }
     }
-    return list;
+    for (const g of Object.values(letterGeoms)) g.dispose();
+
+    return b.buildAll();
   }, [facadeWidth, numBays, bayWidth]);
 
-  // Bay center X coordinates
-  const bayCenters = useMemo(() => {
-    const list: number[] = [];
-    for (let i = 0; i < numBays; i++) {
-      list.push(-facadeWidth / 2 + (i + 0.5) * bayWidth);
-    }
-    return list;
-  }, [facadeWidth, numBays, bayWidth]);
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      {/* ========================================================
-          1. ENTRANCE STEPS & STEEL HANDRAILS (Портал входа)
-         ======================================================== */}
-      {/* 3 Tiers of Granite Entrance Steps (6.0m wide, from X = -3.0 to +3.0) */}
-      <mesh position={[0, 0.11, 0.6]} material={materials.stepsMat} receiveShadow>
-        <boxGeometry args={[6.2, 0.12, 1.2]} />
-      </mesh>
-      <mesh position={[0, 0.23, 0.4]} material={materials.stepsMat} receiveShadow>
-        <boxGeometry args={[6.1, 0.12, 0.8]} />
-      </mesh>
-      <mesh position={[0, 0.35, 0.2]} material={materials.stepsMat} receiveShadow>
-        <boxGeometry args={[6.0, 0.12, 0.4]} />
-      </mesh>
+      {merged.steps && <mesh geometry={merged.steps} material={materials.stepsMat} receiveShadow raycast={NO_RAYCAST} />}
+      {merged.steel && <mesh geometry={merged.steel} material={materials.steelMat} raycast={NO_RAYCAST} />}
+      {merged.frame && <mesh geometry={merged.frame} material={materials.frameMat} castShadow raycast={NO_RAYCAST} />}
+      {merged.glass && <mesh geometry={merged.glass} material={materials.glassMat} raycast={NO_RAYCAST} />}
+      {merged.frieze && <mesh geometry={merged.frieze} material={materials.friezeMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.letters && <mesh geometry={merged.letters} material={materials.lettersMat} raycast={NO_RAYCAST} />}
 
-      {/* Left Handrail at X = -3.0m */}
-      <group position={[-3.0, 0.35, 0.6]}>
-        {/* Posts */}
-        <mesh position={[0, 0.45, -0.4]} material={materials.steelMat}>
-          <cylinderGeometry args={[0.025, 0.025, 0.9, 8]} />
-        </mesh>
-        <mesh position={[0, 0.45, 0.4]} material={materials.steelMat}>
-          <cylinderGeometry args={[0.025, 0.025, 0.9, 8]} />
-        </mesh>
-        {/* Sloped Top Rail */}
-        <mesh position={[0, 0.9, 0]} rotation={[-0.14, 0, 0]} material={materials.steelMat}>
-          <boxGeometry args={[0.05, 0.05, 1.25]} />
-        </mesh>
-      </group>
-
-      {/* Right Handrail at X = +3.0m */}
-      <group position={[3.0, 0.35, 0.6]}>
-        {/* Posts */}
-        <mesh position={[0, 0.45, -0.4]} material={materials.steelMat}>
-          <cylinderGeometry args={[0.025, 0.025, 0.9, 8]} />
-        </mesh>
-        <mesh position={[0, 0.45, 0.4]} material={materials.steelMat}>
-          <cylinderGeometry args={[0.025, 0.025, 0.9, 8]} />
-        </mesh>
-        {/* Sloped Top Rail */}
-        <mesh position={[0, 0.9, 0]} rotation={[-0.14, 0, 0]} material={materials.steelMat}>
-          <boxGeometry args={[0.05, 0.05, 1.25]} />
-        </mesh>
-      </group>
-
-      {/* ========================================================
-          2. STRUCTURAL ALUMINUM MULLIONS (8 Vertical Posts)
-         ======================================================== */}
-      {mullionPositions.map((mx, idx) => (
-        <mesh key={`mullion-${idx}`} position={[mx, 3.4, 0]} material={materials.frameMat} castShadow>
-          <boxGeometry args={[0.08, 6.8, 0.12]} />
-        </mesh>
-      ))}
-
-      {/* ========================================================
-          3. HORIZONTAL TRANSOMS & HEADER RAILS
-         ======================================================== */}
-      {/* Plinth Base Rail at Y = 0.04 */}
-      <mesh position={[0, 0.04, 0]} material={materials.frameMat}>
-        <boxGeometry args={[facadeWidth, 0.08, 0.14]} />
-      </mesh>
-      {/* Level 1 Transom at Y = 3.00 (Header of Portal / Tier 1) */}
-      <mesh position={[0, 3.0, 0]} material={materials.frameMat} castShadow>
-        <boxGeometry args={[facadeWidth, 0.08, 0.14]} />
-      </mesh>
-      {/* Level 2 Transom at Y = 4.25 */}
-      <mesh position={[0, 4.25, 0]} material={materials.frameMat} castShadow>
-        <boxGeometry args={[facadeWidth, 0.06, 0.12]} />
-      </mesh>
-      {/* Level 3 Transom at Y = 5.50 */}
-      <mesh position={[0, 5.5, 0]} material={materials.frameMat} castShadow>
-        <boxGeometry args={[facadeWidth, 0.06, 0.12]} />
-      </mesh>
-      {/* Curtain Wall Top Header at Y = 6.80 */}
-      <mesh position={[0, 6.8, 0]} material={materials.frameMat} castShadow>
-        <boxGeometry args={[facadeWidth, 0.08, 0.16]} />
-      </mesh>
-
-      {/* ========================================================
-          4. GLASS PANES PER TIER
-         ======================================================== */}
-      {/* --- Tier 1 (Y: 0.0 to 3.0m, Height: 3.0m) --- */}
-      {bayCenters.map((cx, bIdx) => {
-        // Center bay (index 3, X = 0) is the Double Glass Door Portal
-        if (bIdx === 3) {
-          return (
-            <group key={`tier1-bay-${bIdx}`} position={[cx, 0, 0]}>
-              {/* Double Entrance Glass Doors (from Y = 0.35 to 2.65, width 2.0m) */}
-              {/* Left Door Leaf */}
-              <mesh position={[-0.48, 1.5, 0.02]} material={materials.glassMat}>
-                <boxGeometry args={[0.92, 2.3, 0.04]} />
-              </mesh>
-              <mesh position={[-0.48, 1.5, 0.02]} material={materials.frameMat}>
-                <boxGeometry args={[0.96, 2.34, 0.06]} />
-              </mesh>
-              {/* Left Door Pull Handle */}
-              <mesh position={[-0.08, 1.45, 0.08]} material={materials.steelMat}>
-                <cylinderGeometry args={[0.018, 0.018, 0.95, 8]} />
-              </mesh>
-
-              {/* Right Door Leaf */}
-              <mesh position={[0.48, 1.5, 0.02]} material={materials.glassMat}>
-                <boxGeometry args={[0.92, 2.3, 0.04]} />
-              </mesh>
-              <mesh position={[0.48, 1.5, 0.02]} material={materials.frameMat}>
-                <boxGeometry args={[0.96, 2.34, 0.06]} />
-              </mesh>
-              {/* Right Door Pull Handle */}
-              <mesh position={[0.08, 1.45, 0.08]} material={materials.steelMat}>
-                <cylinderGeometry args={[0.018, 0.018, 0.95, 8]} />
-              </mesh>
-
-              {/* Transom Bar above doors at Y = 2.65 */}
-              <mesh position={[0, 2.65, 0]} material={materials.frameMat}>
-                <boxGeometry args={[bayWidth - 0.08, 0.06, 0.1]} />
-              </mesh>
-              {/* Glass Transom Window above doors (Y = 2.65 to 3.00) */}
-              <mesh position={[0, 2.825, 0]} material={materials.glassMat}>
-                <boxGeometry args={[bayWidth - 0.08, 0.3, 0.03]} />
-              </mesh>
-            </group>
-          );
-        }
-
-        // Standard fixed panoramic glass bay for Tier 1
-        return (
-          <mesh key={`tier1-bay-${bIdx}`} position={[cx, 1.5, 0]} material={materials.glassMat}>
-            <boxGeometry args={[bayWidth - 0.08, 2.9, 0.03]} />
-          </mesh>
-        );
-      })}
-
-      {/* --- Tier 2 (Y: 3.0 to 4.25m, Height: 1.25m) --- */}
-      {bayCenters.map((cx, bIdx) => (
-        <mesh key={`tier2-bay-${bIdx}`} position={[cx, 3.625, 0]} material={materials.glassMat}>
-          <boxGeometry args={[bayWidth - 0.08, 1.18, 0.03]} />
-        </mesh>
-      ))}
-
-      {/* --- Tier 3 (Y: 4.25 to 5.50m, Height: 1.25m) --- */}
-      {bayCenters.map((cx, bIdx) => (
-        <mesh key={`tier3-bay-${bIdx}`} position={[cx, 4.875, 0]} material={materials.glassMat}>
-          <boxGeometry args={[bayWidth - 0.08, 1.18, 0.03]} />
-        </mesh>
-      ))}
-
-      {/* --- Tier 4 (Y: 5.50 to 6.80m, Height: 1.30m) --- */}
-      {bayCenters.map((cx, bIdx) => (
-        <mesh key={`tier4-bay-${bIdx}`} position={[cx, 6.15, 0]} material={materials.glassMat}>
-          <boxGeometry args={[bayWidth - 0.08, 1.22, 0.03]} />
-        </mesh>
-      ))}
-
-      {/* ========================================================
-          5. ATTIC FRIEZE & ARCHITECTURAL SIGNAGE UNDER EAVES (Y: +5.80 to +7.15m)
-         ======================================================== */}
-      {/* Light-gray composite fascia panel */}
-      <mesh position={[0, 6.45, 0.04]} material={materials.friezeMat} castShadow receiveShadow>
-        <boxGeometry args={[facadeWidth + 0.1, 1.3, 0.28]} />
-      </mesh>
-      {/* Lower Decorative Cornice Reveal at Y = 5.80 */}
-      <mesh position={[0, 5.82, 0.12]} material={materials.frameMat}>
-        <boxGeometry args={[facadeWidth + 0.15, 0.06, 0.14]} />
-      </mesh>
-      {/* Upper Architrave Trim under Eaves at Y = 7.12 */}
-      <mesh position={[0, 7.12, 0.06]} material={materials.frameMat} castShadow>
-        <boxGeometry args={[facadeWidth + 0.2, 0.08, 0.36]} />
-      </mesh>
-
-      {/* 3D Extruded Capital Letters «DAEWOO HALL» mounted directly on frieze */}
-      <group position={[0, 6.35, 0.20]}>
-        {letterLayout.map(({ char, x }, idx) => {
-          const geom = letterGeometries[char as keyof typeof letterGeometries];
-          if (!geom) return null;
-          return (
-            <mesh
-              key={`letter-${idx}`}
-              position={[x, 0, 0]}
-              geometry={geom}
-              material={materials.lettersMat}
-              castShadow
-            />
-          );
-        })}
-      </group>
-
-      {/* Birch Trees Group in front of the glazed curtain wall per blueprint media_1793539586758.jpg */}
       {includeTrees && <BirchTreesGroup facadeWidth={facadeWidth} />}
     </group>
   );
 }
 
-/**
- * Slender white birch trees planted in front of the Daewoo Hall glazed apron,
- * reconstructed directly from blueprint «ФАСАД УЧЕБНОГО КОРПУСА С ВХОДНОЙ ГРУППОЙ «DAEWOO HALL» (2D ЧЕРТЕЖ-РАЗВЕРТКА)».
- */
 function BirchTreesGroup({ facadeWidth }: { facadeWidth: number }) {
   const treeMaterials = useMemo(() => {
-    // White birch bark with subtle dark rings
     const barkWhiteMat = new THREE.MeshStandardMaterial({
       color: '#f8fafc',
       roughness: 0.85,
@@ -504,50 +339,41 @@ function BirchTreesGroup({ facadeWidth }: { facadeWidth: number }) {
       roughness: 0.9,
     });
     const leafMat = new THREE.MeshStandardMaterial({
-      color: '#4d7c0f', // Birch leafy green
+      color: '#4d7c0f',
       roughness: 0.75,
       metalness: 0.05,
     });
     return { barkWhiteMat, barkDarkMat, leafMat };
   }, []);
 
-  // 5 Birch trees positioned along the apron in front of Daewoo Hall per blueprint media_1793539586758.jpg
-  const trees = useMemo(() => {
-    return [
+  const merged = useMemo(() => {
+    const b = new StaticGeometryBatcher();
+    const trees = [
       { x: -facadeWidth * 0.28, z: 0.9, height: 6.2, r: 0.065 },
       { x: -facadeWidth * 0.16, z: 1.1, height: 7.0, r: 0.075 },
       { x: -facadeWidth * 0.02, z: 0.85, height: 7.6, r: 0.08 },
       { x: facadeWidth * 0.22, z: 1.05, height: 6.6, r: 0.07 },
       { x: facadeWidth * 0.36, z: 0.8, height: 6.1, r: 0.065 },
     ];
+    for (const t of trees) {
+      b.addCylinder('barkWhite', [t.r * 0.7, t.r, t.height, 8], [t.x, t.height / 2, t.z]);
+      for (const ry of [1.2, 2.4, 3.6, 4.8]) {
+        b.addCylinder('barkDark', [t.r * 0.95, t.r * 0.95, 0.08, 8], [t.x, ry, t.z]);
+      }
+      b.addSphere('leaf', [0.95, 8, 6], [t.x, t.height - 0.5, t.z]);
+      b.addSphere('leaf', [0.75, 8, 6], [t.x + 0.2, t.height + 0.2, t.z + 0.1]);
+      b.addSphere('leaf', [0.8, 8, 6], [t.x - 0.25, t.height - 1.2, t.z - 0.1]);
+    }
+    return b.buildAll();
   }, [facadeWidth]);
+
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   return (
     <group name="daewoo-birch-trees">
-      {trees.map((t, idx) => (
-        <group key={`birch-${idx}`} position={[t.x, 0, t.z]}>
-          {/* Main slender white trunk */}
-          <mesh position={[0, t.height / 2, 0]} material={treeMaterials.barkWhiteMat} castShadow>
-            <cylinderGeometry args={[t.r * 0.7, t.r, t.height, 10]} />
-          </mesh>
-          {/* Characteristic dark birch bark horizontal rings */}
-          {[1.2, 2.4, 3.6, 4.8].map((ry) => (
-            <mesh key={`ring-${ry}`} position={[0, ry, 0]} material={treeMaterials.barkDarkMat}>
-              <cylinderGeometry args={[t.r * 0.95, t.r * 0.95, 0.08, 10]} />
-            </mesh>
-          ))}
-          {/* Airy green canopy clusters near top */}
-          <mesh position={[0, t.height - 0.5, 0]} material={treeMaterials.leafMat} castShadow>
-            <sphereGeometry args={[0.95, 10, 8]} />
-          </mesh>
-          <mesh position={[0.2, t.height + 0.2, 0.1]} material={treeMaterials.leafMat} castShadow>
-            <sphereGeometry args={[0.75, 8, 6]} />
-          </mesh>
-          <mesh position={[-0.25, t.height - 1.2, -0.1]} material={treeMaterials.leafMat} castShadow>
-            <sphereGeometry args={[0.8, 8, 6]} />
-          </mesh>
-        </group>
-      ))}
+      {merged.barkWhite && <mesh geometry={merged.barkWhite} material={treeMaterials.barkWhiteMat} castShadow raycast={NO_RAYCAST} />}
+      {merged.barkDark && <mesh geometry={merged.barkDark} material={treeMaterials.barkDarkMat} raycast={NO_RAYCAST} />}
+      {merged.leaf && <mesh geometry={merged.leaf} material={treeMaterials.leafMat} castShadow raycast={NO_RAYCAST} />}
     </group>
   );
 }

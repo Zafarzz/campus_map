@@ -1,8 +1,20 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { getArchitecturalWallTextures, getWindowGlassTexture } from '../materials/pbrMaterials';
 import {
-  getAjouLogoTexture,
+  StaticGeometryBatcher,
+  disposeMergedMap,
+  NO_RAYCAST,
+} from '../geometry/staticGeometryMerger';
+import {
+  getArchitecturalWallTextures,
+  getGranitePlinthTextures,
+  getWindowGlassTexture,
+} from '../materials/pbrMaterials';
+import {
+  applyArchitecturalGlassShader,
+  applyTravertineWeatheringShader,
+} from '../shaders/architecturalShaders';
+import {
   getAtticBannerTexture,
   getCanopySignTexture,
 } from './facadeTextures';
@@ -62,31 +74,32 @@ export function BlockCFacade({
 
   const plinthHeight = 1.1; // -1.100 to 0.000
   const darkFrameColor = frameColor;
-  // Deep architectural tinted glass
   const glassColor = '#0f172a';
 
   // Textures
   const atticTexture = useMemo(() => getAtticBannerTexture(), []);
   const canopyTexture = useMemo(() => getCanopySignTexture(), []);
-  const logoTexture = useMemo(() => getAjouLogoTexture(), []);
   const wallTextures = useMemo(() => getArchitecturalWallTextures(10, 3), []);
+  const plinthTextures = useMemo(() => getGranitePlinthTextures(4, 1), []);
   const glassTexture = useMemo(() => getWindowGlassTexture(), []);
 
   // Shared reusable materials
   const wallMat = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: wallColor,
-        map: wallTextures?.map ?? null,
-        normalMap: wallTextures?.normalMap ?? null,
-        normalScale: new THREE.Vector2(0.25, 0.25),
-        roughnessMap: wallTextures?.roughnessMap ?? null,
-        roughness: 0.78,
-        metalness: 0.03,
-        transparent,
-        opacity,
-        depthWrite: !transparent,
-      }),
+      applyTravertineWeatheringShader(
+        new THREE.MeshStandardMaterial({
+          color: wallColor,
+          map: wallTextures?.map ?? null,
+          normalMap: wallTextures?.normalMap ?? null,
+          normalScale: new THREE.Vector2(0.25, 0.25),
+          roughnessMap: wallTextures?.roughnessMap ?? null,
+          roughness: 0.8,
+          metalness: 0.0,
+          transparent,
+          opacity,
+          depthWrite: !transparent,
+        }),
+      ),
     [wallColor, wallTextures, transparent, opacity]
   );
 
@@ -94,13 +107,17 @@ export function BlockCFacade({
     () =>
       new THREE.MeshStandardMaterial({
         color: plinthColor,
+        map: plinthTextures?.map ?? null,
+        normalMap: plinthTextures?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.25, 0.25),
+        roughnessMap: plinthTextures?.roughnessMap ?? null,
         roughness: 0.85,
-        metalness: 0.08,
+        metalness: 0.0,
         transparent,
         opacity,
         depthWrite: !transparent,
       }),
-    [plinthColor, transparent, opacity]
+    [plinthColor, plinthTextures, transparent, opacity]
   );
 
   const trimMat = useMemo(
@@ -108,7 +125,7 @@ export function BlockCFacade({
       new THREE.MeshStandardMaterial({
         color: trimColor,
         roughness: 0.7,
-        metalness: 0.05,
+        metalness: 0.0,
         transparent,
         opacity,
         depthWrite: !transparent,
@@ -131,20 +148,21 @@ export function BlockCFacade({
 
   const glassMat = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: glassColor,
-        map: glassTexture ?? null,
-        roughness: 0.12,
-        metalness: 0.78,
-        envMapIntensity: 1.45,
-        transparent: true,
-        opacity: transparent ? opacity * 0.85 : 0.94,
-        depthWrite: !transparent,
-      }),
+      applyArchitecturalGlassShader(
+        new THREE.MeshStandardMaterial({
+          color: glassColor,
+          map: glassTexture ?? null,
+          roughness: 0.08,
+          metalness: 0.15,
+          envMapIntensity: 1.6,
+          transparent: true,
+          opacity: transparent ? opacity * 0.85 : 0.92,
+          depthWrite: !transparent,
+        }),
+      ),
     [glassColor, glassTexture, transparent, opacity]
   );
 
-  // Horizontal travertine slab joints: a slightly darker shade of the wall color
   const jointMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -158,282 +176,177 @@ export function BlockCFacade({
     [wallColor, transparent, opacity]
   );
 
-  // Mirrored coordinate mapping:
-  // pz = +facadeLength / 2 - offset
-  // Puts Axis 1 on the left, and axes 12-15 (entrance pavilion & logo) on the RIGHT!
+  const canopySignMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        map: canopyTexture ?? null,
+        roughness: 0.4,
+        metalness: 0.2,
+        transparent,
+        opacity,
+      }),
+    [canopyTexture, transparent, opacity]
+  );
+
+  const atticSignMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        map: atticTexture ?? null,
+        roughness: 0.6,
+        metalness: 0.05,
+        transparent,
+        opacity,
+      }),
+    [atticTexture, transparent, opacity]
+  );
+
   const bayCount = isExtended ? Math.max(8, Math.floor((facadeLength - 10.0) / 3.0)) : 8;
-  const pilasterAxes = isExtended
-    ? Array.from({ length: bayCount + 2 }, (_, i) => i * 3.0)
-    : [0, 3, 6, 9, 12, 15, 18, 21, 24, 27];
-  const tallWindowBays = isExtended
-    ? Array.from({ length: bayCount }, (_, i) => 1.5 + i * 3.0)
-    : [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5];
-  const jointRows = Array.from({ length: 23 }, (_, i) => 0.45 + i * 0.45);
+  const pavilionZ = facadeLength / 2 - (isExtended ? (bayCount + 2.5) * 3.0 : 31.7) * scaleZ;
+  const pavWidth = 8.4 * scaleZ;
+  const pavDepth = 2.8;
+  const pavHeight = 4.1;
+
+  const merged = useMemo(() => {
+    const b = new StaticGeometryBatcher();
+    const toZ = (offset: number) => facadeLength / 2 - offset * scaleZ;
+
+    // 1. Plinth & drip molding
+    b.addBox('plinth', [0.22, plinthHeight, facadeLength + 0.1], [sign * 0.08, -plinthHeight / 2, 0]);
+    b.addBox('trim', [0.16, 0.08, facadeLength + 0.15], [sign * 0.12, 0.04, 0]);
+
+    // 2. Main travertine wall & joints
+    b.addBox('wall', [0.15, wallHeight, facadeLength], [0, wallHeight / 2, 0]);
+    for (let i = 0; i < 23; i++) {
+      const yVal = 0.45 + i * 0.45;
+      b.addBox('joint', [0.01, 0.035, facadeLength], [sign * 0.078, yVal, 0]);
+    }
+
+    // 3. Pilasters
+    const pilasterAxes = isExtended
+      ? Array.from({ length: bayCount + 2 }, (_, i) => i * 3.0)
+      : [0, 3, 6, 9, 12, 15, 18, 21, 24, 27];
+    for (const axisOffset of pilasterAxes) {
+      const pz = toZ(axisOffset);
+      const px = sign * 0.15;
+      b.addBox('trim', [0.22, 9.8, 0.45 * scaleZ], [px, 4.9, pz]);
+      b.addBox('wall', [0.03, 9.0, 0.06 * scaleZ], [px + sign * 0.11, 4.9, pz - 0.1 * scaleZ]);
+      b.addBox('wall', [0.03, 9.0, 0.06 * scaleZ], [px + sign * 0.11, 4.9, pz + 0.1 * scaleZ]);
+      b.addBox('trim', [0.3, 1.0, 0.65 * scaleZ], [px, 10.3, pz]);
+      b.addBox('wall', [0.04, 0.7, 0.55 * scaleZ], [px + sign * 0.15, 10.2, pz]);
+      b.addBox('trim', [0.36, 0.15, 0.75 * scaleZ], [px + sign * 0.05, 10.75, pz]);
+    }
+
+    // 4. 1F Windows
+    const tallWindowBays = isExtended
+      ? Array.from({ length: bayCount }, (_, i) => 1.5 + i * 3.0)
+      : [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5];
+    for (const bayOffset of tallWindowBays) {
+      const wz = toZ(bayOffset);
+      const wx = sign * 0.08;
+      b.addBox('frame', [0.06, 1.8, 1.8 * scaleZ], [wx, 1.8, wz]);
+      b.addBox('glass', [0.03, 1.64, 1.64 * scaleZ], [wx + sign * 0.025, 1.8, wz]);
+      b.addBox('frame', [0.04, 1.64, 0.06 * scaleZ], [wx + sign * 0.045, 1.8, wz]);
+      b.addBox('trim', [0.15, 0.12, 2.0 * scaleZ], [wx + sign * 0.08, 1.8 - 0.95, wz]);
+      b.addBox('trim', [0.12, 0.1, 2.0 * scaleZ], [wx + sign * 0.08, 1.8 + 0.95, wz]);
+    }
+
+    // Bay 9: OK-4
+    const ok4z = toZ(isExtended ? (bayCount + 0.5) * 3.0 : 25.5);
+    const ok4x = sign * 0.08;
+    b.addBox('frame', [0.06, 1.2, 1.2 * scaleZ], [ok4x, 1.8, ok4z]);
+    b.addBox('glass', [0.03, 1.08, 1.08 * scaleZ], [ok4x + sign * 0.025, 1.8, ok4z]);
+    b.addBox('trim', [0.15, 0.1, 1.4 * scaleZ], [ok4x + sign * 0.08, 1.8 - 0.65, ok4z]);
+
+    // 5. 2F Tall Windows
+    const tallWindows = [
+      ...tallWindowBays.map((offset) => ({ offset, width: 1.8 * scaleZ, bottom: 4.0, top: 10.3 })),
+      { offset: isExtended ? (bayCount + 0.5) * 3.0 : 25.5, width: 1.2 * scaleZ, bottom: 4.0, top: 10.3 },
+      { offset: isExtended ? (bayCount + 1.6) * 3.0 : 28.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
+      { offset: isExtended ? (bayCount + 2.3) * 3.0 : 30.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
+    ];
+    for (const { offset, width, bottom, top } of tallWindows) {
+      const h = top - bottom;
+      const wz = toZ(offset);
+      const wy = bottom + h / 2;
+      const wx = sign * 0.08;
+      const mullions = width > 1.5 * scaleZ ? [-width / 6, width / 6] : [0];
+      const transoms = [h / 2 - h * 0.22, -h / 2 + h * 0.4];
+
+      b.addBox('frame', [0.06, h, width], [wx, wy, wz]);
+      b.addBox('glass', [0.03, h - 0.14, width - 0.14 * scaleZ], [wx + sign * 0.025, wy, wz]);
+      for (const mz of mullions) {
+        b.addBox('frame', [0.04, h - 0.14, 0.06], [wx + sign * 0.045, wy, wz + mz]);
+      }
+      for (const ty of transoms) {
+        b.addBox('frame', [0.04, 0.06, width - 0.14 * scaleZ], [wx + sign * 0.045, wy + ty, wz]);
+      }
+      b.addBox('trim', [0.16, 0.12, width + 0.2 * scaleZ], [wx + sign * 0.1, wy - h / 2 - 0.06, wz]);
+      b.addBox('trim', [0.12, 0.1, width + 0.2 * scaleZ], [wx + sign * 0.08, wy + h / 2 + 0.06, wz]);
+    }
+
+    // 6. Entrance Pavilion
+    const pvx = sign * (pavDepth / 2);
+    b.addBox('plinth', [1.4, 0.44, 4.0 * scaleZ], [pvx + sign * (pavDepth / 2 + 0.7), 0.22, pavilionZ + 0.4 * scaleZ]);
+    b.addBox('plinth', [0.6, 0.24, 4.2 * scaleZ], [pvx + sign * (pavDepth / 2 + 1.1), 0.12, pavilionZ + 0.4 * scaleZ]);
+    // Ramp
+    const rx = pvx + sign * (pavDepth / 2 + 0.6);
+    const rz = pavilionZ - 2.6 * scaleZ;
+    b.addBox('plinth', [1.6, 0.4, 1.8 * scaleZ], [rx, 0.2, rz]);
+    b.addBox('frame', [1.6, 0.05, 0.05], [rx, 0.8, rz + 0.8 * scaleZ]);
+    b.addBox('frame', [0.05, 0.6, 0.05], [rx - sign * 0.7, 0.5, rz + 0.8 * scaleZ]);
+    b.addBox('frame', [0.05, 0.6, 0.05], [rx + sign * 0.7, 0.5, rz + 0.8 * scaleZ]);
+    // Curtain wall box
+    b.addBox('glass', [pavDepth, pavHeight, pavWidth], [pvx, pavHeight / 2, pavilionZ]);
+    // Mullions grid on front face
+    const mgx = pvx + sign * (pavDepth / 2 + 0.02);
+    const mgy = pavHeight / 2;
+    for (const mx of [-4.2, -3.5, -2.1, -0.7, 0.7, 2.1, 3.5, 4.2]) {
+      b.addBox('frame', [0.08, pavHeight, 0.08], [mgx + sign * 0.02, mgy, pavilionZ + mx * scaleZ]);
+    }
+    b.addBox('frame', [0.08, 0.1, pavWidth + 0.1 * scaleZ], [mgx + sign * 0.02, mgy + pavHeight / 2 - 0.05, pavilionZ]);
+    b.addBox('frame', [0.08, 0.1, pavWidth + 0.1 * scaleZ], [mgx + sign * 0.02, mgy - pavHeight / 2 + 0.05, pavilionZ]);
+    b.addBox('frame', [0.08, 0.1, pavWidth], [mgx + sign * 0.02, mgy - pavHeight / 2 + 2.7, pavilionZ]);
+    b.addBox('glass', [0.04, 2.6, 2.2 * scaleZ], [mgx + sign * 0.04, mgy - pavHeight / 2 + 1.35, pavilionZ + 0.4 * scaleZ]);
+    b.addBox('frame', [0.05, 2.6, 0.08], [mgx + sign * 0.06, mgy - pavHeight / 2 + 1.35, pavilionZ + 0.4 * scaleZ]);
+    b.addBox('frame', [0.04, 0.8, 0.04], [mgx + sign * 0.1, mgy - pavHeight / 2 + 1.2, pavilionZ + 0.28 * scaleZ]);
+    b.addBox('frame', [0.04, 0.8, 0.04], [mgx + sign * 0.1, mgy - pavHeight / 2 + 1.2, pavilionZ + 0.52 * scaleZ]);
+    b.addBox('trim', [pavDepth + 0.8, 0.6, pavWidth + 0.6 * scaleZ], [pvx, pavHeight + 0.3, pavilionZ]);
+
+    // 8. Cornice, Attic & Parapet
+    b.addBox('trim', [0.35, 0.9, facadeLength + 0.2], [sign * 0.18, wallHeight + 0.45, 0]);
+    b.addBox('wall', [0.1, 0.15, facadeLength + 0.1], [sign * 0.24, wallHeight + 0.15, 0]);
+    b.addBox('wall', [0.15, 1.6, facadeLength], [sign * 0.05, wallHeight + 1.7, 0]);
+    b.addBox('trim', [0.42, 0.2, facadeLength + 0.3], [sign * 0.2, totalHeight - 0.1, 0]);
+
+    return b.buildAll();
+  }, [facadeLength, scaleZ, sign, plinthHeight, wallHeight, totalHeight, isExtended, bayCount, pavilionZ, pavWidth, pavDepth, pavHeight]);
+
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   const toZ = (offset: number) => facadeLength / 2 - offset * scaleZ;
 
   return (
     <group position={[wallX, 0, 0]}>
-      {/* ============================================================== */}
-      {/* 1. DARK GRANITE PLINTH (-1.100 to 0.000)                       */}
-      {/* ============================================================== */}
-      <mesh
-        position={[sign * 0.08, -plinthHeight / 2, 0]}
-        castShadow
-        receiveShadow
-        material={plinthMat}
-      >
-        <boxGeometry args={[0.22, plinthHeight, facadeLength + 0.1]} />
-      </mesh>
-      {/* Plinth top drip edge molding at y = 0.000 */}
-      <mesh position={[sign * 0.12, 0.04, 0]} material={trimMat} castShadow>
-        <boxGeometry args={[0.16, 0.08, facadeLength + 0.15]} />
-      </mesh>
+      {merged.plinth && <mesh geometry={merged.plinth} material={plinthMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.wall && <mesh geometry={merged.wall} material={wallMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.trim && <mesh geometry={merged.trim} material={trimMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.frame && <mesh geometry={merged.frame} material={frameMat} raycast={NO_RAYCAST} />}
+      {merged.glass && <mesh geometry={merged.glass} material={glassMat} raycast={NO_RAYCAST} />}
+      {merged.joint && <mesh geometry={merged.joint} material={jointMat} raycast={NO_RAYCAST} />}
 
-      {/* ============================================================== */}
-      {/* 2. MAIN TRAVERTINE FACADE WALL                                 */}
-      {/* ============================================================== */}
-      <mesh position={[0, wallHeight / 2, 0]} material={wallMat} castShadow receiveShadow>
-        <boxGeometry args={[0.15, wallHeight, facadeLength]} />
-      </mesh>
-
-      {/* Horizontal slab joints along the wall (every 0.45 m) */}
-      {jointRows.map((yVal, idx) => (
-        <mesh key={`rust-${idx}`} position={[sign * 0.078, yVal, 0]} material={jointMat}>
-          <boxGeometry args={[0.01, 0.035, facadeLength]} />
+      {/* Canopy Fascia Sign: "AJOU UNIVERSITY IN TASHKENT" */}
+      {canopyTexture && (
+        <mesh
+          position={[sign * (pavDepth + 0.45), pavHeight + 0.3, pavilionZ]}
+          rotation={[0, rotY, 0]}
+          material={canopySignMat}
+          raycast={NO_RAYCAST}
+        >
+          <planeGeometry args={[pavWidth + 0.4 * scaleZ, 0.52]} />
         </mesh>
-      ))}
+      )}
 
-      {/* ============================================================== */}
-      {/* 3. 10 VERTICAL CLASSICAL PILASTERS (Axes 1 to 11)              */}
-      {/* ============================================================== */}
-      {pilasterAxes.map((axisOffset, idx) => {
-        const pz = toZ(axisOffset);
-        return (
-          <group key={`pilaster-${idx}`} position={[sign * 0.15, 0, pz]}>
-            {/* Pilaster Shaft (0.0 to 9.8m) */}
-            <mesh position={[0, 4.9, 0]} material={trimMat} castShadow>
-              <boxGeometry args={[0.22, 9.8, 0.45 * scaleZ]} />
-            </mesh>
-
-            {/* Vertical Fluted Grooves in Pilaster Shaft */}
-            <mesh position={[sign * 0.11, 4.9, -0.1 * scaleZ]} material={wallMat}>
-              <boxGeometry args={[0.03, 9.0, 0.06 * scaleZ]} />
-            </mesh>
-            <mesh position={[sign * 0.11, 4.9, 0.1 * scaleZ]} material={wallMat}>
-              <boxGeometry args={[0.03, 9.0, 0.06 * scaleZ]} />
-            </mesh>
-
-            {/* Classical Fluted Capital (9.8m to 10.8m) */}
-            <mesh position={[0, 10.3, 0]} material={trimMat} castShadow>
-              <boxGeometry args={[0.3, 1.0, 0.65 * scaleZ]} />
-            </mesh>
-            {/* Capital fluted necking */}
-            <mesh position={[sign * 0.15, 10.2, 0]} material={wallMat}>
-              <boxGeometry args={[0.04, 0.7, 0.55 * scaleZ]} />
-            </mesh>
-            {/* Capital abacus upper molding */}
-            <mesh position={[sign * 0.05, 10.75, 0]} material={trimMat}>
-              <boxGeometry args={[0.36, 0.15, 0.75 * scaleZ]} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* ============================================================== */}
-      {/* ============================================================== */}
-      {/* 4. WINDOWS: 1ST FLOOR (0.000 to +3.600)                        */}
-      {/* ============================================================== */}
-      {/* Bays 1 to 8: OK-1 (1800 x 1800 mm, center Y = 1.8m) */}
-      {tallWindowBays.map((bayOffset, idx) => {
-        const wz = toZ(bayOffset);
-        return (
-          <group key={`ok1-${idx}`} position={[sign * 0.08, 1.8, wz]}>
-            {/* Frame perimeter */}
-            <mesh material={frameMat}>
-              <boxGeometry args={[0.06, 1.8, 1.8 * scaleZ]} />
-            </mesh>
-            {/* Glass casement (2 panes with center mullion) */}
-            <mesh position={[sign * 0.025, 0, 0]} material={glassMat}>
-              <boxGeometry args={[0.03, 1.64, 1.64 * scaleZ]} />
-            </mesh>
-            <mesh position={[sign * 0.045, 0, 0]} material={frameMat}>
-              <boxGeometry args={[0.04, 1.64, 0.06 * scaleZ]} />
-            </mesh>
-            {/* Window stone sill & lintel */}
-            <mesh position={[sign * 0.08, -0.95, 0]} material={trimMat}>
-              <boxGeometry args={[0.15, 0.12, 2.0 * scaleZ]} />
-            </mesh>
-            <mesh position={[sign * 0.08, 0.95, 0]} material={trimMat}>
-              <boxGeometry args={[0.12, 0.1, 2.0 * scaleZ]} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* Bay 9: OK-4 (1200 x 1200 mm, center Y = 1.8m, between axes 10 and 11) */}
-      <group position={[sign * 0.08, 1.8, toZ(isExtended ? (bayCount + 0.5) * 3.0 : 25.5)]}>
-        <mesh material={frameMat}>
-          <boxGeometry args={[0.06, 1.2, 1.2 * scaleZ]} />
-        </mesh>
-        <mesh position={[sign * 0.025, 0, 0]} material={glassMat}>
-          <boxGeometry args={[0.03, 1.08, 1.08 * scaleZ]} />
-        </mesh>
-        <mesh position={[sign * 0.08, -0.65, 0]} material={trimMat}>
-          <boxGeometry args={[0.15, 0.1, 1.4 * scaleZ]} />
-        </mesh>
-      </group>
-
-      {/* ============================================================== */}
-      {/* 5. WINDOWS: 2ND FLOOR — ONE TALL WINDOW PER BAY                */}
-      {/* Building is 2-storey: the upper storey is double height, so    */}
-      {/* every bay (including bays 1–2, drawn as two small windows on   */}
-      {/* the sheet) has a single continuous tall window.                */}
-      {/* ============================================================== */}
-      {[
-        ...tallWindowBays.map((offset) => ({ offset, width: 1.8 * scaleZ, bottom: 4.0, top: 10.3 })),
-        // Bay 9 (axes 10–11): narrow tall window
-        { offset: isExtended ? (bayCount + 0.5) * 3.0 : 25.5, width: 1.2 * scaleZ, bottom: 4.0, top: 10.3 },
-        // Above the entrance pavilion (axes 12–14): two narrow tall windows
-        { offset: isExtended ? (bayCount + 1.6) * 3.0 : 28.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
-        { offset: isExtended ? (bayCount + 2.3) * 3.0 : 30.8, width: 1.2 * scaleZ, bottom: 5.3, top: 10.3 },
-      ].map(({ offset, width, bottom, top }, idx) => {
-        const h = top - bottom;
-        const wz = toZ(offset);
-        const mullions = width > 1.5 * scaleZ ? [-width / 6, width / 6] : [0];
-        // Transoms: fanlight in the upper part + mid-rail
-        const transoms = [h / 2 - h * 0.22, -h / 2 + h * 0.4];
-        return (
-          <group key={`tall-window-${idx}`} position={[sign * 0.08, bottom + h / 2, wz]}>
-            <mesh material={frameMat} castShadow>
-              <boxGeometry args={[0.06, h, width]} />
-            </mesh>
-            <mesh position={[sign * 0.025, 0, 0]} material={glassMat}>
-              <boxGeometry args={[0.03, h - 0.14, width - 0.14 * scaleZ]} />
-            </mesh>
-            {mullions.map((mz, i) => (
-              <mesh key={`m-${i}`} position={[sign * 0.045, 0, mz]} material={frameMat}>
-                <boxGeometry args={[0.04, h - 0.14, 0.06]} />
-              </mesh>
-            ))}
-            {transoms.map((ty, i) => (
-              <mesh key={`t-${i}`} position={[sign * 0.045, ty, 0]} material={frameMat}>
-                <boxGeometry args={[0.04, 0.06, width - 0.14 * scaleZ]} />
-              </mesh>
-            ))}
-            {/* Stone sill & lintel */}
-            <mesh position={[sign * 0.1, -h / 2 - 0.06, 0]} material={trimMat}>
-              <boxGeometry args={[0.16, 0.12, width + 0.2 * scaleZ]} />
-            </mesh>
-            <mesh position={[sign * 0.08, h / 2 + 0.06, 0]} material={trimMat}>
-              <boxGeometry args={[0.12, 0.1, width + 0.2 * scaleZ]} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* ============================================================== */}
-      {/* 6. ENTRANCE PAVILION ON THE RIGHT (Axes 12 to 15, width = 8.4m)*/}
-      {/* ============================================================== */}
-      {(() => {
-        const pavilionZ = toZ(isExtended ? (bayCount + 2.5) * 3.0 : 31.7);
-        const pavWidth = 8.4 * scaleZ;
-        const pavDepth = 2.8; // Protrusion forward
-        const pavHeight = 4.1;
-
-        return (
-          <group position={[sign * (pavDepth / 2), 0, pavilionZ]}>
-            {/* Entrance Steps Podium (Granite steps down to ground) */}
-            <mesh position={[sign * (pavDepth / 2 + 0.7), 0.22, 0.4 * scaleZ]} material={plinthMat} castShadow receiveShadow>
-              <boxGeometry args={[1.4, 0.44, 4.0 * scaleZ]} />
-            </mesh>
-            {/* Intermediate step riser */}
-            <mesh position={[sign * (pavDepth / 2 + 1.1), 0.12, 0.4 * scaleZ]} material={plinthMat} receiveShadow>
-              <boxGeometry args={[0.6, 0.24, 4.2 * scaleZ]} />
-            </mesh>
-
-            {/* Disability Access Ramp on Right Outer Edge with Stainless Steel Railing */}
-            <group position={[sign * (pavDepth / 2 + 0.6), 0.2, -2.6 * scaleZ]}>
-              <mesh material={plinthMat} receiveShadow>
-                <boxGeometry args={[1.6, 0.4, 1.8 * scaleZ]} />
-              </mesh>
-              {/* Stainless Steel Handrail */}
-              <mesh position={[0, 0.6, 0.8 * scaleZ]} material={frameMat}>
-                <boxGeometry args={[1.6, 0.05, 0.05]} />
-              </mesh>
-              <mesh position={[sign * -0.7, 0.3, 0.8 * scaleZ]} material={frameMat}>
-                <boxGeometry args={[0.05, 0.6, 0.05]} />
-              </mesh>
-              <mesh position={[sign * 0.7, 0.3, 0.8 * scaleZ]} material={frameMat}>
-                <boxGeometry args={[0.05, 0.6, 0.05]} />
-              </mesh>
-            </group>
-
-            {/* Glass Curtain Wall Box */}
-            <mesh position={[0, pavHeight / 2, 0]} material={glassMat}>
-              <boxGeometry args={[pavDepth, pavHeight, pavWidth]} />
-            </mesh>
-
-            {/* Mullions Grid on Front Face */}
-            <group position={[sign * (pavDepth / 2 + 0.02), pavHeight / 2, 0]}>
-              {/* Vertical Mullion Divs including outer corner posts */}
-              {[-4.2, -3.5, -2.1, -0.7, 0.7, 2.1, 3.5, 4.2].map((mx, idx) => (
-                <mesh key={`mull-${idx}`} position={[sign * 0.02, 0, mx * scaleZ]} material={frameMat}>
-                  <boxGeometry args={[0.08, pavHeight, 0.08]} />
-                </mesh>
-              ))}
-              {/* Top & Bottom Horizontal Frame Rails */}
-              <mesh position={[sign * 0.02, pavHeight / 2 - 0.05, 0]} material={frameMat}>
-                <boxGeometry args={[0.08, 0.1, pavWidth + 0.1 * scaleZ]} />
-              </mesh>
-              <mesh position={[sign * 0.02, -pavHeight / 2 + 0.05, 0]} material={frameMat}>
-                <boxGeometry args={[0.08, 0.1, pavWidth + 0.1 * scaleZ]} />
-              </mesh>
-              {/* Horizontal Transom Beam at door head (y = 2.7m) */}
-              <mesh position={[sign * 0.02, -pavHeight / 2 + 2.7, 0]} material={frameMat}>
-                <boxGeometry args={[0.08, 0.1, pavWidth]} />
-              </mesh>
-              {/* Double Glazed Entrance Doors in Center */}
-              <mesh position={[sign * 0.04, -pavHeight / 2 + 1.35, 0.4 * scaleZ]} material={glassMat}>
-                <boxGeometry args={[0.04, 2.6, 2.2 * scaleZ]} />
-              </mesh>
-              {/* Door Frame & Handles */}
-              <mesh position={[sign * 0.06, -pavHeight / 2 + 1.35, 0.4 * scaleZ]} material={frameMat}>
-                <boxGeometry args={[0.05, 2.6, 0.08]} />
-              </mesh>
-              <mesh position={[sign * 0.1, -pavHeight / 2 + 1.2, 0.28 * scaleZ]} material={frameMat}>
-                <boxGeometry args={[0.04, 0.8, 0.04]} />
-              </mesh>
-              <mesh position={[sign * 0.1, -pavHeight / 2 + 1.2, 0.52 * scaleZ]} material={frameMat}>
-                <boxGeometry args={[0.04, 0.8, 0.04]} />
-              </mesh>
-            </group>
-
-            {/* Entrance Canopy Roof Slab (cream, same as cornice) */}
-            <mesh position={[0, pavHeight + 0.3, 0]} material={trimMat} castShadow receiveShadow>
-              <boxGeometry args={[pavDepth + 0.8, 0.6, pavWidth + 0.6 * scaleZ]} />
-            </mesh>
-
-            {/* Canopy Fascia Sign: "AJOU UNIVERSITY IN TASHKENT" */}
-            {canopyTexture && (
-              <mesh position={[sign * (pavDepth / 2 + 0.45), pavHeight + 0.3, 0]} rotation={[0, rotY, 0]}>
-                <planeGeometry args={[pavWidth + 0.4 * scaleZ, 0.52]} />
-                <meshStandardMaterial
-                  map={canopyTexture}
-                  roughness={0.4}
-                  metalness={0.2}
-                  transparent={transparent}
-                  opacity={opacity}
-                />
-              </mesh>
-            )}
-          </group>
-        );
-      })()}
-
-      {/* ============================================================== */}
-      {/* 7. OFFICIAL CIRCULAR UNIVERSITY MEDALLION LOGO ON RIGHT        */}
-      {/* ============================================================== */}
+      {/* Official Circular University Medallion Logo on Right */}
       <AjouLogoMedallion
         position={[sign * 0.14, 8.0, toZ(isExtended ? (bayCount + 3.2) * 3.0 : 33.9)]}
         rotation={[0, rotY, 0]}
@@ -443,44 +356,17 @@ export function BlockCFacade({
         transparent={transparent}
       />
 
-      {/* ============================================================== */}
-      {/* 8. CORNICE, ATTIC & PARAPET (+10.800 to +13.500)               */}
-      {/* ============================================================== */}
-      {/* Lower Molded Cornice Beam (+10.800 to +11.700, 0.9m) */}
-      <mesh position={[sign * 0.18, wallHeight + 0.45, 0]} material={trimMat} castShadow>
-        <boxGeometry args={[0.35, 0.9, facadeLength + 0.2]} />
-      </mesh>
-      {/* Cornice decorative dentil band */}
-      <mesh position={[sign * 0.24, wallHeight + 0.15, 0]} material={wallMat}>
-        <boxGeometry args={[0.1, 0.15, facadeLength + 0.1]} />
-      </mesh>
-
-      {/* Attic Wall Band (+11.700 to +13.300, 1.6m) */}
-      <mesh position={[sign * 0.05, wallHeight + 1.7, 0]} material={wallMat} castShadow>
-        <boxGeometry args={[0.15, 1.6, facadeLength]} />
-      </mesh>
-
       {/* Attic Signboard: "TOSHKENT SHAHRIDAGI ADJU UNIVERSITETI" */}
       {atticTexture && (
         <mesh
-          position={[sign * 0.14, wallHeight + 1.7, toZ(isExtended ? (bayCount * 1.5) : 16.5)]}
+          position={[sign * 0.14, wallHeight + 1.7, toZ(isExtended ? bayCount * 1.5 : 16.5)]}
           rotation={[0, rotY, 0]}
+          material={atticSignMat}
+          raycast={NO_RAYCAST}
         >
           <planeGeometry args={[15.0 * scaleZ, 1.35]} />
-          <meshStandardMaterial
-            map={atticTexture}
-            roughness={0.6}
-            metalness={0.05}
-            transparent={transparent}
-            opacity={opacity}
-          />
         </mesh>
       )}
-
-      {/* Top Parapet Coping & Drip Cap (+13.300 to +13.500, 0.2m) */}
-      <mesh position={[sign * 0.2, totalHeight - 0.1, 0]} material={trimMat} castShadow receiveShadow>
-        <boxGeometry args={[0.42, 0.2, facadeLength + 0.3]} />
-      </mesh>
     </group>
   );
 }

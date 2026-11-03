@@ -1,6 +1,40 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { NO_RAYCAST } from '../geometry/staticGeometryMerger';
 import { getAjouLogoTexture } from './facadeTextures';
+
+let cachedMedallionTextTexture: THREE.CanvasTexture | null = null;
+function getMedallionTextTexture(): THREE.CanvasTexture | null {
+  if (cachedMedallionTextTexture) return cachedMedallionTextTexture;
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 192;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Primary Brand Blue
+  ctx.fillStyle = '#002b66';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // "AJOU"
+  ctx.font = '900 80px "Montserrat", "Arial Black", sans-serif';
+  ctx.fillText('AJOU', canvas.width / 2, 62);
+
+  // "UNIVERSITY"
+  ctx.font = '700 44px "Montserrat", "Arial", sans-serif';
+  ctx.letterSpacing = '3.5px';
+  ctx.fillText('UNIVERSITY', canvas.width / 2, 130);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  cachedMedallionTextTexture = texture;
+  return texture;
+}
 
 export type AjouLogoMedallionProps = {
   /** World or local position [x, y, z] */
@@ -22,11 +56,6 @@ export type AjouLogoMedallionProps = {
 /**
  * Universal 3D Architectural Medallion for Ajou University in Tashkent.
  * Reusable across Block C, Block F, and other campus facades.
- * Features:
- * - Circular beveled composite backplate.
- * - Deep navy circular border ring (#002b66).
- * - Official Ajou University logo emblem texture.
- * - Architectural embossed "AJOU UNIVERSITY" typography underneath.
  */
 export function AjouLogoMedallion({
   position = [0, 0, 0],
@@ -38,40 +67,9 @@ export function AjouLogoMedallion({
   transparent = false,
 }: AjouLogoMedallionProps) {
   const logoTexture = useMemo(() => getAjouLogoTexture(), []);
-
-  // Text canvas texture for "AJOU" / "UNIVERSITY" underneath the medallion
-  const textTexture = useMemo(() => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 384;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Primary Brand Blue
-    ctx.fillStyle = '#002b66';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    // "AJOU"
-    ctx.font = '900 160px "Montserrat", "Arial Black", sans-serif';
-    ctx.fillText('AJOU', canvas.width / 2, 125);
-
-    // "UNIVERSITY"
-    ctx.font = '700 88px "Montserrat", "Arial", sans-serif';
-    ctx.letterSpacing = '7px';
-    ctx.fillText('UNIVERSITY', canvas.width / 2, 260);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 8;
-    return texture;
-  }, []);
+  const textTexture = useMemo(() => (showText ? getMedallionTextTexture() : null), [showText]);
 
   const materials = useMemo(() => {
-    // Stainless steel / silver bezel outer rim
     const rimMat = new THREE.MeshStandardMaterial({
       color: '#cbd5e1',
       metalness: 0.85,
@@ -81,7 +79,6 @@ export function AjouLogoMedallion({
       depthWrite: !transparent,
     });
 
-    // Deep brand navy enamel ring
     const navyMat = new THREE.MeshStandardMaterial({
       color: '#002b66',
       metalness: 0.1,
@@ -91,7 +88,6 @@ export function AjouLogoMedallion({
       depthWrite: !transparent,
     });
 
-    // Crisp white border ring
     const whiteMat = new THREE.MeshStandardMaterial({
       color: '#ffffff',
       metalness: 0.05,
@@ -101,7 +97,6 @@ export function AjouLogoMedallion({
       depthWrite: !transparent,
     });
 
-    // Main emblem logo face
     const logoMat = new THREE.MeshStandardMaterial({
       map: logoTexture ?? null,
       color: logoTexture ? '#ffffff' : '#002b66',
@@ -113,7 +108,6 @@ export function AjouLogoMedallion({
       side: THREE.DoubleSide,
     });
 
-    // Typography plaque material
     const textMat = new THREE.MeshStandardMaterial({
       map: textTexture ?? null,
       transparent: true,
@@ -129,30 +123,29 @@ export function AjouLogoMedallion({
   return (
     <group position={position} rotation={rotation} scale={scale}>
       {/* 1. Outer Metallic Bevel Rim */}
-      <mesh position={[0, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]} material={materials.rimMat} castShadow>
-        <cylinderGeometry args={[radius + 0.06, radius + 0.06, 0.03, 48]} />
+      <mesh position={[0, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]} material={materials.rimMat} raycast={NO_RAYCAST}>
+        <cylinderGeometry args={[radius + 0.06, radius + 0.06, 0.03, 32]} />
       </mesh>
 
       {/* 2. Deep Navy Outer Ring */}
-      <mesh position={[0, 0, 0.02]} material={materials.navyMat}>
-        <ringGeometry args={[radius * 0.82, radius, 48]} />
+      <mesh position={[0, 0, 0.02]} material={materials.navyMat} raycast={NO_RAYCAST}>
+        <ringGeometry args={[radius * 0.82, radius, 32]} />
       </mesh>
 
       {/* 3. Concentric White Separation Ring */}
-      <mesh position={[0, 0, 0.025]} material={materials.whiteMat}>
-        <ringGeometry args={[radius * 0.76, radius * 0.82, 48]} />
+      <mesh position={[0, 0, 0.025]} material={materials.whiteMat} raycast={NO_RAYCAST}>
+        <ringGeometry args={[radius * 0.76, radius * 0.82, 32]} />
       </mesh>
 
       {/* 4. Central Circular Logo Face */}
-      <mesh position={[0, 0, 0.03]} material={materials.logoMat}>
-        <circleGeometry args={[radius * 0.76, 48]} />
+      <mesh position={[0, 0, 0.03]} material={materials.logoMat} raycast={NO_RAYCAST}>
+        <circleGeometry args={[radius * 0.76, 32]} />
       </mesh>
 
       {/* 5. "AJOU UNIVERSITY" Typography Plaque Underneath */}
       {showText && textTexture && (
-        <mesh position={[0, -radius * 1.35, 0.02]}>
+        <mesh position={[0, -radius * 1.35, 0.02]} material={materials.textMat} raycast={NO_RAYCAST}>
           <planeGeometry args={[radius * 2.2, radius * 0.82]} />
-          <primitive object={materials.textMat} attach="material" />
         </mesh>
       )}
     </group>

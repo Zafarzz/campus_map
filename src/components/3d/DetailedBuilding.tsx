@@ -21,7 +21,17 @@ import { BlockDFacade } from './facades/BlockDFacade';
 import { BlockEFacade } from './facades/BlockEFacade';
 import { BlockFCourtyardFacade } from './facades/BlockFCourtyardFacade';
 import { SportsComplexRoof, SportsComplexFrontFacade } from './facades/SportsComplexFacade';
-import { getArchitecturalWallTextures, getWindowGlassTexture } from './materials/pbrMaterials';
+import {
+  getArchitecturalWallTextures,
+  getGranitePlinthTextures,
+  getRoofTileTextures,
+  getWindowGlassTexture,
+} from './materials/pbrMaterials';
+import {
+  applyArchitecturalGlassShader,
+  applyTravertineWeatheringShader,
+} from './shaders/architecturalShaders';
+import { NO_RAYCAST } from './geometry/staticGeometryMerger';
 
 type Props = {
   building: BuildingData;
@@ -103,36 +113,48 @@ function createTrueHipRoofGeometry(width: number, depth: number, height: number)
   const r2 = alongX ? [ridgeHalf, h, 0] : [0, h, -ridgeHalf];
 
   const verts: number[] = [];
-  const pushTri = (a: number[], b: number[], c: number[]) => {
+  const uvs: number[] = [];
+  const slopeLen = Math.hypot(alongX ? hd : hw, h);
+
+  const pushTriUV = (
+    a: number[],
+    b: number[],
+    c: number[],
+    ua: [number, number],
+    ub: [number, number],
+    uc: [number, number],
+  ) => {
     verts.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+    uvs.push(ua[0], ua[1], ub[0], ub[1], uc[0], uc[1]);
   };
 
   if (alongX) {
     // Front slope (+Z): quad bl -> br -> r2 -> r1
-    pushTri(bl, br, r2);
-    pushTri(bl, r2, r1);
+    pushTriUV(bl, br, r2, [-hw, 0], [hw, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(bl, r2, r1, [-hw, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Back slope (-Z): quad tr -> tl -> r1 -> r2
-    pushTri(tr, tl, r1);
-    pushTri(tr, r1, r2);
+    pushTriUV(tr, tl, r1, [-hw, 0], [hw, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(tr, r1, r2, [-hw, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Left hip (-X): triangle tl -> bl -> r1
-    pushTri(tl, bl, r1);
+    pushTriUV(tl, bl, r1, [-hd, 0], [hd, 0], [0, slopeLen]);
     // Right hip (+X): triangle br -> tr -> r2
-    pushTri(br, tr, r2);
+    pushTriUV(br, tr, r2, [-hd, 0], [hd, 0], [0, slopeLen]);
   } else {
     // Right slope (+X): quad br -> tr -> r2 -> r1
-    pushTri(br, tr, r2);
-    pushTri(br, r2, r1);
+    pushTriUV(br, tr, r2, [-hd, 0], [hd, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(br, r2, r1, [-hd, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Left slope (-X): quad tl -> bl -> r1 -> r2
-    pushTri(tl, bl, r1);
-    pushTri(tl, r1, r2);
+    pushTriUV(tl, bl, r1, [-hd, 0], [hd, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(tl, r1, r2, [-hd, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Front hip (+Z): triangle bl -> br -> r1
-    pushTri(bl, br, r1);
+    pushTriUV(bl, br, r1, [-hw, 0], [hw, 0], [0, slopeLen]);
     // Back hip (-Z): triangle tr -> tl -> r2
-    pushTri(tr, tl, r2);
+    pushTriUV(tr, tl, r2, [-hw, 0], [hw, 0], [0, slopeLen]);
   }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.computeVertexNormals();
   return geo;
 }
@@ -197,6 +219,7 @@ function HipRoof({
     () => createTrueHipRoofGeometry(width, depth, height),
     [width, depth, height],
   );
+  const roofPbr = useMemo(() => getRoofTileTextures(0.5, 0.5), []);
   useEffect(() => () => roofGeo.dispose(), [roofGeo]);
   const alongX = width >= depth;
   const ridgeLen = Math.max(0.4, Math.abs(width - depth));
@@ -209,19 +232,24 @@ function HipRoof({
         castShadow
         receiveShadow
         geometry={roofGeo}
+        raycast={NO_RAYCAST}
       >
         <meshStandardMaterial
           color={color}
+          map={roofPbr?.map ?? null}
+          normalMap={roofPbr?.normalMap ?? null}
+          normalScale={[0.25, 0.25]}
+          roughnessMap={roofPbr?.roughnessMap ?? null}
           transparent={transparent}
           opacity={opacity}
           depthWrite={!transparent}
           roughness={roughness}
-          metalness={0.08}
+          metalness={0.12}
         />
       </mesh>
 
       {/* Ridge Cap Tile Beam */}
-      <mesh position={[0, height + 0.28, 0]} castShadow>
+      <mesh position={[0, height + 0.28, 0]} castShadow raycast={NO_RAYCAST}>
         <boxGeometry args={alongX ? [ridgeLen, 0.14, 0.24] : [0.24, 0.14, ridgeLen]} />
         <meshStandardMaterial
           color={color}
@@ -229,12 +257,12 @@ function HipRoof({
           opacity={opacity}
           depthWrite={!transparent}
           roughness={Math.max(0.4, roughness - 0.1)}
-          metalness={0.12}
+          metalness={0.18}
         />
       </mesh>
 
       {/* Molded Eaves Cornice & Fascia */}
-      <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.14, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[width + 0.2, 0.28, depth + 0.2]} />
         <meshStandardMaterial
           color="#f5f0e6"
@@ -242,6 +270,7 @@ function HipRoof({
           opacity={opacity}
           depthWrite={!transparent}
           roughness={0.72}
+          metalness={0.0}
         />
       </mesh>
     </group>
@@ -352,23 +381,27 @@ function InstancedWindows({
       depthWrite: true,
     });
 
-    const glassMaterial = new THREE.MeshStandardMaterial({
-      color: '#0f172a',
-      map: glassTex ?? null,
-      metalness: 0.78,
-      roughness: 0.12,
-      envMapIntensity: 1.45,
-      transparent: true,
-      opacity: 0.94,
-      depthWrite: true,
-    });
+    const glassMaterial = applyArchitecturalGlassShader(
+      new THREE.MeshStandardMaterial({
+        color: '#16283e',
+        map: glassTex ?? null,
+        metalness: 0.15,
+        roughness: 0.08,
+        envMapIntensity: 1.6,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: true,
+      }),
+    );
 
     const frameMesh = new THREE.InstancedMesh(sharedWindowFrameGeo, frameMaterial, count);
     const glassMesh = new THREE.InstancedMesh(sharedWindowGlassGeo, glassMaterial, count);
     frameMesh.castShadow = false;
     frameMesh.receiveShadow = true;
+    frameMesh.raycast = NO_RAYCAST;
     glassMesh.castShadow = false;
     glassMesh.receiveShadow = false;
+    glassMesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     let idx = 0;
@@ -696,38 +729,56 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
   const parapetHeight = appearance.customFacade === 'block-c' ? 2.7 : 0.8;
   const wallGeo = useExtrudedGeometry(outline, wallHeight);
   const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
+  const plinthPbr = useMemo(() => getGranitePlinthTextures(6, 1), []);
+
+  const wallMaterial = useMemo(() => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: wallColor,
+      map: wallPbr?.map ?? null,
+      normalMap: wallPbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.22, 0.22),
+      roughnessMap: wallPbr?.roughnessMap ?? null,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+      roughness: appearance.wallRoughness,
+      metalness: 0.0,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+    return applyTravertineWeatheringShader(mat);
+  }, [wallColor, wallPbr, transparent, opacity, appearance.wallRoughness]);
+
+  useEffect(() => () => wallMaterial.dispose(), [wallMaterial]);
 
   return (
     <group>
       {/* 1. Main Facade Walls */}
-      <mesh geometry={wallGeo} rotation={EXTRUDE_ROTATION} position={[0, 0, 0]} castShadow receiveShadow>
-        <meshStandardMaterial
-          color={wallColor}
-          map={wallPbr?.map ?? null}
-          normalMap={wallPbr?.normalMap ?? null}
-          normalScale={[0.15, 0.15]}
-          roughnessMap={wallPbr?.roughnessMap ?? null}
-          transparent={transparent}
-          opacity={opacity}
-          depthWrite={!transparent}
-          roughness={appearance.wallRoughness}
-          metalness={appearance.wallMetalness}
-          polygonOffset={true}
-          polygonOffsetFactor={1}
-          polygonOffsetUnits={1}
-        />
-      </mesh>
+      <mesh
+        geometry={wallGeo}
+        material={wallMaterial}
+        rotation={EXTRUDE_ROTATION}
+        position={[0, 0, 0]}
+        castShadow
+        receiveShadow
+      />
 
       {/* 2. Base Plinth */}
       {appearance.hasPlinth && !isCustomFacade && (
-        <mesh position={[worldX, (appearance.plinthHeight ?? 0.6) / 2, worldZ]} castShadow receiveShadow>
+        <mesh position={[worldX, (appearance.plinthHeight ?? 0.6) / 2, worldZ]} castShadow receiveShadow raycast={NO_RAYCAST}>
           <boxGeometry args={[width + 0.25, appearance.plinthHeight ?? 0.6, depth + 0.25]} />
           <meshStandardMaterial
             color={appearance.plinthColor ?? '#334155'}
+            map={plinthPbr?.map ?? null}
+            normalMap={plinthPbr?.normalMap ?? null}
+            normalScale={[0.25, 0.25]}
+            roughnessMap={plinthPbr?.roughnessMap ?? null}
             transparent={transparent}
             opacity={opacity}
             depthWrite={!transparent}
             roughness={0.85}
+            metalness={0.0}
           />
         </mesh>
       )}

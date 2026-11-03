@@ -1,6 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { AMPHITHEATER_HALL } from '../../../data/amphitheater-hall';
+import {
+  disposeMergedMap,
+  NO_RAYCAST,
+  StaticGeometryBatcher,
+} from '../geometry/staticGeometryMerger';
 import {
   getAmphitheaterFloorLogoTexture,
   getAmphitheaterScreenTexture,
@@ -42,15 +47,11 @@ function createAmphitheaterHipRoofGeometry(
   ];
 
   const uvs: number[] = [
-    // South
     0, 0,  1, 0,  0.8, 1,
     0, 0,  0.8, 1, 0.2, 1,
-    // North
     0, 0,  1, 0,  0.8, 1,
     0, 0,  0.8, 1, 0.2, 1,
-    // West
     0, 0,  1, 0,  0.5, 1,
-    // East
     0, 0,  1, 0,  0.5, 1,
   ];
 
@@ -62,12 +63,10 @@ function createAmphitheaterHipRoofGeometry(
 
 /**
  * Creates an 8-point 2D octagon polygon contour centered at (0, 0).
- * rx = half-dimension X, ry = half-dimension Y, ch = corner 45° chamfer distance.
  */
 function createOctagonShape(rx: number, ry: number, ch: number): THREE.Shape {
   const shape = new THREE.Shape();
   if (ch <= 0.001) {
-    // Regular rectangle
     shape.moveTo(-rx, ry);
     shape.lineTo(rx, ry);
     shape.lineTo(rx, -ry);
@@ -113,65 +112,14 @@ function createTierRingGeometry(
     depth: height,
     bevelEnabled: false,
   });
-  // ExtrudeGeometry extrudes along +Z. Rotate so flat faces are in XZ plane and extrusion is in +Y.
   geom.rotateX(Math.PI / 2);
   return geom;
 }
 
 /**
- * Staircase flight with 6 steps ascending from 0.00 to 1.35m.
- */
-function StaircaseFlight({
-  width,
-  depth,
-  steps,
-  rotationY = 0,
-  position,
-}: {
-  width: number;
-  depth: number;
-  steps: number;
-  rotationY?: number;
-  position: [number, number, number];
-}) {
-  const stepRise = 1.35 / steps;
-  const stepTread = depth / steps;
-
-  const matDark = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.8 }),
-    [],
-  );
-  const matNosing = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.4 }),
-    [],
-  );
-
-  return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      {Array.from({ length: steps }, (_, i) => {
-        const stepH = (i + 1) * stepRise;
-        const zPos = -depth / 2 + (i + 0.5) * stepTread;
-        return (
-          <group key={`step-${i}`}>
-            {/* Step solid riser and tread block */}
-            <mesh position={[0, stepH / 2, zPos]} material={matDark} castShadow receiveShadow>
-              <boxGeometry args={[width, stepH, stepTread]} />
-            </mesh>
-            {/* Contrasting safety nosing edge */}
-            <mesh position={[0, stepH - 0.015, zPos + stepTread / 2 - 0.03]} material={matNosing}>
-              <boxGeometry args={[width - 0.04, 0.03, 0.06]} />
-            </mesh>
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-/**
  * 3D Architectural Model of «Зал амфитеатра» (Amphitheater Hall).
- * Built exactly to the CAD drawings and specifications in ADR-029,
- * calibrated to the user's 2D editor contour: Center [50.5, 76.5], Size 20m × 17m.
+ * Built to the CAD drawings and specifications in ADR-029 (Center [50.5, 76.5], Size 20m × 17m).
+ * All ~190 static sub-meshes are merged by material into 20 draw calls.
  */
 export function AmphitheaterHall({
   selected = false,
@@ -183,64 +131,46 @@ export function AmphitheaterHall({
   const spec = AMPHITHEATER_HALL;
   const [worldCenterX, worldCenterZ] = spec.center;
 
-  // Textures
   const floorLogoTex = useMemo(() => getAmphitheaterFloorLogoTexture(), []);
   const parquetTex = useMemo(() => getParquetFloorTexture(), []);
   const screenTex = useMemo(() => getAmphitheaterScreenTexture(), []);
   const bookshelfTex = useMemo(() => getBookshelfTexture(), []);
   const grilyatoTex = useMemo(() => getGrilyatoTexture(), []);
+  const slateRoofTex = useMemo(() => getSlateRoofTexture(), []);
 
-  // Shared Materials
-  const wallMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#eae3d2', // Warm travertine / limestone
+  const materials = useMemo(() => {
+    return {
+      wall: new THREE.MeshStandardMaterial({
+        color: '#eae3d2',
         roughness: 0.85,
         metalness: 0.05,
       }),
-    [],
-  );
-
-  const plinthMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#1e293b', // Dark architectural slate plinth
+      plinth: new THREE.MeshStandardMaterial({
+        color: '#1e293b',
         roughness: 0.8,
         metalness: 0.2,
       }),
-    [],
-  );
-
-  const tierMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      tier: new THREE.MeshStandardMaterial({
         color: '#2d3748',
         roughness: 0.75,
       }),
-    [],
-  );
-
-  const woodMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      stairDark: new THREE.MeshStandardMaterial({
+        color: '#334155',
+        roughness: 0.8,
+      }),
+      stairNosing: new THREE.MeshStandardMaterial({
+        color: '#cbd5e1',
+        roughness: 0.4,
+      }),
+      wood: new THREE.MeshStandardMaterial({
         color: '#78350f',
         roughness: 0.65,
       }),
-    [],
-  );
-
-  const darkWoodMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      darkWood: new THREE.MeshStandardMaterial({
         color: '#381c0d',
         roughness: 0.7,
       }),
-    [],
-  );
-
-  const glassMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      glass: new THREE.MeshStandardMaterial({
         color: '#1e293b',
         roughness: 0.12,
         metalness: 0.75,
@@ -248,12 +178,7 @@ export function AmphitheaterHall({
         opacity: 0.55,
         side: THREE.DoubleSide,
       }),
-    [],
-  );
-
-  const darkGlazeMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      darkGlaze: new THREE.MeshStandardMaterial({
         color: '#1e293b',
         roughness: 0.15,
         metalness: 0.3,
@@ -261,162 +186,352 @@ export function AmphitheaterHall({
         opacity: 0.45,
         side: THREE.DoubleSide,
       }),
-    [],
-  );
-
-  const metalFrameMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      metalFrame: new THREE.MeshStandardMaterial({
         color: '#1e293b',
         roughness: 0.5,
         metalness: 0.6,
       }),
-    [],
-  );
-
-  const goldAccentMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      goldAccent: new THREE.MeshStandardMaterial({
         color: '#d97706',
         roughness: 0.3,
         metalness: 0.7,
       }),
-    [],
-  );
-
-  const screenMat = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      map: screenTex ?? undefined,
-      color: screenTex ? '#ffffff' : '#030712',
-      roughness: 0.2,
-      metalness: 0.1,
-      emissive: '#1e293b',
-      emissiveIntensity: 0.4,
-    });
-  }, [screenTex]);
-
-  const bookshelfMat = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      map: bookshelfTex ?? undefined,
-      color: bookshelfTex ? '#ffffff' : '#3d2010',
-      roughness: 0.7,
-    });
-  }, [bookshelfTex]);
-
-  const floorLogoMat = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      map: floorLogoTex ?? undefined,
-      color: floorLogoTex ? '#ffffff' : '#1d4ed8',
-      roughness: 0.4,
-      metalness: 0.2,
-    });
-  }, [floorLogoTex]);
-
-  const parquetMat = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      map: parquetTex ?? undefined,
-      color: parquetTex ? '#ffffff' : '#d7cbb5',
-      roughness: 0.5,
-    });
-  }, [parquetTex]);
-
-  const grilyatoMat = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      map: grilyatoTex ?? undefined,
-      color: grilyatoTex ? '#ffffff' : '#090d16',
-      roughness: 0.9,
-      metalness: 0.3,
-    });
-  }, [grilyatoTex]);
-
-  const redCushionMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.7 }),
-    [],
-  );
-
-  const blueCushionMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.7 }),
-    [],
-  );
-
-  const whiteColMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 }),
-    [],
-  );
-
-  const slateRoofTex = useMemo(() => getSlateRoofTexture(), []);
-
-  const roofMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      screen: new THREE.MeshStandardMaterial({
+        map: screenTex ?? undefined,
+        color: screenTex ? '#ffffff' : '#030712',
+        roughness: 0.2,
+        metalness: 0.1,
+        emissive: '#1e293b',
+        emissiveIntensity: 0.4,
+      }),
+      bookshelf: new THREE.MeshStandardMaterial({
+        map: bookshelfTex ?? undefined,
+        color: bookshelfTex ? '#ffffff' : '#3d2010',
+        roughness: 0.7,
+      }),
+      floorLogo: new THREE.MeshStandardMaterial({
+        map: floorLogoTex ?? undefined,
+        color: floorLogoTex ? '#ffffff' : '#1d4ed8',
+        roughness: 0.4,
+        metalness: 0.2,
+      }),
+      parquet: new THREE.MeshStandardMaterial({
+        map: parquetTex ?? undefined,
+        color: parquetTex ? '#ffffff' : '#d7cbb5',
+        roughness: 0.5,
+      }),
+      grilyato: new THREE.MeshStandardMaterial({
+        map: grilyatoTex ?? undefined,
+        color: grilyatoTex ? '#ffffff' : '#090d16',
+        roughness: 0.9,
+        metalness: 0.3,
+      }),
+      redCushion: new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.7 }),
+      blueCushion: new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.7 }),
+      whiteCol: new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 }),
+      roof: new THREE.MeshStandardMaterial({
         map: slateRoofTex ?? undefined,
         color: slateRoofTex ? '#ffffff' : '#991b1b',
         roughness: 0.65,
         metalness: 0.2,
       }),
-    [slateRoofTex],
-  );
-
-  const fasciaMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
+      fascia: new THREE.MeshStandardMaterial({
         color: '#f1e6cf',
         roughness: 0.7,
       }),
-    [],
-  );
+      warmLed: new THREE.MeshStandardMaterial({
+        color: '#fef08a',
+        emissive: '#fef08a',
+        emissiveIntensity: 0.8,
+      }),
+      cyanFrame: new THREE.MeshStandardMaterial({ color: '#38bdf8' }),
+      whiteLed: new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        emissive: '#ffffff',
+        emissiveIntensity: 1.2,
+      }),
+    };
+  }, [screenTex, bookshelfTex, floorLogoTex, parquetTex, grilyatoTex, slateRoofTex]);
 
-  const hipRoofGeo = useMemo(() => {
-    return createAmphitheaterHipRoofGeometry(20.4, 17.0, 3.4);
-  }, []);
+  const merged = useMemo(() => {
+    const batcher = new StaticGeometryBatcher();
 
-  // Octagonal Sunken Floor Bowl (elevation 0.00m)
-  const floorBowlGeo = useMemo(() => {
-    const shape = createOctagonShape(spec.floor.bowl.rx, spec.floor.bowl.ry, spec.floor.bowl.chamfer);
-    const geom = new THREE.ShapeGeometry(shape);
-    geom.rotateX(Math.PI / 2); // Lay flat on XZ plane
-    return geom;
-  }, [spec.floor.bowl]);
+    const toWorld = (
+      ox: number,
+      oy: number,
+      oz: number,
+      rotY: number,
+      lx: number,
+      ly: number,
+      lz: number,
+    ): [number, number, number] => {
+      const c = Math.cos(rotY);
+      const s = Math.sin(rotY);
+      return [ox + lx * c + lz * s, oy + ly, oz - lx * s + lz * c];
+    };
 
-  // Tier geometries
-  const tier1Geo = useMemo(() => {
-    const t = spec.tiers[0];
-    return createTierRingGeometry(
-      t.outer.rx,
-      t.outer.ry,
-      t.outer.chamfer,
-      t.inner.rx,
-      t.inner.ry,
-      t.inner.chamfer,
-      t.top,
+    // 1. Foundation, Sunken Bowl & Floor Logo
+    batcher.addBox('plinth', [20.5, 0.3, 17.5], [0, -0.15, 0.25]);
+
+    const floorBowlShape = createOctagonShape(
+      spec.floor.bowl.rx,
+      spec.floor.bowl.ry,
+      spec.floor.bowl.chamfer,
     );
-  }, [spec.tiers]);
+    const floorBowlGeo = new THREE.ShapeGeometry(floorBowlShape);
+    floorBowlGeo.rotateX(Math.PI / 2);
+    batcher.addGeometry('parquet', floorBowlGeo, [0, 0.002, 0]);
+    floorBowlGeo.dispose();
 
-  const tier2Geo = useMemo(() => {
-    const t = spec.tiers[1];
-    return createTierRingGeometry(
-      t.outer.rx,
-      t.outer.ry,
-      t.outer.chamfer,
-      t.inner.rx,
-      t.inner.ry,
-      t.inner.chamfer,
-      t.top,
-    );
-  }, [spec.tiers]);
+    const logoGeo = new THREE.CircleGeometry(spec.floor.logoDiameter / 2, 48);
+    logoGeo.rotateX(-Math.PI / 2);
+    batcher.addGeometry('floorLogo', logoGeo, [0, 0.006, 0]);
+    logoGeo.dispose();
 
-  const tier3Geo = useMemo(() => {
-    const t = spec.tiers[2];
-    return createTierRingGeometry(
-      t.outer.rx,
-      t.outer.ry,
-      t.outer.chamfer,
-      t.inner.rx,
-      t.inner.ry,
-      t.inner.chamfer,
-      t.top,
+    // 2. Amphitheater Tiers (3 steps)
+    for (const t of spec.tiers) {
+      const tGeo = createTierRingGeometry(
+        t.outer.rx,
+        t.outer.ry,
+        t.outer.chamfer,
+        t.inner.rx,
+        t.inner.ry,
+        t.inner.chamfer,
+        t.top,
+      );
+      batcher.addGeometry('tier', tGeo, [0, 0, 0]);
+      tGeo.dispose();
+    }
+
+    // 3. Cushions on Tiers 1 & 2
+    const rCush = spec.cushions.radius;
+    for (const y of spec.cushions.alongY) {
+      batcher.addCylinder('redCushion', [rCush, rCush, 0.08, 16], [8.0, 0.49, -y]);
+      batcher.addCylinder('redCushion', [rCush, rCush, 0.08, 16], [8.8, 0.94, -y]);
+      batcher.addCylinder('blueCushion', [rCush, rCush, 0.08, 16], [-8.0, 0.49, -y]);
+      batcher.addCylinder('blueCushion', [rCush, rCush, 0.08, 16], [-8.8, 0.94, -y]);
+    }
+    for (const x of spec.cushions.alongX) {
+      batcher.addCylinder('blueCushion', [rCush, rCush, 0.08, 16], [x, 0.49, 6.9]);
+      batcher.addCylinder('blueCushion', [rCush, rCush, 0.08, 16], [x, 0.94, 7.7]);
+    }
+
+    // 4. 3 Central Staircases (East, West, South)
+    const stW = spec.stairs.width;
+    const stD = spec.stairs.depth;
+    const stSteps = spec.stairs.steps;
+    const stepRise = 1.35 / stSteps;
+    const stepTread = stD / stSteps;
+    const stairFlights: [number, number, number, number][] = [
+      [8.8, 0, 0, Math.PI / 2],
+      [-8.8, 0, 0, -Math.PI / 2],
+      [0, 0, 7.3, 0],
+    ];
+    for (const [sx, sy, sz, rotY] of stairFlights) {
+      for (let i = 0; i < stSteps; i++) {
+        const stepH = (i + 1) * stepRise;
+        const zPos = -stD / 2 + (i + 0.5) * stepTread;
+        batcher.addBox(
+          'stairDark',
+          [stW, stepH, stepTread],
+          toWorld(sx, sy, sz, rotY, 0, stepH / 2, zPos),
+          [0, rotY, 0],
+        );
+        batcher.addBox(
+          'stairNosing',
+          [stW - 0.04, 0.03, 0.06],
+          toWorld(sx, sy, sz, rotY, 0, stepH - 0.015, zPos + stepTread / 2 - 0.03),
+          [0, rotY, 0],
+        );
+      }
+    }
+
+    // 5. North Wall (Stage, Screen & Bookshelves)
+    batcher.addBox('wood', [6.4, 1.35, 2.4], [0, 1.35 / 2, -7.3]);
+    batcher.addBox('metalFrame', [6.0, 0.04, 0.04], [0, 1.35 + 0.85, -6.1]);
+    batcher.addBox('metalFrame', [6.0, 0.02, 0.02], [0, 1.35 + 0.45, -6.1]);
+    for (const rx of [-2.8, -1.7, -0.6, 0.6, 1.7, 2.8]) {
+      batcher.addBox('metalFrame', [0.04, 0.85, 0.04], [rx, 1.35 + 0.425, -6.1]);
+    }
+    for (const sx of [-2.575, 2.575]) {
+      batcher.addBox('metalFrame', [0.45, 0.7, 0.45], [sx, 1.35 + 0.35, -6.6]);
+      batcher.addBox('goldAccent', [0.4, 0.65, 0.02], [sx, 1.35 + 0.35, -6.6 + 0.23]);
+    }
+    batcher.addBox('wall', [20, 7.2, 0.2], [0, 3.6, -8.4]);
+    batcher.addBox('screen', [6.4, 3.5, 0.1], [0, (2.6 + 6.1) / 2, -8.25]);
+    batcher.addBox('metalFrame', [6.55, 3.65, 0.08], [0, (2.6 + 6.1) / 2, -8.27]);
+    for (const px of [-3.35, 3.35]) {
+      batcher.addBox('darkWood', [0.3, 5.75, 0.18], [px, 4.225, -8.22]);
+    }
+    for (const bx of [(-9.6 - 3.5) / 2, (3.5 + 9.6) / 2]) {
+      batcher.addBox('wood', [6.1, 0.95, 0.35], [bx, (1.35 + 2.3) / 2, -8.2]);
+      batcher.addBox('bookshelf', [6.1, 4.8, 0.35], [bx, (2.3 + 7.1) / 2, -8.2]);
+    }
+    batcher.addBox('bookshelf', [6.4, 0.9, 0.35], [0, (6.2 + 7.1) / 2, -8.2]);
+
+    // 6. East Wall (Entrance, 4 Columns & 2nd Floor Balcony)
+    for (const y of spec.east.columns.at) {
+      batcher.addBox('whiteCol', [0.6, 3.15, 0.6], [9.7, (1.35 + 4.5) / 2, -y]);
+      batcher.addBox('metalFrame', [0.15, 3.15, 0.6], [9.9, (1.35 + 4.5) / 2, -y - 0.4]);
+      batcher.addBox('darkWood', [0.5, 2.35, 0.5], [9.75, (4.85 + 7.2) / 2, -y]);
+    }
+    batcher.addBox('wood', [0.5, 0.35, 12.0], [9.75, (4.5 + 4.85) / 2, 0]);
+    batcher.addBox('glass', [0.04, 1.0, 12.0], [9.65, (4.85 + 5.85) / 2, 0]);
+    batcher.addBox('metalFrame', [0.08, 0.05, 12.0], [9.65, 5.85, 0]);
+    for (const by of [-7.2, 7.2]) {
+      batcher.addBox('bookshelf', [0.4, 5.85, 2.5], [9.7, (1.35 + 7.2) / 2, -by]);
+    }
+    batcher.addBox('plinth', [1.15, 1.35, 12.0], [10.575, 1.35 / 2, 0]);
+    batcher.addBox('wood', [1.15, 0.25, 12.0], [10.575, 4.65, 0]);
+    batcher.addBox('darkWood', [1.15, 0.3, 12.0], [10.575, 7.2, 0]);
+    batcher.addBox('darkGlaze', [0.08, 5.85, 12.0], [10.575 + 1.15 / 2, (1.35 + 7.2) / 2, 0]);
+    batcher.addBox('glass', [0.1, 2.85, 2.6], [10.575 + 1.15 / 2 + 0.02, (1.35 + 4.2) / 2, 0]);
+    batcher.addBox('metalFrame', [0.12, 2.95, 2.75], [10.575 + 1.15 / 2 + 0.04, (1.35 + 4.2) / 2, 0]);
+
+    // 7. West Wall (Exterior Cladding, Panoramic Windows & Entrance)
+    batcher.addBox('wall', [0.26, 8.9 - 1.35, 2.5], [-10.02, (1.35 + 8.9) / 2, -7.25]);
+    batcher.addBox('wall', [0.26, 8.9 - 1.35, 2.5], [-10.02, (1.35 + 8.9) / 2, 7.25]);
+    batcher.addBox('wall', [0.26, 8.9 - 7.2, 12.0], [-10.02, (7.2 + 8.9) / 2, 0]);
+    batcher.addBox('plinth', [0.26, 1.35, 7.2], [-10.02, 1.35 / 2, -4.9]);
+    batcher.addBox('plinth', [0.26, 1.35, 7.2], [-10.02, 1.35 / 2, 4.9]);
+
+    for (const by of [-7.25, 7.25]) {
+      batcher.addBox('bookshelf', [0.35, 5.85, 2.45], [-9.65, (1.35 + 7.2) / 2, -by]);
+    }
+    batcher.addBox('glass', [0.06, 5.85, 4.7], [-9.95, (1.35 + 7.2) / 2, -3.65]);
+    batcher.addBox('glass', [0.06, 5.85, 4.7], [-9.95, (1.35 + 7.2) / 2, 3.65]);
+    batcher.addBox('glass', [0.06, 7.2 - 4.2, 2.8], [-9.95, (4.2 + 7.2) / 2, 0]);
+
+    for (const wy of [-6.0, -4.0, -2.0, -1.4, 1.4, 2.0, 4.0, 6.0]) {
+      batcher.addBox('metalFrame', [0.12, 5.85, 0.08], [-9.95, (1.35 + 7.2) / 2, -wy]);
+    }
+    batcher.addBox('metalFrame', [0.1, 0.08, 4.7], [-9.95, 2.1, -3.65]);
+    batcher.addBox('metalFrame', [0.1, 0.08, 4.7], [-9.95, 5.4, -3.65]);
+    batcher.addBox('metalFrame', [0.1, 0.08, 4.7], [-9.95, 2.1, 3.65]);
+    batcher.addBox('metalFrame', [0.1, 0.08, 4.7], [-9.95, 5.4, 3.65]);
+
+    for (const ry of spec.west.radiators.at) {
+      batcher.addBox('whiteCol', [0.18, 0.55, spec.west.radiators.width], [-9.78, (1.35 + 1.9) / 2, -ry]);
+    }
+
+    // Walkable West Entrance Portal
+    batcher.addBox('metalFrame', [0.16, 0.1, 2.8], [-9.95, 4.2, 0]);
+    batcher.addBox('metalFrame', [0.16, 2.85, 0.1], [-9.95, (1.35 + 4.2) / 2, -1.4]);
+    batcher.addBox('metalFrame', [0.16, 2.85, 0.1], [-9.95, (1.35 + 4.2) / 2, 1.4]);
+
+    // Left & Right swung open door leaves
+    const doorY = (1.35 + 4.15) / 2;
+    batcher.addBox(
+      'glass',
+      [0.04, 2.7, 1.2],
+      toWorld(-9.75, doorY, -1.35, 1.35, 0, 0, 0.6),
+      [0, 1.35, 0],
     );
-  }, [spec.tiers]);
+    batcher.addBox(
+      'goldAccent',
+      [0.04, 0.7, 0.04],
+      toWorld(-9.75, doorY, -1.35, 1.35, 0.06, -0.2, 1.15),
+      [0, 1.35, 0],
+    );
+    batcher.addBox(
+      'glass',
+      [0.04, 2.7, 1.2],
+      toWorld(-9.75, doorY, 1.35, -1.35, 0, 0, -0.6),
+      [0, -1.35, 0],
+    );
+    batcher.addBox(
+      'goldAccent',
+      [0.04, 0.7, 0.04],
+      toWorld(-9.75, doorY, 1.35, -1.35, 0.06, -0.2, -1.15),
+      [0, -1.35, 0],
+    );
+
+    batcher.addBox('metalFrame', [2.2, 0.08, 4.0], [-11.2, 4.28, 0]);
+    batcher.addBox('glass', [2.1, 0.02, 3.9], [-11.2, 4.32, 0]);
+    batcher.addBox('plinth', [1.3, 1.35, 4.4], [-10.55, 1.35 / 2, 0]);
+
+    for (let i = 0; i < 6; i++) {
+      const extRise = 1.35 / 6;
+      const extTread = 3.0 / 6;
+      const stepH = (6 - i) * extRise;
+      const stepX = -11.2 - (i + 0.5) * extTread;
+      batcher.addBox('plinth', [extTread, stepH, 4.4], [stepX, stepH / 2, 0]);
+      batcher.addBox('whiteCol', [0.08, 0.03, 4.36], [stepX - extTread / 2 + 0.04, stepH - 0.015, 0]);
+    }
+    for (const sideZ of [-2.25, 2.25]) {
+      batcher.addBox('wall', [1.3, 2.25 - 1.35, 0.25], [-10.55, (1.35 + 2.25) / 2, sideZ]);
+      batcher.addBox(
+        'wall',
+        [3.3, 0.9, 0.25],
+        [-12.7, (1.35 + 0.9) / 2, sideZ],
+        [0, 0, Math.atan2(1.35, 3.0)],
+      );
+    }
+    batcher.addBox('tier', [1.0, 1.35, 2.8], [-9.4, 1.35 / 2, 0]);
+
+    // 8. South Wall (Open Colonnade, Steel Truss & Lounge)
+    for (const px of spec.south.pillars.at) {
+      batcher.addBox('wood', [0.5, 5.85, 0.5], [px, (1.35 + 7.2) / 2, 8.25]);
+    }
+    batcher.addBox('metalFrame', [14.0, 0.55, 0.25], [0, (4.4 + 4.95) / 2, 8.3]);
+    for (let i = 0; i < 20; i++) {
+      const tx = -6.65 + i * 0.7;
+      batcher.addBox('metalFrame', [0.65, 0.04, 0.04], [tx, 4.675, 8.35], [0, 0, Math.PI / 4]);
+    }
+    for (const dx of spec.south.drapes) {
+      batcher.addBox('metalFrame', [0.8, 3.05, 0.15], [dx, (1.35 + 4.4) / 2, 8.15]);
+    }
+    batcher.addBox('glass', [14.0, 0.9, 0.04], [0, (1.35 + 2.25) / 2, 8.1]);
+    for (const bx of [-8.5, 8.5]) {
+      batcher.addBox('bookshelf', [3.0, 5.85, 0.4], [bx, (1.35 + 7.2) / 2, 8.2]);
+    }
+
+    // 9. Ceiling & Lighting
+    const soffitAngle = Math.atan2(1.3, 2.0);
+    batcher.addBox('darkWood', [20.0, 0.15, 2.38], [0, 7.85, -7.5], [soffitAngle, 0, 0]);
+    batcher.addBox('darkWood', [20.0, 0.15, 2.38], [0, 7.85, 7.5], [-soffitAngle, 0, 0]);
+    batcher.addBox('darkWood', [2.38, 0.15, 17.0], [-9.0, 7.85, 0], [0, 0, -soffitAngle]);
+    batcher.addBox('darkWood', [2.38, 0.15, 17.0], [9.0, 7.85, 0], [0, 0, soffitAngle]);
+
+    for (const c of spec.ceiling.linearLedCenters) {
+      batcher.addBox('warmLed', [spec.ceiling.linearLedLength, 0.04, 0.08], [c, 7.85, -7.5]);
+      batcher.addBox('warmLed', [spec.ceiling.linearLedLength, 0.04, 0.08], [c, 7.85, 7.5]);
+      batcher.addBox('warmLed', [0.08, 0.04, spec.ceiling.linearLedLength * 0.75], [-9.0, 7.85, c * 0.75]);
+      batcher.addBox('warmLed', [0.08, 0.04, spec.ceiling.linearLedLength * 0.75], [9.0, 7.85, c * 0.75]);
+    }
+
+    batcher.addPlane('grilyato', [16.0, 13.0], [0, 8.5, 0], [-Math.PI / 2, 0, 0]);
+
+    for (const lx of spec.ceiling.ledCoordsX) {
+      for (const ly of spec.ceiling.ledCoordsY) {
+        batcher.addBox('cyanFrame', [0.7, 0.02, 0.7], [lx, 8.51, -ly]);
+        batcher.addBox('whiteLed', [0.6, 0.02, 0.6], [lx, 8.5, -ly]);
+      }
+    }
+
+    // 10. Exterior Parapets
+    batcher.addBox('wall', [20.5, 0.8, 0.25], [0, (8.9 + 9.7) / 2, -8.375]);
+    batcher.addBox('wall', [20.5, 0.8, 0.35], [0, (8.9 + 9.7) / 2, 8.55]);
+    batcher.addBox('wall', [0.35, 0.8, 17.5], [-10.05, (8.9 + 9.7) / 2, 0]);
+    batcher.addBox('wall', [0.35, 0.8, 12.4], [11.2, (8.9 + 9.7) / 2, 0]);
+
+    // Roof geometries (rendered when !selected)
+    const hipRoofGeo = createAmphitheaterHipRoofGeometry(20.4, 17.0, 3.4);
+    batcher.addGeometry('roof', hipRoofGeo, [0, 9.2, 0]);
+    hipRoofGeo.dispose();
+    batcher.addBox('roof', [1.25, 0.25, 12.2], [10.6, 8.9 - 1.55, 0]);
+    batcher.addBox('fascia', [20.5, 0.3, 17.3], [0, 9.05, 0.15]);
+    batcher.addBox('roofRidge', [8.4, 0.08, 0.25], [0, 8.9 + 3.72, 0]);
+
+    return batcher.buildAll();
+  }, [spec]);
+
+  useEffect(() => {
+    return () => {
+      disposeMergedMap(merged);
+      Object.values(materials).forEach((m) => m.dispose());
+    };
+  }, [merged, materials]);
 
   return (
     <group
@@ -427,608 +542,86 @@ export function AmphitheaterHall({
         onSelect?.();
       }}
     >
-      {/* =========================================================================
-          1. FOUNDATION, SUNKEN BOWL & FLOOR LOGO
-          ========================================================================= */}
-      {/* Base subterranean slab */}
-      <mesh position={[0, -0.15, 0.25]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[20.5, 0.3, 17.5]} />
-      </mesh>
-
-      {/* Sunken Octagonal Parquet Laminate Floor (elevation 0.001 to prevent z-fighting) */}
-      <mesh position={[0, 0.002, 0]} geometry={floorBowlGeo} material={parquetMat} receiveShadow />
-
-      {/* Circular Emblem In Floor: Ø 3.20m */}
-      <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} material={floorLogoMat} receiveShadow>
-        <circleGeometry args={[spec.floor.logoDiameter / 2, 48]} />
-      </mesh>
-
-      {/* =========================================================================
-          2. AMPHITHEATER TIERS (3 STEPS: +0.45, +0.90, +1.35)
-          ========================================================================= */}
-      {/* Tier 1 (+0.45m) */}
-      <mesh position={[0, 0, 0]} geometry={tier1Geo} material={tierMat} receiveShadow castShadow />
-
-      {/* Tier 2 (+0.90m) */}
-      <mesh position={[0, 0, 0]} geometry={tier2Geo} material={tierMat} receiveShadow castShadow />
-
-      {/* Tier 3 (+1.35m) */}
-      <mesh position={[0, 0, 0]} geometry={tier3Geo} material={tierMat} receiveShadow castShadow />
-
-      {/* =========================================================================
-          3. CUSHIONS ON TIERS 1 & 2
-          East = Red, West = Blue, South = Blue
-          ========================================================================= */}
-      {/* East cushions (Red) */}
-      {spec.cushions.alongY.map((y, idx) => (
-        <group key={`cush-e-${idx}`}>
-          {/* Tier 1 East (rx = 8.0m, Z = +0.45m) */}
-          <mesh position={[8.0, 0.49, -y]} material={redCushionMat} castShadow>
-            <cylinderGeometry args={[spec.cushions.radius, spec.cushions.radius, 0.08, 16]} />
-          </mesh>
-          {/* Tier 2 East (rx = 8.8m, Z = +0.90m) */}
-          <mesh position={[8.8, 0.94, -y]} material={redCushionMat} castShadow>
-            <cylinderGeometry args={[spec.cushions.radius, spec.cushions.radius, 0.08, 16]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* West cushions (Blue) */}
-      {spec.cushions.alongY.map((y, idx) => (
-        <group key={`cush-w-${idx}`}>
-          {/* Tier 1 West (rx = -8.0m, Z = +0.45m) */}
-          <mesh position={[-8.0, 0.49, -y]} material={blueCushionMat} castShadow>
-            <cylinderGeometry args={[spec.cushions.radius, spec.cushions.radius, 0.08, 16]} />
-          </mesh>
-          {/* Tier 2 West (rx = -8.8m, Z = +0.90m) */}
-          <mesh position={[-8.8, 0.94, -y]} material={blueCushionMat} castShadow>
-            <cylinderGeometry args={[spec.cushions.radius, spec.cushions.radius, 0.08, 16]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* South cushions (Blue) */}
-      {spec.cushions.alongX.map((x, idx) => (
-        <group key={`cush-s-${idx}`}>
-          {/* Tier 1 South (ry = 6.9m, localZ = +6.9m) */}
-          <mesh position={[x, 0.49, 6.9]} material={blueCushionMat} castShadow>
-            <cylinderGeometry args={[spec.cushions.radius, spec.cushions.radius, 0.08, 16]} />
-          </mesh>
-          {/* Tier 2 South (ry = 7.7m, localZ = +7.7m) */}
-          <mesh position={[x, 0.94, 7.7]} material={blueCushionMat} castShadow>
-            <cylinderGeometry args={[spec.cushions.radius, spec.cushions.radius, 0.08, 16]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* =========================================================================
-          4. 3 CENTRAL STAIRCASES (EAST, WEST, SOUTH)
-          Width 2.80m, depth 2.40m, 6 steps
-          ========================================================================= */}
-      {/* East Staircase (ascends towards East / +X: from 7.6 to 10.0m) */}
-      <StaircaseFlight
-        width={spec.stairs.width}
-        depth={spec.stairs.depth}
-        steps={spec.stairs.steps}
-        rotationY={Math.PI / 2}
-        position={[8.8, 0, 0]}
-      />
-
-      {/* West Staircase (ascends towards West / -X: from -7.6 to -10.0m) */}
-      <StaircaseFlight
-        width={spec.stairs.width}
-        depth={spec.stairs.depth}
-        steps={spec.stairs.steps}
-        rotationY={-Math.PI / 2}
-        position={[-8.8, 0, 0]}
-      />
-
-      {/* South Staircase (ascends towards South / +Z: from 6.1 to 8.5m) */}
-      <StaircaseFlight
-        width={spec.stairs.width}
-        depth={spec.stairs.depth}
-        steps={spec.stairs.steps}
-        rotationY={0}
-        position={[0, 0, 7.3]}
-      />
-
-      {/* =========================================================================
-          5. NORTH WALL (WALL 1 — STAGE, SCREEN & BOOKSHELVES)
-          Stage: X -3.2..3.2, localZ: -8.5..-6.1
-          ========================================================================= */}
-      {/* Stage Hardwood Podium (6.40m x 2.40m, H=+1.35m) */}
-      <mesh position={[0, 1.35 / 2, -7.3]} material={woodMat} receiveShadow castShadow>
-        <boxGeometry args={[6.4, 1.35, 2.4]} />
-      </mesh>
-
-      {/* Stage Front Railing (H=0.85m, along localZ = -6.1) */}
-      <group position={[0, 1.35, -6.1]}>
-        {/* Top rail */}
-        <mesh position={[0, 0.85, 0]} material={metalFrameMat}>
-          <boxGeometry args={[6.0, 0.04, 0.04]} />
-        </mesh>
-        {/* Mid safety bar */}
-        <mesh position={[0, 0.45, 0]} material={metalFrameMat}>
-          <boxGeometry args={[6.0, 0.02, 0.02]} />
-        </mesh>
-        {/* 6 vertical posts */}
-        {[-2.8, -1.7, -0.6, 0.6, 1.7, 2.8].map((rx) => (
-          <mesh key={`post-${rx}`} position={[rx, 0.425, 0]} material={metalFrameMat}>
-            <boxGeometry args={[0.04, 0.85, 0.04]} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* 2 Stage Corner Speakers */}
-      {[-2.575, 2.575].map((sx) => (
-        <group key={`spk-${sx}`} position={[sx, 1.35 + 0.35, -6.6]}>
-          <mesh material={metalFrameMat} castShadow>
-            <boxGeometry args={[0.45, 0.7, 0.45]} />
-          </mesh>
-          {/* Cyan acoustic trim */}
-          <mesh position={[0, 0, 0.23]} material={goldAccentMat}>
-            <boxGeometry args={[0.4, 0.65, 0.02]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* North Wall Backplane (X: -10..10, localZ = -8.4, Z: 0..7.20m) */}
-      <mesh position={[0, 3.6, -8.4]} material={wallMat} receiveShadow>
-        <boxGeometry args={[20, 7.2, 0.2]} />
-      </mesh>
-
-      {/* Giant LED Screen (6.40m x 3.50m, Z: 2.60..6.10, localZ = -8.25) */}
-      <mesh position={[0, (2.6 + 6.1) / 2, -8.25]} material={screenMat}>
-        <boxGeometry args={[6.4, 3.5, 0.1]} />
-      </mesh>
-      {/* LED Screen Framing */}
-      <mesh position={[0, (2.6 + 6.1) / 2, -8.27]} material={metalFrameMat}>
-        <boxGeometry args={[6.55, 3.65, 0.08]} />
-      </mesh>
-
-      {/* Wood Pilasters on screen sides */}
-      {[-3.35, 3.35].map((px) => (
-        <mesh key={`pilaster-${px}`} position={[px, 4.225, -8.22]} material={darkWoodMat}>
-          <boxGeometry args={[0.3, 5.75, 0.18]} />
-        </mesh>
-      ))}
-
-      {/* Left Bookshelves (X: -9.6..-3.5, W=6.1m, Z: 1.35..7.10) */}
-      <group position={[(-9.6 - 3.5) / 2, 0, -8.2]}>
-        {/* Lower wainscot panel (Z: 1.35..2.30) */}
-        <mesh position={[0, (1.35 + 2.3) / 2, 0]} material={woodMat}>
-          <boxGeometry args={[6.1, 0.95, 0.35]} />
-        </mesh>
-        {/* Bookshelf body with texture (Z: 2.30..7.10) */}
-        <mesh position={[0, (2.3 + 7.1) / 2, 0]} material={bookshelfMat} receiveShadow>
-          <boxGeometry args={[6.1, 4.8, 0.35]} />
-        </mesh>
-      </group>
-
-      {/* Right Bookshelves (X: 3.5..9.6, W=6.1m, Z: 1.35..7.10) */}
-      <group position={[(3.5 + 9.6) / 2, 0, -8.2]}>
-        {/* Lower wainscot panel (Z: 1.35..2.30) */}
-        <mesh position={[0, (1.35 + 2.3) / 2, 0]} material={woodMat}>
-          <boxGeometry args={[6.1, 0.95, 0.35]} />
-        </mesh>
-        {/* Bookshelf body with texture (Z: 2.30..7.10) */}
-        <mesh position={[0, (2.3 + 7.1) / 2, 0]} material={bookshelfMat} receiveShadow>
-          <boxGeometry args={[6.1, 4.8, 0.35]} />
-        </mesh>
-      </group>
-
-      {/* Upper 2 rows of bookshelves above LED screen (X: -3.2..3.2, Z: 6.20..7.10) */}
-      <mesh position={[0, (6.2 + 7.1) / 2, -8.2]} material={bookshelfMat}>
-        <boxGeometry args={[6.4, 0.9, 0.35]} />
-      </mesh>
-
-      {/* =========================================================================
-          6. EAST WALL (WALL 2 — ENTRANCE, 4 COLUMNS & 2ND FLOOR BALCONY)
-          X = +10.0m. Extends with Gallery Annex up to X = +12.2m (W=12.0m along Z)
-          ========================================================================= */}
-      {/* 4 White Columns on Tier 1 (section 0.6x0.6m, Z: 1.35..4.50m) */}
-      {spec.east.columns.at.map((y) => (
-        <group key={`col-e-${y}`}>
-          {/* Lower white square column */}
-          <mesh position={[9.7, (1.35 + 4.5) / 2, -y]} material={whiteColMat} castShadow>
-            <boxGeometry args={[0.6, 3.15, 0.6]} />
-          </mesh>
-          {/* Black curtain drape behind column */}
-          <mesh position={[9.9, (1.35 + 4.5) / 2, -y - 0.4]} material={metalFrameMat}>
-            <boxGeometry args={[0.15, 3.15, 0.6]} />
-          </mesh>
-          {/* Upper 2nd floor wooden pillar (Z: 4.85..7.20m) */}
-          <mesh position={[9.75, (4.85 + 7.2) / 2, -y]} material={darkWoodMat} castShadow>
-            <boxGeometry args={[0.5, 2.35, 0.5]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Mezzanine Balcony Beam across Y: -6.0..6.0 (Z: 4.50..4.85) */}
-      <mesh position={[9.75, (4.5 + 4.85) / 2, 0]} material={woodMat} castShadow receiveShadow>
-        <boxGeometry args={[0.5, 0.35, 12.0]} />
-      </mesh>
-
-      {/* Mezzanine Glass Railing (Z: 4.85..5.85, H=1.00m) */}
-      <mesh position={[9.65, (4.85 + 5.85) / 2, 0]} material={glassMat}>
-        <boxGeometry args={[0.04, 1.0, 12.0]} />
-      </mesh>
-      {/* Mezzanine Handrail top bar */}
-      <mesh position={[9.65, 5.85, 0]} material={metalFrameMat}>
-        <boxGeometry args={[0.08, 0.05, 12.0]} />
-      </mesh>
-
-      {/* East Corner Bookshelf Towers (Y: -8.5..-6.0 and 6.0..8.5, Z: 1.35..7.20) */}
-      {[-7.2, 7.2].map((by) => (
-        <mesh key={`bk-e-${by}`} position={[9.7, (1.35 + 7.2) / 2, -by]} material={bookshelfMat}>
-          <boxGeometry args={[0.4, 5.85, 2.5]} />
-        </mesh>
-      ))}
-
-      {/* East Gallery Annex Structure (X: 10.0..11.15m, Y: -6.0..6.0m) */}
-      <group position={[10.575, 0, 0]}>
-        {/* Annex ground slab (Z: 1.35) */}
-        <mesh position={[0, 1.35 / 2, 0]} material={plinthMat}>
-          <boxGeometry args={[1.15, 1.35, 12.0]} />
-        </mesh>
-        {/* Annex 2nd-floor mezzanine slab (Z: 4.65m) */}
-        <mesh position={[0, 4.65, 0]} material={woodMat}>
-          <boxGeometry args={[1.15, 0.25, 12.0]} />
-        </mesh>
-        {/* Annex ceiling / roof (Z: 7.20m) */}
-        <mesh position={[0, 7.2, 0]} material={darkWoodMat}>
-          <boxGeometry args={[1.15, 0.3, 12.0]} />
-        </mesh>
-        {/* Outer East Glazed Wall with Main Entrance Portal (at X = 11.15m) */}
-        <mesh position={[1.15 / 2, (1.35 + 7.2) / 2, 0]} material={darkGlazeMat}>
-          <boxGeometry args={[0.08, 5.85, 12.0]} />
-        </mesh>
-        {/* Glass Entrance Portal Frame (2.60m x 2.85m, Z: 1.35..4.20m) */}
-        <mesh position={[1.15 / 2 + 0.02, (1.35 + 4.2) / 2, 0]} material={glassMat}>
-          <boxGeometry args={[0.1, 2.85, 2.6]} />
-        </mesh>
-        {/* Entrance Portal Frame Border */}
-        <mesh position={[1.15 / 2 + 0.04, (1.35 + 4.2) / 2, 0]} material={metalFrameMat}>
-          <boxGeometry args={[0.12, 2.95, 2.75]} />
-        </mesh>
-      </group>
-
-      {/* =========================================================================
-          7. WEST WALL (WALL 3 — EXTERIOR CLADDING, PANORAMIC WINDOWS & ENTRANCE)
-          X = -10.0m. Window: Y -6.0..6.0 (W=12.0m). Entrance: localZ -1.3..1.3.
-          ========================================================================= */}
-      {/* Exterior Wall Stone Cladding (warm travertine `#eae3d2`) on NW & SW flanks
-          Completely covers interior bookshelves from outside view (ADR-029) */}
-      <mesh position={[-10.02, (1.35 + 8.9) / 2, -7.25]} material={wallMat} castShadow receiveShadow>
-        <boxGeometry args={[0.26, 8.9 - 1.35, 2.5]} />
-      </mesh>
-      <mesh position={[-10.02, (1.35 + 8.9) / 2, 7.25]} material={wallMat} castShadow receiveShadow>
-        <boxGeometry args={[0.26, 8.9 - 1.35, 2.5]} />
-      </mesh>
-
-      {/* Exterior Upper Spandrel Wall above Panoramic Windows (Y: 7.20..8.90m) */}
-      <mesh position={[-10.02, (7.2 + 8.9) / 2, 0]} material={wallMat} castShadow receiveShadow>
-        <boxGeometry args={[0.26, 8.9 - 7.2, 12.0]} />
-      </mesh>
-
-      {/* Exterior Dark Plinth Wall (Y: 0..1.35m) on NW and SW flanks (leaving 2.6m center entrance open) */}
-      <mesh position={[-10.02, 1.35 / 2, -4.9]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[0.26, 1.35, 7.2]} />
-      </mesh>
-      <mesh position={[-10.02, 1.35 / 2, 4.9]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[0.26, 1.35, 7.2]} />
-      </mesh>
-
-      {/* Interior Bookshelf Towers on West Flanks (backed by solid exterior wall) */}
-      {[-7.25, 7.25].map((by) => (
-        <mesh key={`bk-w-${by}`} position={[-9.65, (1.35 + 7.2) / 2, -by]} material={bookshelfMat}>
-          <boxGeometry args={[0.35, 5.85, 2.45]} />
-        </mesh>
-      ))}
-
-      {/* North Panoramic Glazing Pane (localZ: -6.0..-1.3m, W=4.7m) */}
-      <mesh position={[-9.95, (1.35 + 7.2) / 2, -3.65]} material={glassMat}>
-        <boxGeometry args={[0.06, 5.85, 4.7]} />
-      </mesh>
-
-      {/* South Panoramic Glazing Pane (localZ: +1.3..+6.0m, W=4.7m) */}
-      <mesh position={[-9.95, (1.35 + 7.2) / 2, 3.65]} material={glassMat}>
-        <boxGeometry args={[0.06, 5.85, 4.7]} />
-      </mesh>
-
-      {/* Upper Transom Glazing Pane above Entrance Doors (Y: 4.20..7.20m, W=2.8m) */}
-      <mesh position={[-9.95, (4.2 + 7.2) / 2, 0]} material={glassMat}>
-        <boxGeometry args={[0.06, 7.2 - 4.2, 2.8]} />
-      </mesh>
-
-      {/* Vertical Metal Mullions */}
-      {[-6.0, -4.0, -2.0, -1.4, 1.4, 2.0, 4.0, 6.0].map((wy) => (
-        <mesh key={`mull-w-${wy}`} position={[-9.95, (1.35 + 7.2) / 2, -wy]} material={metalFrameMat}>
-          <boxGeometry args={[0.12, 5.85, 0.08]} />
-        </mesh>
-      ))}
-
-      {/* Horizontal Transoms at Z = 2.10m and Z = 5.40m on side window bays */}
-      <mesh position={[-9.95, 2.1, -3.65]} material={metalFrameMat}>
-        <boxGeometry args={[0.1, 0.08, 4.7]} />
-      </mesh>
-      <mesh position={[-9.95, 5.4, -3.65]} material={metalFrameMat}>
-        <boxGeometry args={[0.1, 0.08, 4.7]} />
-      </mesh>
-      <mesh position={[-9.95, 2.1, 3.65]} material={metalFrameMat}>
-        <boxGeometry args={[0.1, 0.08, 4.7]} />
-      </mesh>
-      <mesh position={[-9.95, 5.4, 3.65]} material={metalFrameMat}>
-        <boxGeometry args={[0.1, 0.08, 4.7]} />
-      </mesh>
-
-      {/* 4 White Floor Radiators/Convectors along bottom of side windows */}
-      {spec.west.radiators.at.map((ry) => (
-        <mesh key={`rad-${ry}`} position={[-9.78, (1.35 + 1.9) / 2, -ry]} material={whiteColMat}>
-          <boxGeometry args={[0.18, 0.55, spec.west.radiators.width]} />
-        </mesh>
-      ))}
-
-      {/* =========================================================================
-          WALKABLE WEST ENTRANCE PORTAL FOR FIRST-PERSON GAME MODE & 3D MAP
-          Grand entrance with exterior flight of steps, landing at Y=1.35m,
-          open double glass doors (H=2.85m), overhead canopy at Y=4.28m,
-          and direct descent into the sunken floor bowl.
-          ========================================================================= */}
-      {/* Entrance Door Frame Border (W=2.8m, H=2.85m, Y: 1.35..4.20m) */}
-      <group position={[-9.95, 0, 0]}>
-        {/* Top Header Lintel at Y = 4.20m */}
-        <mesh position={[0, 4.2, 0]} material={metalFrameMat}>
-          <boxGeometry args={[0.16, 0.1, 2.8]} />
-        </mesh>
-        {/* Left Side Jamb at localZ = -1.4m */}
-        <mesh position={[0, (1.35 + 4.2) / 2, -1.4]} material={metalFrameMat}>
-          <boxGeometry args={[0.16, 2.85, 0.1]} />
-        </mesh>
-        {/* Right Side Jamb at localZ = +1.4m */}
-        <mesh position={[0, (1.35 + 4.2) / 2, 1.4]} material={metalFrameMat}>
-          <boxGeometry args={[0.16, 2.85, 0.1]} />
-        </mesh>
-
-        {/* Double Glass Doors Swung Open (leaving clear 2.6m center walkway) */}
-        {/* Left Door Leaf (swung open outward against jamb) */}
-        <group position={[0.2, (1.35 + 4.15) / 2, -1.35]} rotation={[0, 1.35, 0]}>
-          <mesh position={[0, 0, 0.6]} material={glassMat}>
-            <boxGeometry args={[0.04, 2.7, 1.2]} />
-          </mesh>
-          <mesh position={[0.06, -0.2, 1.15]} material={goldAccentMat}>
-            <boxGeometry args={[0.04, 0.7, 0.04]} />
-          </mesh>
-        </group>
-        {/* Right Door Leaf (swung open outward against jamb) */}
-        <group position={[0.2, (1.35 + 4.15) / 2, 1.35]} rotation={[0, -1.35, 0]}>
-          <mesh position={[0, 0, -0.6]} material={glassMat}>
-            <boxGeometry args={[0.04, 2.7, 1.2]} />
-          </mesh>
-          <mesh position={[0.06, -0.2, -1.15]} material={goldAccentMat}>
-            <boxGeometry args={[0.04, 0.7, 0.04]} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* Exterior Modern Canopy Overhead at Y = 4.28m */}
-      <mesh position={[-11.2, 4.28, 0]} material={metalFrameMat}>
-        <boxGeometry args={[2.2, 0.08, 4.0]} />
-      </mesh>
-      <mesh position={[-11.2, 4.32, 0]} material={glassMat}>
-        <boxGeometry args={[2.1, 0.02, 3.9]} />
-      </mesh>
-
-      {/* Exterior Grand Entrance Porch & Flight of Steps (connects plaza ground Y=0 to landing Y=1.35m) */}
-      {/* Landing right outside doors (X: -11.2..-9.9m, Y: 0..1.35m, W=4.4m) */}
-      <mesh position={[-10.55, 1.35 / 2, 0]} material={plinthMat} receiveShadow>
-        <boxGeometry args={[1.3, 1.35, 4.4]} />
-      </mesh>
-      {/* 6 Exterior Steps descending from X = -11.2 to -14.2m (3.0m run, 1.35m rise) */}
-      {Array.from({ length: 6 }, (_, i) => {
-        const stepRise = 1.35 / 6; // 0.225m
-        const stepTread = 3.0 / 6; // 0.50m
-        const stepH = (6 - i) * stepRise;
-        const stepX = -11.2 - (i + 0.5) * stepTread;
-        return (
-          <group key={`ext-step-${i}`}>
-            <mesh position={[stepX, stepH / 2, 0]} material={plinthMat} receiveShadow>
-              <boxGeometry args={[stepTread, stepH, 4.4]} />
-            </mesh>
-            <mesh position={[stepX - stepTread / 2 + 0.04, stepH - 0.015, 0]} material={whiteColMat}>
-              <boxGeometry args={[0.08, 0.03, 4.36]} />
-            </mesh>
-          </group>
-        );
-      })}
-      {/* Flanking Stone Parapet Cheek Walls (North & South of exterior flight) */}
-      {[-2.25, 2.25].map((sideZ) => (
-        <group key={`parapet-${sideZ}`}>
-          {/* Landing side parapet */}
-          <mesh position={[-10.55, (1.35 + 2.25) / 2, sideZ]} material={wallMat} castShadow receiveShadow>
-            <boxGeometry args={[1.3, 2.25 - 1.35, 0.25]} />
-          </mesh>
-          {/* Sloping side cheek wall over steps */}
-          <mesh
-            position={[-12.7, (1.35 + 0.9) / 2, sideZ]}
-            rotation={[0, 0, Math.atan2(1.35, 3.0)]}
-            material={wallMat}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[3.3, 0.9, 0.25]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Interior Door Landing Tier (connects doors to top tier and staircase flight) */}
-      <mesh position={[-9.4, 1.35 / 2, 0]} material={tierMat} receiveShadow>
-        <boxGeometry args={[1.0, 1.35, 2.8]} />
-      </mesh>
-
-      {/* Interior Atmospheric Lighting */}
-      <pointLight position={[0, 6.8, 0]} intensity={18} distance={25} color="#fef08a" />
-      <pointLight position={[0, 5.8, -6.0]} intensity={15} distance={20} color="#e0f2fe" />
-
-      {/* =========================================================================
-          8. SOUTH WALL (WALL 4 — OPEN COLONNADE, STEEL TRUSS & LOUNGE)
-          localZ = +8.5m. Opening: X -7.0..7.0
-          ========================================================================= */}
-      {/* 4 Full-height Wooden Pillars (section 0.5x0.5m, Z: 1.35..7.20m) */}
-      {spec.south.pillars.at.map((px) => (
-        <mesh key={`pil-s-${px}`} position={[px, (1.35 + 7.2) / 2, 8.25]} material={woodMat} castShadow>
-          <boxGeometry args={[0.5, 5.85, 0.5]} />
-        </mesh>
-      ))}
-
-      {/* Exposed Steel Truss Beam across X: -7.0..7.0 at Z: 4.40..4.95m */}
-      <mesh position={[0, (4.4 + 4.95) / 2, 8.3]} material={metalFrameMat}>
-        <boxGeometry args={[14.0, 0.55, 0.25]} />
-      </mesh>
-      {/* Steel Truss lattice diagonal web */}
-      {Array.from({ length: 20 }, (_, i) => -6.65 + i * 0.7).map((tx) => (
-        <mesh key={`diag-${tx}`} position={[tx, 4.675, 8.35]} rotation={[0, 0, Math.PI / 4]} material={metalFrameMat}>
-          <boxGeometry args={[0.65, 0.04, 0.04]} />
-        </mesh>
-      ))}
-
-      {/* Suspended Theater Drapes next to columns */}
-      {spec.south.drapes.map((dx) => (
-        <mesh key={`drape-${dx}`} position={[dx, (1.35 + 4.4) / 2, 8.15]} material={metalFrameMat}>
-          <boxGeometry args={[0.8, 3.05, 0.15]} />
-        </mesh>
-      ))}
-
-      {/* Glass Railing between pillars (Z: 1.35..2.25m, H=0.90m) */}
-      <mesh position={[0, (1.35 + 2.25) / 2, 8.1]} material={glassMat}>
-        <boxGeometry args={[14.0, 0.9, 0.04]} />
-      </mesh>
-
-      {/* South Corner Bookshelf Towers (X: -10..-7.0 and 7.0..10) */}
-      {[-8.5, 8.5].map((bx) => (
-        <mesh key={`bk-s-${bx}`} position={[bx, (1.35 + 7.2) / 2, 8.2]} material={bookshelfMat}>
-          <boxGeometry args={[3.0, 5.85, 0.4]} />
-        </mesh>
-      ))}
-
-      {/* =========================================================================
-          9. CEILING & LIGHTING (REFLECTED CEILING PLAN)
-          Sloped perimeter soffit: +7.20 -> +8.50m (width 2.0m)
-          Recessed Grilyato field: 16x13m at +8.50m
-          Matrix of 5x5 LED panels
-          ========================================================================= */}
-      {/* Sloped Perimeter Timber Soffit (North, South, East, West) */}
-      {/* North soffit band (Z: 7.2..8.5, localZ: -7.5) */}
-      <mesh position={[0, 7.85, -7.5]} rotation={[Math.atan2(1.3, 2.0), 0, 0]} material={darkWoodMat}>
-        <boxGeometry args={[20.0, 0.15, 2.38]} />
-      </mesh>
-      {/* South soffit band (Z: 7.2..8.5, localZ: +7.5) */}
-      <mesh position={[0, 7.85, 7.5]} rotation={[-Math.atan2(1.3, 2.0), 0, 0]} material={darkWoodMat}>
-        <boxGeometry args={[20.0, 0.15, 2.38]} />
-      </mesh>
-      {/* West soffit band (Z: 7.2..8.5, localX: -9.0) */}
-      <mesh position={[-9.0, 7.85, 0]} rotation={[0, 0, -Math.atan2(1.3, 2.0)]} material={darkWoodMat}>
-        <boxGeometry args={[2.38, 0.15, 17.0]} />
-      </mesh>
-      {/* East soffit band (Z: 7.2..8.5, localX: +9.0) */}
-      <mesh position={[9.0, 7.85, 0]} rotation={[0, 0, Math.atan2(1.3, 2.0)]} material={darkWoodMat}>
-        <boxGeometry args={[2.38, 0.15, 17.0]} />
-      </mesh>
-
-      {/* 4 Linear LED strips embedded in soffit */}
-      {spec.ceiling.linearLedCenters.map((c) => (
-        <group key={`led-strip-${c}`}>
-          {/* North linear LED */}
-          <mesh position={[c, 7.85, -7.5]}>
-            <boxGeometry args={[spec.ceiling.linearLedLength, 0.04, 0.08]} />
-            <meshStandardMaterial color="#fef08a" emissive="#fef08a" emissiveIntensity={0.8} />
-          </mesh>
-          {/* South linear LED */}
-          <mesh position={[c, 7.85, 7.5]}>
-            <boxGeometry args={[spec.ceiling.linearLedLength, 0.04, 0.08]} />
-            <meshStandardMaterial color="#fef08a" emissive="#fef08a" emissiveIntensity={0.8} />
-          </mesh>
-          {/* West linear LED */}
-          <mesh position={[-9.0, 7.85, c * 0.75]}>
-            <boxGeometry args={[0.08, 0.04, spec.ceiling.linearLedLength * 0.75]} />
-            <meshStandardMaterial color="#fef08a" emissive="#fef08a" emissiveIntensity={0.8} />
-          </mesh>
-          {/* East linear LED */}
-          <mesh position={[9.0, 7.85, c * 0.75]}>
-            <boxGeometry args={[0.08, 0.04, spec.ceiling.linearLedLength * 0.75]} />
-            <meshStandardMaterial color="#fef08a" emissive="#fef08a" emissiveIntensity={0.8} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Recessed Central Grilyato Ceiling Field (16.0m x 13.0m at Z = +8.50m) */}
-      <mesh position={[0, 8.5, 0]} rotation={[-Math.PI / 2, 0, 0]} material={grilyatoMat}>
-        <planeGeometry args={[16.0, 13.0]} />
-      </mesh>
-
-      {/* 5x5 Matrix of Square Recessed LED Panels (60x60 cm) */}
-      {spec.ceiling.ledCoordsX.map((lx) =>
-        spec.ceiling.ledCoordsY.map((ly) => (
-          <group key={`led-panel-${lx}-${ly}`} position={[lx, 8.52, -ly]}>
-            {/* Outer Cyan Framing (70x70 cm) */}
-            <mesh position={[0, -0.01, 0]}>
-              <boxGeometry args={[0.7, 0.02, 0.7]} />
-              <meshStandardMaterial color="#38bdf8" />
-            </mesh>
-            {/* White Diffuser Light Surface (60x60 cm) */}
-            <mesh position={[0, -0.02, 0]}>
-              <boxGeometry args={[0.6, 0.02, 0.6]} />
-              <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.2} />
-            </mesh>
-          </group>
-        )),
+      {merged.wall && (
+        <mesh geometry={merged.wall} material={materials.wall} castShadow receiveShadow />
       )}
-
-      {/* =========================================================================
-          10. EXTERIOR ENCLOSURE & CORRUGATED SLATE HIP ROOF ("ШИФЕР")
-          Red corrugated slate / metal profile hip roof matching Block B and Block A.
-          When selected in orbit camera, fades to reveal the interior amphitheater.
-          ========================================================================= */}
-      {/* Perimeter Parapet & Roof Slab (+8.90..+9.70m) */}
-      {/* North parapet */}
-      <mesh position={[0, (8.9 + 9.7) / 2, -8.375]} material={wallMat} castShadow>
-        <boxGeometry args={[20.5, 0.8, 0.25]} />
-      </mesh>
-      {/* South parapet */}
-      <mesh position={[0, (8.9 + 9.7) / 2, 8.55]} material={wallMat} castShadow>
-        <boxGeometry args={[20.5, 0.8, 0.35]} />
-      </mesh>
-      {/* West parapet */}
-      <mesh position={[-10.05, (8.9 + 9.7) / 2, 0]} material={wallMat} castShadow>
-        <boxGeometry args={[0.35, 0.8, 17.5]} />
-      </mesh>
-      {/* East parapet (including gallery extension) */}
-      <mesh position={[11.20, (8.9 + 9.7) / 2, 0]} material={wallMat} castShadow>
-        <boxGeometry args={[0.35, 0.8, 12.4]} />
-      </mesh>
-
-      {/* Corrugated Slate Hip Roof ("Крыша из шифера") */}
+      {merged.plinth && (
+        <mesh geometry={merged.plinth} material={materials.plinth} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.parquet && (
+        <mesh geometry={merged.parquet} material={materials.parquet} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.floorLogo && (
+        <mesh geometry={merged.floorLogo} material={materials.floorLogo} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.tier && (
+        <mesh geometry={merged.tier} material={materials.tier} castShadow receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.stairDark && (
+        <mesh geometry={merged.stairDark} material={materials.stairDark} castShadow receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.stairNosing && (
+        <mesh geometry={merged.stairNosing} material={materials.stairNosing} raycast={NO_RAYCAST} />
+      )}
+      {merged.redCushion && (
+        <mesh geometry={merged.redCushion} material={materials.redCushion} castShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.blueCushion && (
+        <mesh geometry={merged.blueCushion} material={materials.blueCushion} castShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.wood && (
+        <mesh geometry={merged.wood} material={materials.wood} castShadow receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.darkWood && (
+        <mesh geometry={merged.darkWood} material={materials.darkWood} castShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.metalFrame && (
+        <mesh geometry={merged.metalFrame} material={materials.metalFrame} raycast={NO_RAYCAST} />
+      )}
+      {merged.goldAccent && (
+        <mesh geometry={merged.goldAccent} material={materials.goldAccent} raycast={NO_RAYCAST} />
+      )}
+      {merged.screen && (
+        <mesh geometry={merged.screen} material={materials.screen} raycast={NO_RAYCAST} />
+      )}
+      {merged.bookshelf && (
+        <mesh geometry={merged.bookshelf} material={materials.bookshelf} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.whiteCol && (
+        <mesh geometry={merged.whiteCol} material={materials.whiteCol} castShadow raycast={NO_RAYCAST} />
+      )}
+      {merged.glass && (
+        <mesh geometry={merged.glass} material={materials.glass} raycast={NO_RAYCAST} />
+      )}
+      {merged.darkGlaze && (
+        <mesh geometry={merged.darkGlaze} material={materials.darkGlaze} raycast={NO_RAYCAST} />
+      )}
+      {merged.grilyato && (
+        <mesh geometry={merged.grilyato} material={materials.grilyato} raycast={NO_RAYCAST} />
+      )}
+      {merged.warmLed && (
+        <mesh geometry={merged.warmLed} material={materials.warmLed} raycast={NO_RAYCAST} />
+      )}
+      {merged.cyanFrame && (
+        <mesh geometry={merged.cyanFrame} material={materials.cyanFrame} raycast={NO_RAYCAST} />
+      )}
+      {merged.whiteLed && (
+        <mesh geometry={merged.whiteLed} material={materials.whiteLed} raycast={NO_RAYCAST} />
+      )}
       {!selected && (
-        <group position={[0, 8.9, 0]}>
-          {/* Overhanging Fascia & Eaves board */}
-          <mesh position={[0, 0.15, 0.15]} material={fasciaMat} castShadow receiveShadow>
-            <boxGeometry args={[20.5, 0.3, 17.3]} />
-          </mesh>
-
-          {/* 4-Pitched Hip Roof with Slate ("Шифер") Texture */}
-          <mesh position={[0, 0.3, 0]} geometry={hipRoofGeo} material={roofMat} castShadow receiveShadow />
-
-          {/* East Gallery Annex Lean-to Roof Canopy at +7.20m */}
-          <mesh position={[10.6, -1.55, 0]} material={roofMat} castShadow receiveShadow>
-            <boxGeometry args={[1.25, 0.25, 12.2]} />
-          </mesh>
-
-          {/* Central Ridge Cap (Конёк) */}
-          <mesh position={[0, 3.72, 0]} material={metalFrameMat}>
-            <boxGeometry args={[8.4, 0.08, 0.25]} />
-          </mesh>
+        <group>
+          {merged.fascia && (
+            <mesh geometry={merged.fascia} material={materials.fascia} castShadow receiveShadow raycast={NO_RAYCAST} />
+          )}
+          {merged.roof && (
+            <mesh geometry={merged.roof} material={materials.roof} castShadow receiveShadow />
+          )}
+          {merged.roofRidge && (
+            <mesh geometry={merged.roofRidge} material={materials.metalFrame} raycast={NO_RAYCAST} />
+          )}
         </group>
       )}
     </group>
   );
 }
+

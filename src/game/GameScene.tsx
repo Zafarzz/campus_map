@@ -71,12 +71,51 @@ function RendererToneMapping({ exposure }: { exposure: number }) {
       scene.environment = envTex;
       scene.environmentIntensity = 0.82;
     }
-    (window as unknown as { __getRenderStats?: () => unknown }).__getRenderStats = () => ({
-      calls: gl.info.render.calls,
-      triangles: gl.info.render.triangles,
-      geometries: gl.info.memory.geometries,
-      textures: gl.info.memory.textures,
-    });
+    (window as unknown as { __getRenderStats?: () => unknown }).__getRenderStats = () => {
+      let activeMeshes = 0;
+      let instancedMeshes = 0;
+      const materials = new Set<THREE.Material>();
+      const textures = new Set<THREE.Texture>();
+
+      scene.traverseVisible((obj) => {
+        if ((obj as THREE.Mesh).isMesh) {
+          activeMeshes++;
+          if ((obj as THREE.InstancedMesh).isInstancedMesh) {
+            instancedMeshes++;
+          }
+          const mat = (obj as THREE.Mesh).material;
+          const matList = Array.isArray(mat) ? mat : mat ? [mat] : [];
+          for (const m of matList) {
+            materials.add(m);
+            const rec = m as unknown as Record<string, unknown>;
+            for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'alphaMap']) {
+              const tex = rec[key] as THREE.Texture | undefined;
+              if (tex && tex.isTexture) textures.add(tex);
+            }
+          }
+        }
+      });
+
+      let textureBytes = 0;
+      for (const tex of textures) {
+        const img = tex.image as { width?: number; height?: number } | undefined;
+        if (img && typeof img.width === 'number' && typeof img.height === 'number') {
+          const mipFactor = tex.generateMipmaps !== false ? 1.333 : 1.0;
+          textureBytes += img.width * img.height * 4 * mipFactor;
+        }
+      }
+
+      return {
+        calls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures,
+        activeMeshes,
+        instancedMeshes,
+        materials: materials.size,
+        textureMemoryMB: +(textureBytes / (1024 * 1024)).toFixed(2),
+      };
+    };
   }, [gl, scene, exposure]);
   return null;
 }

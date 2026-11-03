@@ -2,12 +2,16 @@ import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import type { CampusGeometry, ContextFeatureKind, Footprint } from '../../domain/geometry/types';
-import { ExtrudedFootprint } from './ExtrudedFootprint';
+import {
+  StaticGeometryBatcher,
+  disposeMergedMap,
+  NO_RAYCAST,
+} from './geometry/staticGeometryMerger';
+import { EXTRUDE_ROTATION, footprintOutline, outlineToShape } from './geometryUtils';
 import { getFenceTexture } from './facades/facadeTextures';
 import { MainEntranceGate, MAIN_ENTRANCE_WIDTH } from './MainEntranceGate';
-import { CampusFountain, FOUNTAIN_DIMENSIONS } from './CampusFountain';
+import { CampusFountain } from './CampusFountain';
 import { AjouArtObject } from './AjouArtObject';
-import { TennisCourt } from './TennisCourt';
 import { SolarCanopies } from './SolarCanopies';
 import { CampusWalkways } from './CampusWalkways';
 import { SportsFacilities } from './SportsFacilities';
@@ -17,6 +21,7 @@ import {
   getLushGrassTextures,
   getPromenadePavingTextures,
 } from './materials/pbrMaterials';
+import { applyTerrainMacroVariationShader } from './shaders/architecturalShaders';
 
 const flatLayerElevation: Record<ContextFeatureKind, number> = {
   road: 0.015,
@@ -28,129 +33,17 @@ const flatLayerElevation: Record<ContextFeatureKind, number> = {
 };
 
 const contextColors: Record<ContextFeatureKind, string> = {
-  lawn: '#6ee7b7', // Vibrant natural grass
-  road: '#334155', // Clean asphalt
-  track: '#ef4444', // Running track terracotta
-  pitch: '#22c55e', // Sports field turf
-  court: '#0284c7', // Multi-sport court blue
+  lawn: '#6ee7b7',
+  road: '#334155',
+  track: '#ef4444',
+  pitch: '#22c55e',
+  court: '#0284c7',
   structure: '#94a3b8',
 };
-
-function FenceSegment({
-  length,
-  axis,
-  position,
-  rotationY = 0,
-  plinthHeight,
-  metalHeight,
-  plinthMaterial,
-  fenceTexture,
-}: {
-  length: number;
-  axis?: 'x' | 'z';
-  position: [number, number, number];
-  rotationY?: number;
-  plinthHeight: number;
-  metalHeight: number;
-  plinthMaterial: THREE.Material;
-  fenceTexture: THREE.CanvasTexture | null;
-}) {
-  const repeatCount = Math.max(1, length / 3.0);
-
-  const metalMat = useMemo(() => {
-    if (!fenceTexture) {
-      return new THREE.MeshStandardMaterial({
-        color: '#475569',
-        roughness: 0.6,
-      });
-    }
-    const cloned = fenceTexture.clone();
-    cloned.wrapS = THREE.RepeatWrapping;
-    cloned.wrapT = THREE.ClampToEdgeWrapping;
-    cloned.repeat.set(repeatCount, 1);
-    cloned.generateMipmaps = true;
-    cloned.minFilter = THREE.LinearMipmapLinearFilter;
-    cloned.magFilter = THREE.LinearFilter;
-    cloned.needsUpdate = true;
-    return new THREE.MeshStandardMaterial({
-      map: cloned,
-      transparent: true,
-      alphaTest: 0.35,
-      roughness: 0.5,
-      metalness: 0.4,
-      side: THREE.DoubleSide,
-      depthWrite: true,
-    });
-  }, [fenceTexture, repeatCount]);
-
-  useEffect(() => {
-    return () => {
-      if (metalMat.map) metalMat.map.dispose();
-      metalMat.dispose();
-    };
-  }, [metalMat]);
-
-  const plinthW = axis === 'z' ? 0.35 : length;
-  const plinthD = axis === 'z' ? length : 0.35;
-
-  return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      {/* Concrete plinth base (0.35m height) */}
-      <mesh position={[0, plinthHeight / 2, 0]} material={plinthMaterial} receiveShadow castShadow>
-        <boxGeometry args={[plinthW, plinthHeight, plinthD]} />
-      </mesh>
-      {/* See-through Metal Grille with Pickets, Diamonds & Spear tips (single plane to eliminate moire) */}
-      <mesh
-        position={[0, plinthHeight + metalHeight / 2, 0]}
-        rotation={axis === 'z' ? [0, Math.PI / 2, 0] : [0, 0, 0]}
-        material={metalMat}
-        castShadow
-      >
-        <planeGeometry args={[length, metalHeight]} />
-      </mesh>
-    </group>
-  );
-}
-
-function DirectedFence({
-  from,
-  to,
-  plinthHeight,
-  metalHeight,
-  plinthMaterial,
-  fenceTexture,
-}: {
-  from: [number, number];
-  to: [number, number];
-  plinthHeight: number;
-  metalHeight: number;
-  plinthMaterial: THREE.Material;
-  fenceTexture: THREE.CanvasTexture | null;
-}) {
-  const dx = to[0] - from[0];
-  const dz = to[1] - from[1];
-  const len = Math.hypot(dx, dz);
-  const angle = Math.atan2(dx, dz);
-  const cx = (from[0] + to[0]) / 2;
-  const cz = (from[1] + to[1]) / 2;
-
-  return (
-    <FenceSegment
-      length={len}
-      position={[cx, 0, cz]}
-      rotationY={angle - Math.PI / 2}
-      plinthHeight={plinthHeight}
-      metalHeight={metalHeight}
-      plinthMaterial={plinthMaterial}
-      fenceTexture={fenceTexture}
-    />
-  );
-}
 
 function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
   const { min, max } = geometry.bounds;
 
-  // Gate positioning on the East side (aligning with kpp-e checkpoint)
   const gateZ = useMemo(() => {
     const kppFeature = geometry.context.find((f) => f.id === 'kpp-e');
     if (kppFeature) {
@@ -171,346 +64,234 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
   }, [geometry, min, max]);
 
   const gateWidth = MAIN_ENTRANCE_WIDTH;
+  const plinthHeight = 0.2;
+  const metalHeight = 1.8;
 
-  // Requirement D:
-  // - Concrete base: 20 centimeters high (0.20m)
-  // - Above-ground fence height: 2.0 meters (0.20m plinth + 1.80m metal grille = 2.0m total)
-  const plinthHeight = 0.20;
-  const metalHeight = 1.80;
+  const fenceTexture = useMemo(() => {
+    const tex = getFenceTexture();
+    if (tex) {
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(1, 1);
+    }
+    return tex;
+  }, []);
 
-  const fenceTexture = useMemo(() => getFenceTexture(), []);
-  const plinthMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#8C8982',
-        roughness: 0.9,
-      }),
-    [],
-  );
+  const materials = useMemo(() => {
+    const plinthMat = new THREE.MeshStandardMaterial({
+      color: '#8C8982',
+      roughness: 0.9,
+    });
+    const fenceMetalMat = new THREE.MeshStandardMaterial({
+      color: fenceTexture ? '#ffffff' : '#475569',
+      map: fenceTexture ?? null,
+      transparent: true,
+      alphaTest: 0.35,
+      roughness: 0.5,
+      metalness: 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+    });
+    const asphaltMat = new THREE.MeshStandardMaterial({
+      color: '#1e293b',
+      roughness: 0.9,
+    });
+    const sidewalkMat = new THREE.MeshStandardMaterial({
+      color: '#cbd5e1',
+      roughness: 0.9,
+    });
+    const curbMat = new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      roughness: 0.85,
+    });
+    const vergeMat = new THREE.MeshStandardMaterial({
+      color: '#4a7c3a',
+      roughness: 0.9,
+    });
+    const whiteStripeMat = new THREE.MeshBasicMaterial({
+      color: '#ffffff',
+    });
+    const boothWallMat = new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      roughness: 0.8,
+    });
+    const boothRoofMat = new THREE.MeshStandardMaterial({
+      color: '#78350f',
+      roughness: 0.6,
+    });
+    const orangeMat = new THREE.MeshStandardMaterial({
+      color: '#ea580c',
+    });
+    const drivewayMat = new THREE.MeshStandardMaterial({
+      color: '#334155',
+      roughness: 0.85,
+    });
+    return {
+      plinthMat,
+      fenceMetalMat,
+      asphaltMat,
+      sidewalkMat,
+      curbMat,
+      vergeMat,
+      whiteStripeMat,
+      boothWallMat,
+      boothRoofMat,
+      orangeMat,
+      drivewayMat,
+    };
+  }, [fenceTexture]);
 
-  // Perimeter boundary lines (aligned strictly with campus perimeter):
   const left = -104.5;
   const top = -152.0;
-
-  // East Perimeter Fence & Gate: continuous straight line along X = 104.0m (cherniy / porovnit zabor)
   const rightGate = 104.0;
-
-  // "I ♥ AJOU" installation (Requirements E & F)
-  // Installed flush against (впритык) the green lawn edge at X=78.15m
-  const artZ = gateZ; // z ≈ -23.1m
+  const artZ = gateZ;
   const artX = 78.5;
+
+  const merged = useMemo(() => {
+    const b = new StaticGeometryBatcher();
+
+    const addFenceSeg = (
+      len: number,
+      pos: [number, number, number],
+      rotY: number,
+      axis?: 'x' | 'z',
+    ) => {
+      const repeatCount = Math.max(1, len / 3.0);
+      const plinthW = axis === 'z' ? 0.35 : len;
+      const plinthD = axis === 'z' ? len : 0.35;
+      b.addBox('plinth', [plinthW, plinthHeight, plinthD], [pos[0], pos[1] + plinthHeight / 2, pos[2]], [0, rotY, 0]);
+      const planeRotY = rotY + (axis === 'z' ? Math.PI / 2 : 0);
+      b.addPlane(
+        'fenceMetal',
+        [len, metalHeight],
+        [pos[0], pos[1] + plinthHeight + metalHeight / 2, pos[2]],
+        [0, planeRotY, 0],
+        [repeatCount, 1],
+      );
+    };
+
+    const addDirectedFence = (from: [number, number], to: [number, number]) => {
+      const dx = to[0] - from[0];
+      const dz = to[1] - from[1];
+      const len = Math.hypot(dx, dz);
+      const angle = Math.atan2(dx, dz);
+      const cx = (from[0] + to[0]) / 2;
+      const cz = (from[1] + to[1]) / 2;
+      addFenceSeg(len, [cx, 0, cz], angle - Math.PI / 2);
+    };
+
+    // Fences
+    addFenceSeg(rightGate - left, [(left + rightGate) / 2, 0, top], 0, 'x');
+    addDirectedFence([left, top], [left, 204.3]);
+    addDirectedFence([-53.0, 194.8], [left, 204.3]);
+    addDirectedFence([rightGate, 160.0], [-47.0, 193.5]);
+    addDirectedFence([-50.0, 153.0], [-50.0, 192.0]);
+    addFenceSeg(Math.max(1, gateZ - gateWidth / 2 - top), [rightGate, 0, (top + gateZ - gateWidth / 2) / 2], 0, 'z');
+    addFenceSeg(Math.max(1, 160.0 - (gateZ + gateWidth / 2)), [rightGate, 0, (gateZ + gateWidth / 2 + 160.0) / 2], 0, 'z');
+
+    // South-West 2-lane diagonal road (origin [1.5, 0.02, 189.9], rotY = 0.2186)
+    const diagAngle = 0.2186;
+    const cosD = Math.cos(diagAngle);
+    const sinD = Math.sin(diagAngle);
+    const toDiagWorld = (lx: number, ly: number, lz: number): [number, number, number] => [
+      1.5 + lx * cosD + lz * sinD,
+      0.02 + ly,
+      189.9 - lx * sinD + lz * cosD,
+    ];
+    b.addBox('asphalt', [240.0, 0.02, 9.0], toDiagWorld(0, 0, 0), [0, diagAngle, 0]);
+    b.addBox('sidewalk', [240.0, 0.025, 2.5], toDiagWorld(0, 0.02, -5.75), [0, diagAngle, 0]);
+    b.addBox('curb', [240.0, 0.05, 0.2], toDiagWorld(0, 0.035, -4.45), [0, diagAngle, 0]);
+    b.addBox('sidewalk', [240.0, 0.025, 2.2], toDiagWorld(0, 0.02, 5.6), [0, diagAngle, 0]);
+    b.addBox('curb', [240.0, 0.05, 0.2], toDiagWorld(0, 0.035, 4.45), [0, diagAngle, 0]);
+
+    for (let rIdx = 0; rIdx < 34; rIdx++) {
+      const rx = -112.0 + rIdx * 6.8;
+      b.addBox('whiteStripe', [3.4, 0.002, 0.15], toDiagWorld(rx, 0.012, 0), [0, diagAngle, 0]);
+    }
+    for (const zebraX of [90.0, -50.0]) {
+      for (let zIdx = 0; zIdx < 9; zIdx++) {
+        b.addBox('whiteStripe', [0.5, 0.003, 8.0], toDiagWorld(zebraX - 3.6 + zIdx * 0.9, 0.015, 0), [0, diagAngle, 0]);
+      }
+    }
+
+    // South-West Gate Checkpoint (origin [-50.0, 0, 194.2], rotY = 0.2186)
+    const toSwWorld = (lx: number, ly: number, lz: number): [number, number, number] => [
+      -50.0 + lx * cosD + lz * sinD,
+      ly,
+      194.2 - lx * sinD + lz * cosD,
+    ];
+    for (const bx of [3.2, -3.2]) {
+      b.addBox('boothWall', [2.5, 2.8, 2.5], toSwWorld(bx, 1.4, -1.2), [0, diagAngle, 0]);
+      b.addBox('boothRoof', [2.9, 0.25, 2.9], toSwWorld(bx, 2.9, -1.2), [0, diagAngle, 0]);
+    }
+    b.addCylinder('orange', [0.08, 0.1, 0.9, 8], toSwWorld(1.6, 0.5, -0.6), [0, diagAngle, 0]);
+    b.addBox('whiteStripe', [4.6, 0.08, 0.08], toSwWorld(-0.8, 0.85, -0.6), [0, diagAngle, 0]);
+
+    // Main Entrance driveway threshold
+    b.addBox('driveway', [5.0, 0.02, 12.0], [101.5, 0.03, gateZ]);
+
+    // East 4-Lane Major Avenue
+    const roadZCenter = (top + 160.0) / 2;
+    const roadLength = 160.0 - top + 4.0;
+    const asphaltWidth = 18.0;
+    const asphaltX = 115.7;
+    const stripeCount = Math.floor(roadLength / 6.8);
+
+    b.addBox('asphalt', [asphaltWidth, 0.02, roadLength], [asphaltX, 0.02, roadZCenter]);
+    b.addBox('sidewalk', [2.4, 0.025, roadLength], [105.3, 0.02, roadZCenter]);
+    b.addBox('curb', [0.2, 0.05, roadLength], [106.6, 0.035, roadZCenter]);
+    b.addBox('sidewalk', [3.0, 0.025, roadLength], [126.4, 0.02, roadZCenter]);
+    b.addBox('curb', [0.2, 0.05, roadLength], [124.8, 0.035, roadZCenter]);
+    b.addBox('verge', [3.2, 0.022, roadLength], [129.5, 0.02, roadZCenter]);
+
+    b.addBox('whiteStripe', [0.12, 0.002, roadLength], [asphaltX - 0.12, 0.032, roadZCenter]);
+    b.addBox('whiteStripe', [0.12, 0.002, roadLength], [asphaltX + 0.12, 0.032, roadZCenter]);
+
+    for (let rIdx = 0; rIdx < stripeCount; rIdx++) {
+      const rz = top + 2.0 + rIdx * 6.8;
+      b.addBox('whiteStripe', [0.15, 0.002, 3.4], [asphaltX - 4.5, 0.032, rz]);
+      b.addBox('whiteStripe', [0.15, 0.002, 3.4], [asphaltX + 4.5, 0.032, rz]);
+    }
+
+    b.addBox('whiteStripe', [0.15, 0.002, roadLength], [asphaltX - 8.65, 0.032, roadZCenter]);
+    b.addBox('whiteStripe', [0.15, 0.002, roadLength], [asphaltX + 8.65, 0.032, roadZCenter]);
+
+    for (const zebraZ of [gateZ, -135.0, 154.0]) {
+      for (let zIdx = 0; zIdx < 9; zIdx++) {
+        b.addBox('whiteStripe', [17.2, 0.003, 0.5], [asphaltX, 0.035, zebraZ - 3.6 + zIdx * 0.9]);
+      }
+    }
+
+    return b.buildAll();
+  }, [gateZ, gateWidth, left, top, rightGate, plinthHeight, metalHeight]);
+
+  useEffect(() => () => disposeMergedMap(merged), [merged]);
 
   return (
     <group>
-      {/* North fence: from left to rightGate */}
-      <FenceSegment
-        axis="x"
-        length={rightGate - left}
-        position={[(left + rightGate) / 2, 0, top]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
+      {merged.plinth && <mesh geometry={merged.plinth} material={materials.plinthMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.fenceMetal && <mesh geometry={merged.fenceMetal} material={materials.fenceMetalMat} castShadow raycast={NO_RAYCAST} />}
+      {merged.asphalt && <mesh geometry={merged.asphalt} material={materials.asphaltMat} receiveShadow raycast={NO_RAYCAST} />}
+      {merged.sidewalk && <mesh geometry={merged.sidewalk} material={materials.sidewalkMat} receiveShadow raycast={NO_RAYCAST} />}
+      {merged.curb && <mesh geometry={merged.curb} material={materials.curbMat} receiveShadow raycast={NO_RAYCAST} />}
+      {merged.verge && <mesh geometry={merged.verge} material={materials.vergeMat} receiveShadow raycast={NO_RAYCAST} />}
+      {merged.whiteStripe && <mesh geometry={merged.whiteStripe} material={materials.whiteStripeMat} raycast={NO_RAYCAST} />}
+      {merged.boothWall && <mesh geometry={merged.boothWall} material={materials.boothWallMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
+      {merged.boothRoof && <mesh geometry={merged.boothRoof} material={materials.boothRoofMat} castShadow raycast={NO_RAYCAST} />}
+      {merged.orange && <mesh geometry={merged.orange} material={materials.orangeMat} raycast={NO_RAYCAST} />}
+      {merged.driveway && <mesh geometry={merged.driveway} material={materials.drivewayMat} receiveShadow raycast={NO_RAYCAST} />}
 
-      {/* West fence: from top down to Z=204.3m (meeting the South-West diagonal perimeter fence) */}
-      <DirectedFence
-        from={[left, top]}
-        to={[left, 204.3]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
-
-      {/* South-West Diagonal Perimeter Fence: from Parking Gate South post [-53.0, 194.8] along diagonal road sidewalk in front of garages to West corner [left, 204.3] */}
-      <DirectedFence
-        from={[-53.0, 194.8]}
-        to={[left, 204.3]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
-
-      {/* South-East Diagonal Perimeter Fence: from East road corner [rightGate, 160.0] along diagonal road sidewalk to Parking Gate East post [-47.0, 193.5] */}
-      <DirectedFence
-        from={[rightGate, 160.0]}
-        to={[-47.0, 193.5]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
-
-      {/* Dormitory Dividing Fence (between southern parking lot and central campus avenue): from [-50.0, 153.0] to [-50.0, 192.0] */}
-      <DirectedFence
-        from={[-50.0, 153.0]}
-        to={[-50.0, 192.0]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
-
-      {/* South-West 2-Lane Diagonal Road (outside diagonal fence, connecting East perimeter road to South-West corner per CAD masterplan) */}
-      <group position={[1.5, 0.02, 189.9]} rotation={[0, 0.2186, 0]}>
-        {/* Asphalt road strip (240m long, 9m wide) */}
-        <mesh receiveShadow>
-          <boxGeometry args={[240.0, 0.02, 9.0]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.9} />
-        </mesh>
-        {/* Inner Sidewalk / Verge alongside campus perimeter fence */}
-        <mesh position={[0, 0.02, -5.75]} receiveShadow>
-          <boxGeometry args={[240.0, 0.025, 2.5]} />
-          <meshStandardMaterial color="#cbd5e1" roughness={0.9} />
-        </mesh>
-        {/* Concrete Road Inner Curb */}
-        <mesh position={[0, 0.035, -4.45]} receiveShadow>
-          <boxGeometry args={[240.0, 0.05, 0.2]} />
-          <meshStandardMaterial color="#94a3b8" roughness={0.85} />
-        </mesh>
-        {/* Outer Sidewalk / Verge */}
-        <mesh position={[0, 0.02, 5.6]} receiveShadow>
-          <boxGeometry args={[240.0, 0.025, 2.2]} />
-          <meshStandardMaterial color="#cbd5e1" roughness={0.9} />
-        </mesh>
-        {/* Concrete Road Outer Curb */}
-        <mesh position={[0, 0.035, 4.45]} receiveShadow>
-          <boxGeometry args={[240.0, 0.05, 0.2]} />
-          <meshStandardMaterial color="#94a3b8" roughness={0.85} />
-        </mesh>
-        {/* Dashed white center line */}
-        {Array.from({ length: 34 }).map((_, rIdx) => {
-          const rx = -112.0 + rIdx * 6.8;
-          return (
-            <mesh key={`rd-stripe-${rIdx}`} position={[rx, 0.012, 0]}>
-              <boxGeometry args={[3.4, 0.002, 0.15]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-          );
-        })}
-        {/* Pedestrian Zebra Crosswalk 1 (East intersection near road-east at world X ≈ 90m) */}
-        <group position={[90.0, 0.015, 0]}>
-          {Array.from({ length: 9 }).map((_, zIdx) => (
-            <mesh key={`rd-zebra-e-${zIdx}`} position={[-3.6 + zIdx * 0.9, 0, 0]}>
-              <boxGeometry args={[0.5, 0.003, 8.0]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-          ))}
-        </group>
-        {/* Pedestrian Zebra Crosswalk 2 (West, near Dormitory parking entrance at world X ≈ -50m) */}
-        <group position={[-50.0, 0.015, 0]}>
-          {Array.from({ length: 9 }).map((_, zIdx) => (
-            <mesh key={`rd-zebra-w-${zIdx}`} position={[-3.6 + zIdx * 0.9, 0, 0]}>
-              <boxGeometry args={[0.5, 0.003, 8.0]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-          ))}
-        </group>
-      </group>
-
-      {/* South-West Gate Checkpoint (КПП Парковки общежития и автоматический шлагбаум per CAD masterplan) */}
-      <group position={[-50.0, 0, 194.2]} rotation={[0, 0.2186, 0]}>
-        {/* Guard booth 1 (North-East booth, at corner of park) */}
-        <group position={[3.2, 0, -1.2]}>
-          <mesh position={[0, 1.4, 0]} castShadow receiveShadow>
-            <boxGeometry args={[2.5, 2.8, 2.5]} />
-            <meshStandardMaterial color="#f8fafc" roughness={0.8} />
-          </mesh>
-          <mesh position={[0, 2.9, 0]} castShadow>
-            <boxGeometry args={[2.9, 0.25, 2.9]} />
-            <meshStandardMaterial color="#78350f" roughness={0.6} />
-          </mesh>
-        </group>
-        {/* Guard booth 2 (South-West booth / post, at garage flank) */}
-        <group position={[-3.2, 0, -1.2]}>
-          <mesh position={[0, 1.4, 0]} castShadow receiveShadow>
-            <boxGeometry args={[2.5, 2.8, 2.5]} />
-            <meshStandardMaterial color="#f8fafc" roughness={0.8} />
-          </mesh>
-          <mesh position={[0, 2.9, 0]} castShadow>
-            <boxGeometry args={[2.9, 0.25, 2.9]} />
-            <meshStandardMaterial color="#78350f" roughness={0.6} />
-          </mesh>
-        </group>
-        {/* Automatic barrier pedestal & boom arm spanning the gate */}
-        <mesh position={[1.6, 0.5, -0.6]}>
-          <cylinderGeometry args={[0.08, 0.1, 0.9, 8]} />
-          <meshStandardMaterial color="#ea580c" />
-        </mesh>
-        <mesh position={[-0.8, 0.85, -0.6]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.04, 0.04, 4.6, 8]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-      </group>
-
-      {/* East fence segment 1 (North of gate): from top to gate entrance */}
-      <FenceSegment
-        axis="z"
-        length={Math.max(1, gateZ - gateWidth / 2 - top)}
-        position={[rightGate, 0, (top + gateZ - gateWidth / 2) / 2]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
-
-      {/* East fence segment 2 (South of gate to diagonal road corner at Z=160.0m per CAD masterplan) */}
-      <FenceSegment
-        axis="z"
-        length={Math.max(1, 160.0 - (gateZ + gateWidth / 2))}
-        position={[rightGate, 0, (gateZ + gateWidth / 2 + 160.0) / 2]}
-        plinthHeight={plinthHeight}
-        metalHeight={metalHeight}
-        plinthMaterial={plinthMaterial}
-        fenceTexture={fenceTexture}
-      />
-
-      {/* Main Campus Entrance & Checkpoint Ensemble (КПП AUT, Стела, Павильон, Баннер) */}
+      {/* Main Campus Entrance & Checkpoint Ensemble */}
       <MainEntranceGate
         position={[rightGate, 0, gateZ]}
         rotation={[0, Math.PI / 2, 0]}
       />
 
-      {/* Main Entrance Driveway Threshold at Perimeter Gate */}
-      <mesh position={[101.5, 0.03, gateZ]} receiveShadow>
-        <boxGeometry args={[5.0, 0.02, 12.0]} />
-        <meshStandardMaterial color="#334155" roughness={0.85} />
-      </mesh>
-
-      {/* Landmark Art-Object "I ♥ AJOU" on entrance plaza lawn (Requirements E & F) */}
+      {/* Landmark Art-Object "I ♥ AJOU" */}
       <AjouArtObject
         position={[artX, 0, artZ]}
         rotation={[0, Math.PI / 2, 0]}
       />
-
-      {/* ============================================================== */}
-      {/* East 4-Lane Major Avenue in front of Main Entrance (2x wider)  */}
-      {/* (Wast perimeter road widened to 18.0m per user instruction)     */}
-      {/* ============================================================== */}
-      {(() => {
-        const roadZCenter = (top + 160.0) / 2; // (-152.0 + 160.0) / 2 = 4.0
-        const roadLength = 160.0 - top + 4.0;  // 316.0m
-        const asphaltWidth = 18.0;             // 2x wider (doubled from 9.0m to 18.0m)
-        const asphaltX = 115.7;                // Center of 18.0m roadway [106.7 to 124.7]
-        const innerCurbX = 106.6;              // Inner concrete curb
-        const outerCurbX = 124.8;              // Outer concrete curb
-        const innerSidewalkX = 105.3;          // Inner sidewalk (between fence & curb)
-        const outerSidewalkX = 126.4;          // Outer sidewalk (3.0m wide)
-        const outerVergeX = 129.5;             // Outer green verge / buffer (3.2m wide)
-
-        const stripeCount = Math.floor(roadLength / 6.8);
-
-        return (
-          <group position={[0, 0, 0]}>
-            {/* 1. Asphalt Roadway (18.0m wide, 4-lane boulevard / 2x wider) */}
-            <mesh position={[asphaltX, 0.02, roadZCenter]} receiveShadow>
-              <boxGeometry args={[asphaltWidth, 0.02, roadLength]} />
-              <meshStandardMaterial color="#1e293b" roughness={0.9} />
-            </mesh>
-
-            {/* 2. Inner Sidewalk along campus perimeter fence (2.4m wide) */}
-            <mesh position={[innerSidewalkX, 0.02, roadZCenter]} receiveShadow>
-              <boxGeometry args={[2.4, 0.025, roadLength]} />
-              <meshStandardMaterial color="#cbd5e1" roughness={0.9} />
-            </mesh>
-
-            {/* 3. Concrete Road Inner Curb */}
-            <mesh position={[innerCurbX, 0.035, roadZCenter]} receiveShadow>
-              <boxGeometry args={[0.2, 0.05, roadLength]} />
-              <meshStandardMaterial color="#94a3b8" roughness={0.85} />
-            </mesh>
-
-            {/* 4. Outer Sidewalk (3.0m wide) */}
-            <mesh position={[outerSidewalkX, 0.02, roadZCenter]} receiveShadow>
-              <boxGeometry args={[3.0, 0.025, roadLength]} />
-              <meshStandardMaterial color="#cbd5e1" roughness={0.9} />
-            </mesh>
-
-            {/* 5. Concrete Road Outer Curb */}
-            <mesh position={[outerCurbX, 0.035, roadZCenter]} receiveShadow>
-              <boxGeometry args={[0.2, 0.05, roadLength]} />
-              <meshStandardMaterial color="#94a3b8" roughness={0.85} />
-            </mesh>
-
-            {/* 6. Outer Green Verge / Grass buffer */}
-            <mesh position={[outerVergeX, 0.02, roadZCenter]} receiveShadow>
-              <boxGeometry args={[3.2, 0.022, roadLength]} />
-              <meshStandardMaterial color="#4a7c3a" roughness={0.9} />
-            </mesh>
-
-            {/* 7. Double Solid White Centerline (Traffic Divider) */}
-            <mesh position={[asphaltX - 0.12, 0.032, roadZCenter]}>
-              <boxGeometry args={[0.12, 0.002, roadLength]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-            <mesh position={[asphaltX + 0.12, 0.032, roadZCenter]}>
-              <boxGeometry args={[0.12, 0.002, roadLength]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-
-            {/* 8. Dashed White Lane Dividers (4-lane traffic) */}
-            {Array.from({ length: stripeCount }).map((_, rIdx) => {
-              const rz = top + 2.0 + rIdx * 6.8;
-              return (
-                <group key={`east-lane-stripes-${rIdx}`}>
-                  {/* West inner lane divider */}
-                  <mesh position={[asphaltX - 4.5, 0.032, rz]}>
-                    <boxGeometry args={[0.15, 0.002, 3.4]} />
-                    <meshBasicMaterial color="#ffffff" />
-                  </mesh>
-                  {/* East inner lane divider */}
-                  <mesh position={[asphaltX + 4.5, 0.032, rz]}>
-                    <boxGeometry args={[0.15, 0.002, 3.4]} />
-                    <meshBasicMaterial color="#ffffff" />
-                  </mesh>
-                </group>
-              );
-            })}
-
-            {/* 9. Solid White Outer Edge Lines */}
-            <mesh position={[asphaltX - 8.65, 0.032, roadZCenter]}>
-              <boxGeometry args={[0.15, 0.002, roadLength]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-            <mesh position={[asphaltX + 8.65, 0.032, roadZCenter]}>
-              <boxGeometry args={[0.15, 0.002, roadLength]} />
-              <meshBasicMaterial color="#ffffff" />
-            </mesh>
-
-            {/* 10. Pedestrian Zebra Crosswalk in front of Main Entrance Gate (spanning full 18m roadway) */}
-            <group position={[asphaltX, 0.035, gateZ]}>
-              {Array.from({ length: 9 }).map((_, zIdx) => (
-                <mesh key={`east-zebra-main-${zIdx}`} position={[0, 0, -3.6 + zIdx * 0.9]}>
-                  <boxGeometry args={[17.2, 0.003, 0.5]} />
-                  <meshBasicMaterial color="#ffffff" />
-                </mesh>
-              ))}
-            </group>
-
-            {/* 11. Pedestrian Zebra Crosswalk at North Gate / Approach */}
-            <group position={[asphaltX, 0.035, -135.0]}>
-              {Array.from({ length: 9 }).map((_, zIdx) => (
-                <mesh key={`east-zebra-north-${zIdx}`} position={[0, 0, -3.6 + zIdx * 0.9]}>
-                  <boxGeometry args={[17.2, 0.003, 0.5]} />
-                  <meshBasicMaterial color="#ffffff" />
-                </mesh>
-              ))}
-            </group>
-
-            {/* 12. Pedestrian Zebra Crosswalk at South-East intersection */}
-            <group position={[asphaltX, 0.035, 154.0]}>
-              {Array.from({ length: 9 }).map((_, zIdx) => (
-                <mesh key={`east-zebra-se-${zIdx}`} position={[0, 0, -3.6 + zIdx * 0.9]}>
-                  <boxGeometry args={[17.2, 0.003, 0.5]} />
-                  <meshBasicMaterial color="#ffffff" />
-                </mesh>
-              ))}
-            </group>
-          </group>
-        );
-      })()}
     </group>
   );
 }
@@ -525,54 +306,11 @@ type ContextTuning = {
   pbrTexturesEnabled?: boolean;
 };
 
-function SecurityCheckpointBooth({ footprint }: { footprint: Footprint }) {
-  const { center, size } =
-    footprint.type === 'rect'
-      ? footprint
-      : { center: [0, 0] as [number, number], size: [6, 4] as [number, number] };
-  const w = size[0];
-  const d = size[1];
-  return (
-    <group position={[center[0], 0, center[1]]}>
-      {/* Concrete foundation plinth */}
-      <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w, 0.3, d]} />
-        <meshStandardMaterial color="#475569" roughness={0.9} />
-      </mesh>
-      {/* Booth Wall Body */}
-      <mesh position={[0, 1.65, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w - 0.4, 2.7, d - 0.4]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.8} />
-      </mesh>
-      {/* Inspection Ribbon Windows */}
-      <mesh position={[0, 1.8, 0]} castShadow>
-        <boxGeometry args={[w - 0.3, 1.1, d - 0.3]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.1} />
-      </mesh>
-      {/* Overhanging Canopy Roof with Fascia */}
-      <mesh position={[0, 3.15, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w + 1.0, 0.35, d + 1.0]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.6} metalness={0.2} />
-      </mesh>
-      {/* Security Barrier Boom Arm */}
-      <mesh position={[w / 2 + 0.3, 0.5, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.08, 0.1, 1.0, 8]} />
-        <meshStandardMaterial color="#ea580c" roughness={0.4} />
-      </mesh>
-      <mesh position={[w / 2 + 0.3 + 1.8, 0.9, 0]}>
-        <boxGeometry args={[3.6, 0.08, 0.08]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.3} />
-      </mesh>
-    </group>
-  );
-}
-
 /**
  * Ground terrain base, perimeter enclosures, and landscape surfaces (roads, turf, courts, paths).
  */
 export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; tuning?: ContextTuning }) {
   const { min, max } = geometry.bounds;
-  // Confine ground terrain base strictly to the campus perimeter and surrounding roads (zero empty outer margin)
   const minX = Math.min(-105.0, min[0]);
   const maxX = Math.max(120.0, max[0]);
   const minZ = Math.min(-153.5, min[1]);
@@ -591,70 +329,156 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
     (minZ + maxZ) / 2,
   ];
 
-  const getColor = (kind: ContextFeatureKind) => {
-    if (tuning) {
-      if (kind === 'lawn' && tuning.lawnColor) return tuning.lawnColor;
-      if (kind === 'road' && tuning.roadColor) return tuning.roadColor;
-      if (kind === 'track' && tuning.trackColor) return tuning.trackColor;
-      if (kind === 'pitch' && tuning.pitchColor) return tuning.pitchColor;
-      if (kind === 'court' && tuning.courtColor) return tuning.courtColor;
+  const lawnColor = tuning?.lawnColor ?? contextColors.lawn ?? mapConfig.colors.context.lawn;
+  const roadColor = tuning?.roadColor ?? contextColors.road ?? mapConfig.colors.context.road;
+
+  const contextMaterials = useMemo(() => {
+    const groundMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: tuning?.groundColor ?? '#d8d4cc',
+        map: pavingPbr?.map ?? null,
+        normalMap: pavingPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.12, 0.12),
+        roughnessMap: pavingPbr?.roughnessMap ?? null,
+        roughness: 0.88,
+        metalness: 0.0,
+        polygonOffset: true,
+        polygonOffsetFactor: 3,
+        polygonOffsetUnits: 3,
+      }),
+      'paving',
+    );
+    const lawnMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: lawnColor,
+        map: grassPbr?.map ?? null,
+        normalMap: grassPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.15, 0.15),
+        roughnessMap: grassPbr?.roughnessMap ?? null,
+        roughness: 0.9,
+        metalness: 0.0,
+      }),
+      'grass',
+    );
+    const roadMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: roadColor,
+        map: asphaltPbr?.map ?? null,
+        normalMap: asphaltPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.18, 0.18),
+        roughnessMap: asphaltPbr?.roughnessMap ?? null,
+        roughness: 0.86,
+        metalness: 0.0,
+      }),
+      'asphalt',
+    );
+    const plazaMat = applyTerrainMacroVariationShader(
+      new THREE.MeshStandardMaterial({
+        color: '#cbd5e1',
+        map: pavingPbr?.map ?? null,
+        normalMap: pavingPbr?.normalMap ?? null,
+        normalScale: new THREE.Vector2(0.14, 0.14),
+        roughnessMap: pavingPbr?.roughnessMap ?? null,
+        roughness: 0.82,
+        metalness: 0.0,
+      }),
+      'paving',
+    );
+    const structureMat = new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      roughness: 0.85,
+      metalness: 0.0,
+    });
+    return { groundMat, lawnMat, roadMat, plazaMat, structureMat };
+  }, [tuning?.groundColor, lawnColor, roadColor, pavingPbr, grassPbr, asphaltPbr]);
+
+  const mergedContext = useMemo(() => {
+    const b = new StaticGeometryBatcher();
+
+    const addFootprint = (bucket: string, fp: Footprint, bottom: number, height: number) => {
+      const outline = footprintOutline(fp);
+      if (outline.length < 3) return;
+      const geom = new THREE.ExtrudeGeometry(outlineToShape(outline), { depth: height, bevelEnabled: false });
+      b.addGeometry(bucket, geom, [0, bottom, 0], EXTRUDE_ROTATION);
+      geom.dispose();
+    };
+
+    // South Park Diagonal Lawn
+    addFootprint(
+      'lawn',
+      {
+        type: 'polygon',
+        points: [
+          [-48.0, 147.0],
+          [-48.0, 192.9],
+          [54.0, 170.3],
+          [54.0, 147.0],
+        ],
+      },
+      0.025,
+      0.02,
+    );
+
+    // South-East Pedestrian Plaza
+    addFootprint(
+      'plaza',
+      {
+        type: 'polygon',
+        points: [
+          [54.0, 145.5],
+          [54.0, 170.2],
+          [103.5, 159.5],
+          [103.5, 145.5],
+        ],
+      },
+      0.035,
+      0.016,
+    );
+
+    for (const f of geometry.context) {
+      if (f.id === 'kpp-e' || f.id === 'kpp-sw') continue;
+      if (f.id === 'court' || f.id === 'court-tennis' || f.id === 'pitch' || f.id === 'track' || f.id === 'lawn-n') continue;
+      if (f.id.startsWith('solar-canopy-') || f.id === 'solar-canopy-1' || f.id === 'solar-canopy-2') continue;
+      if (f.id.startsWith('dorm-garage-') || f.id.startsWith('dorm-shed-') || f.id.startsWith('dorm-booth-')) continue;
+      if (f.id === 'road-east' || f.id === 'road-entrance-main') continue;
+      if (f.id === 'out-plaza-mvijfubr') continue;
+      if (f.id.startsWith('kpp-')) continue;
+
+      if (f.kind === 'structure') {
+        addFootprint('structure', f.footprint, 0, f.height ?? mapConfig.building.unknownStructureHeight);
+        continue;
+      }
+
+      const isLawn = f.kind === 'lawn';
+      const isRoad = f.kind === 'road';
+      const bucket = isLawn ? 'lawn' : isRoad ? 'road' : 'plaza';
+      addFootprint(
+        bucket,
+        f.footprint,
+        flatLayerElevation[f.kind] ?? 0.02,
+        isLawn ? 0.02 : isRoad ? 0.025 : 0.02,
+      );
     }
-    return contextColors[kind] ?? mapConfig.colors.context[kind];
-  };
 
-  // South Park Diagonal Lawn (conforms strictly inside campus with 0.8m setback from the diagonal fence)
-  const southParkLawnFootprint: Footprint = useMemo(
-    () => ({
-      type: 'polygon',
-      points: [
-        [-48.0, 147.0],
-        [-48.0, 192.9],
-        [54.0, 170.3],
-        [54.0, 147.0],
-      ],
-    }),
-    [],
-  );
+    return b.buildAll();
+  }, [geometry.context]);
 
-  // South-East Pedestrian Plaza south of Block C (connecting Block C south promenade to fence & crosswalk per black markup media_1793554124975.png)
-  const southEastPlazaFootprint: Footprint = useMemo(
-    () => ({
-      type: 'polygon',
-      points: [
-        [54.0, 145.5],
-        [54.0, 170.2],
-        [103.5, 159.5],
-        [103.5, 145.5],
-      ],
-    }),
-    [],
-  );
+  useEffect(() => () => disposeMergedMap(mergedContext), [mergedContext]);
 
   return (
     <group>
-      {/* Base ground terrain (warm light pavement / soil with PBR detail) */}
+      {/* Base ground terrain */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={groundCenter}
+        material={contextMaterials.groundMat}
         receiveShadow
-        raycast={() => null}
+        raycast={NO_RAYCAST}
       >
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial
-          color={tuning?.groundColor ?? '#d8d4cc'}
-          map={pavingPbr?.map ?? null}
-          normalMap={pavingPbr?.normalMap ?? null}
-          normalScale={[0.08, 0.08]}
-          roughnessMap={pavingPbr?.roughnessMap ?? null}
-          roughness={0.88}
-          metalness={0.02}
-          polygonOffset={true}
-          polygonOffsetFactor={3}
-          polygonOffsetUnits={3}
-        />
       </mesh>
 
-      {/* Perimeter fence, Main Entrance checkpoint, 20m internal road, Art-object, and Fountain */}
+      {/* Perimeter fence, Main Entrance checkpoint, internal road, Art-object */}
       <PerimeterFenceAndGate geometry={geometry} />
 
       {/* Photovoltaic Solar Canopies & Dormitory Parking Ensemble */}
@@ -663,99 +487,28 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       {/* Pedestrian Walkways, Stone Plazas, Curbs, and Zebra Crossings */}
       <CampusWalkways />
 
-      {/* Real-World Sports Facilities (Soccer pitch lines/goals, basketball court lines/hoops, tennis court, stadium bleachers) */}
+      {/* Real-World Sports Facilities */}
       <SportsFacilities />
 
-      {/* Grand Campus Fountain: calibrated to blue box markup (X in [-23, +34], Z = -23.1) */}
-      <CampusFountain
-        scale={1.0}
-        position={[5.5, 0, -23.1]}
-      />
+      {/* Grand Campus Fountain */}
+      <CampusFountain scale={1.0} position={[5.5, 0, -23.1]} />
 
-      {/* Campus Outdoor Infrastructure & Site Furniture (LED Street lights, floodlights, benches, bins, bike racks, totem) */}
+      {/* Campus Outdoor Infrastructure & Site Furniture */}
       <SiteFurniture />
 
-      {/* South Park Diagonal Lawn (conforms strictly inside campus with 0.8m setback from the diagonal fence) */}
-      <ExtrudedFootprint
-        footprint={southParkLawnFootprint}
-        bottom={0.025}
-        height={0.02}
-        color={getColor('lawn')}
-        map={grassPbr?.map ?? null}
-        normalMap={grassPbr?.normalMap ?? null}
-        normalScale={[0.12, 0.12]}
-        roughnessMap={grassPbr?.roughnessMap ?? null}
-        roughness={0.9}
-        metalness={0.02}
-        interactive={false}
-        receiveShadow
-      />
-
-      {/* South-East Pedestrian Plaza south of Block C (per black markup media_1793554124975.png) */}
-      <ExtrudedFootprint
-        footprint={southEastPlazaFootprint}
-        bottom={0.035}
-        height={0.016}
-        color="#cbd5e1"
-        map={pavingPbr?.map ?? null}
-        normalMap={pavingPbr?.normalMap ?? null}
-        normalScale={[0.12, 0.12]}
-        roughnessMap={pavingPbr?.roughnessMap ?? null}
-        roughness={0.82}
-        metalness={0.05}
-        interactive={false}
-        receiveShadow
-      />
-
-      {/* Context landscape layers (roads, lawns, sports tracks, pitches) */}
-      {geometry.context.map((f) => {
-        if (f.id === 'kpp-e' || f.id === 'kpp-sw') return null;
-        if (f.id === 'court' || f.id === 'court-tennis' || f.id === 'pitch' || f.id === 'track' || f.id === 'lawn-n') return null; // Rendered via dedicated SportsFacilities & TennisCourt
-        if (f.id.startsWith('solar-canopy-') || f.id === 'solar-canopy-1' || f.id === 'solar-canopy-2') return null; // Rendered via dedicated 3D SolarCanopies
-        if (f.id.startsWith('dorm-garage-') || f.id.startsWith('dorm-shed-') || f.id.startsWith('dorm-booth-')) return null; // Rendered via dedicated 3D SolarCanopies
-        if (f.id === 'road-east' || f.id === 'road-entrance-main') return null; // Rendered via dedicated high-spec 2-lane East Road & entrance plaza
-        if (f.id === 'out-plaza-mvijfubr') return null; // Rendered as full 3D architectural AmphitheaterHall in Campus.tsx
-        if (f.id.startsWith('kpp-')) {
-          return <SecurityCheckpointBooth key={f.id} footprint={f.footprint} />;
-        }
-        if (f.kind === 'structure') {
-          return (
-            <ExtrudedFootprint
-              key={f.id}
-              footprint={f.footprint}
-              bottom={0}
-              height={f.height ?? mapConfig.building.unknownStructureHeight}
-              color="#94a3b8"
-              opacity={1}
-              interactive={false}
-              castShadow
-              receiveShadow
-            />
-          );
-        }
-
-        const isLawn = f.kind === 'lawn';
-        const isRoad = f.kind === 'road';
-        const pbrSet = isLawn ? grassPbr : isRoad ? asphaltPbr : null;
-
-        return (
-          <ExtrudedFootprint
-            key={f.id}
-            footprint={f.footprint}
-            bottom={flatLayerElevation[f.kind] ?? 0.02}
-            height={isLawn ? 0.02 : isRoad ? 0.025 : 0.02}
-            color={getColor(f.kind)}
-            map={pbrSet?.map ?? null}
-            normalMap={pbrSet?.normalMap ?? null}
-            normalScale={isLawn ? [0.12, 0.12] : [0.15, 0.15]}
-            roughnessMap={pbrSet?.roughnessMap ?? null}
-            roughness={isLawn ? 0.9 : isRoad ? 0.84 : 0.78}
-            metalness={isRoad ? 0.06 : 0.02}
-            interactive={false}
-            receiveShadow
-          />
-        );
-      })}
+      {/* Batched context landscape layers (lawns, roads, plazas, structures) */}
+      {mergedContext.lawn && (
+        <mesh geometry={mergedContext.lawn} material={contextMaterials.lawnMat} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {mergedContext.road && (
+        <mesh geometry={mergedContext.road} material={contextMaterials.roadMat} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {mergedContext.plaza && (
+        <mesh geometry={mergedContext.plaza} material={contextMaterials.plazaMat} receiveShadow raycast={NO_RAYCAST} />
+      )}
+      {mergedContext.structure && (
+        <mesh geometry={mergedContext.structure} material={contextMaterials.structureMat} castShadow receiveShadow raycast={NO_RAYCAST} />
+      )}
     </group>
   );
 }
