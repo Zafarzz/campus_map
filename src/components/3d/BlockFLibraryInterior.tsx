@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 
 export const LIBRARY_ROOM_ID = 'bld-d-f1-f101';
@@ -48,6 +48,186 @@ const BOOK_PALETTE = [
   '#d97706', // Gold spine
 ];
 
+function mergeLibraryGeometries(geoms: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+
+  for (const g of geoms) {
+    const nonIdx = g.index ? g.toNonIndexed() : g;
+    const pos = nonIdx.getAttribute('position');
+    const norm = nonIdx.getAttribute('normal');
+    for (let i = 0; i < pos.count; i++) {
+      positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+      if (norm) {
+        normals.push(norm.getX(i), norm.getY(i), norm.getZ(i));
+      } else {
+        normals.push(0, 1, 0);
+      }
+    }
+    if (nonIdx !== g) nonIdx.dispose();
+    g.dispose();
+  }
+
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  return merged;
+}
+
+const sharedBookcaseFrameGeo = (() => {
+  const [bw, bh, bd] = LIBRARY_LAYOUT.bookcaseSize;
+  const parts: THREE.BufferGeometry[] = [];
+
+  const spine = new THREE.BoxGeometry(bw, bh, 0.06);
+  spine.translate(0, bh / 2, 0);
+  parts.push(spine);
+
+  const leftSide = new THREE.BoxGeometry(0.06, bh, bd);
+  leftSide.translate(-bw / 2 + 0.03, bh / 2, 0);
+  parts.push(leftSide);
+
+  const rightSide = new THREE.BoxGeometry(0.06, bh, bd);
+  rightSide.translate(bw / 2 - 0.03, bh / 2, 0);
+  parts.push(rightSide);
+
+  for (const sy of [0.12, 0.56, 1.0, 1.44, 1.88, 2.22]) {
+    const shelf = new THREE.BoxGeometry(bw - 0.04, 0.04, bd);
+    shelf.translate(0, sy, 0);
+    parts.push(shelf);
+  }
+
+  return mergeLibraryGeometries(parts);
+})();
+
+const sharedBookUnitGeo = new THREE.BoxGeometry(0.24, 1.0, 0.22);
+
+let cachedLibraryBaseMaterials: {
+  oakFloor: THREE.MeshStandardMaterial;
+  carpetNavyDefault: THREE.MeshStandardMaterial;
+  carpetNavySelected: THREE.MeshStandardMaterial;
+  walnutWood: THREE.MeshStandardMaterial;
+  warmOakFurniture: THREE.MeshStandardMaterial;
+  creamWall: THREE.MeshStandardMaterial;
+  partitionGlass: THREE.MeshStandardMaterial;
+  darkMetal: THREE.MeshStandardMaterial;
+  brassGold: THREE.MeshStandardMaterial;
+  marbleTop: THREE.MeshStandardMaterial;
+  chairFabric: THREE.MeshStandardMaterial;
+  loungeBlue: THREE.MeshStandardMaterial;
+  bankerShadeGreen: THREE.MeshStandardMaterial;
+  warmLightEmissive: THREE.MeshStandardMaterial;
+  screenGlow: THREE.MeshStandardMaterial;
+  paperWhite: THREE.MeshStandardMaterial;
+  foliageGreen: THREE.MeshStandardMaterial;
+  instancedBookMat: THREE.MeshStandardMaterial;
+  bookMats: THREE.MeshStandardMaterial[];
+} | null = null;
+
+function getSharedLibraryMaterials(selected: boolean) {
+  if (!cachedLibraryBaseMaterials) {
+    cachedLibraryBaseMaterials = {
+      oakFloor: new THREE.MeshStandardMaterial({
+        color: '#7c4a24',
+        roughness: 0.65,
+        metalness: 0.05,
+      }),
+      carpetNavyDefault: new THREE.MeshStandardMaterial({
+        color: '#1e3a5f',
+        roughness: 0.9,
+      }),
+      carpetNavySelected: new THREE.MeshStandardMaterial({
+        color: '#1d4ed8',
+        roughness: 0.9,
+      }),
+      walnutWood: new THREE.MeshStandardMaterial({
+        color: '#452615',
+        roughness: 0.55,
+        metalness: 0.08,
+      }),
+      warmOakFurniture: new THREE.MeshStandardMaterial({
+        color: '#9a5b2d',
+        roughness: 0.5,
+        metalness: 0.05,
+      }),
+      creamWall: new THREE.MeshStandardMaterial({
+        color: '#f8fafc',
+        roughness: 0.8,
+      }),
+      partitionGlass: new THREE.MeshStandardMaterial({
+        color: '#bae6fd',
+        transparent: true,
+        opacity: 0.32,
+        roughness: 0.1,
+        metalness: 0.2,
+        depthWrite: false,
+      }),
+      darkMetal: new THREE.MeshStandardMaterial({
+        color: '#1e293b',
+        roughness: 0.4,
+        metalness: 0.7,
+      }),
+      brassGold: new THREE.MeshStandardMaterial({
+        color: '#d97706',
+        roughness: 0.25,
+        metalness: 0.85,
+      }),
+      marbleTop: new THREE.MeshStandardMaterial({
+        color: '#f1f5f9',
+        roughness: 0.25,
+        metalness: 0.05,
+      }),
+      chairFabric: new THREE.MeshStandardMaterial({
+        color: '#334155',
+        roughness: 0.8,
+      }),
+      loungeBlue: new THREE.MeshStandardMaterial({
+        color: '#1d4ed8',
+        roughness: 0.75,
+      }),
+      bankerShadeGreen: new THREE.MeshStandardMaterial({
+        color: '#15803d',
+        emissive: '#22c55e',
+        emissiveIntensity: 0.45,
+        roughness: 0.25,
+      }),
+      warmLightEmissive: new THREE.MeshStandardMaterial({
+        color: '#fef9c3',
+        emissive: '#fde047',
+        emissiveIntensity: 0.95,
+        roughness: 0.2,
+      }),
+      screenGlow: new THREE.MeshStandardMaterial({
+        color: '#e0f2fe',
+        emissive: '#38bdf8',
+        emissiveIntensity: 0.65,
+        roughness: 0.15,
+      }),
+      paperWhite: new THREE.MeshStandardMaterial({
+        color: '#fefce8',
+        roughness: 0.7,
+      }),
+      foliageGreen: new THREE.MeshStandardMaterial({
+        color: '#16a34a',
+        roughness: 0.65,
+      }),
+      instancedBookMat: new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        roughness: 0.6,
+      }),
+      bookMats: BOOK_PALETTE.map(
+        (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
+      ),
+    };
+  }
+
+  return {
+    ...cachedLibraryBaseMaterials,
+    carpetNavy: selected
+      ? cachedLibraryBaseMaterials.carpetNavySelected
+      : cachedLibraryBaseMaterials.carpetNavyDefault,
+  };
+}
+
 /**
  * Full 3D architectural interior of the Block F Ground-Floor Library (Room F-101):
  * - Warm oak parquet flooring & acoustic reading rugs
@@ -66,111 +246,87 @@ export function BlockFLibraryInterior({ position, size, selected = false }: Prop
   const hw = w / 2;
   const hd = d / 2;
 
-  const materials = useMemo(() => {
-    const oakFloor = new THREE.MeshStandardMaterial({
-      color: '#7c4a24',
-      roughness: 0.65,
-      metalness: 0.05,
-    });
-    const carpetNavy = new THREE.MeshStandardMaterial({
-      color: selected ? '#1d4ed8' : '#1e3a5f',
-      roughness: 0.9,
-    });
-    const walnutWood = new THREE.MeshStandardMaterial({
-      color: '#452615',
-      roughness: 0.55,
-      metalness: 0.08,
-    });
-    const warmOakFurniture = new THREE.MeshStandardMaterial({
-      color: '#9a5b2d',
-      roughness: 0.5,
-      metalness: 0.05,
-    });
-    const creamWall = new THREE.MeshStandardMaterial({
-      color: '#f8fafc',
-      roughness: 0.8,
-    });
-    const partitionGlass = new THREE.MeshStandardMaterial({
-      color: '#bae6fd',
-      transparent: true,
-      opacity: 0.32,
-      roughness: 0.1,
-      metalness: 0.2,
-      depthWrite: false,
-    });
-    const darkMetal = new THREE.MeshStandardMaterial({
-      color: '#1e293b',
-      roughness: 0.4,
-      metalness: 0.7,
-    });
-    const brassGold = new THREE.MeshStandardMaterial({
-      color: '#d97706',
-      roughness: 0.25,
-      metalness: 0.85,
-    });
-    const marbleTop = new THREE.MeshStandardMaterial({
-      color: '#f1f5f9',
-      roughness: 0.25,
-      metalness: 0.05,
-    });
-    const chairFabric = new THREE.MeshStandardMaterial({
-      color: '#334155',
-      roughness: 0.8,
-    });
-    const loungeBlue = new THREE.MeshStandardMaterial({
-      color: '#1d4ed8',
-      roughness: 0.75,
-    });
-    const bankerShadeGreen = new THREE.MeshStandardMaterial({
-      color: '#15803d',
-      emissive: '#22c55e',
-      emissiveIntensity: 0.45,
-      roughness: 0.25,
-    });
-    const warmLightEmissive = new THREE.MeshStandardMaterial({
-      color: '#fef9c3',
-      emissive: '#fde047',
-      emissiveIntensity: 0.95,
-      roughness: 0.2,
-    });
-    const screenGlow = new THREE.MeshStandardMaterial({
-      color: '#e0f2fe',
-      emissive: '#38bdf8',
-      emissiveIntensity: 0.65,
-      roughness: 0.15,
-    });
-    const paperWhite = new THREE.MeshStandardMaterial({
-      color: '#fefce8',
-      roughness: 0.7,
-    });
-    const foliageGreen = new THREE.MeshStandardMaterial({
-      color: '#16a34a',
-      roughness: 0.65,
-    });
-    const bookMats = BOOK_PALETTE.map(
-      (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
-    );
+  const materials = useMemo(() => getSharedLibraryMaterials(selected), [selected]);
 
-    return {
-      oakFloor,
-      carpetNavy,
-      walnutWood,
-      warmOakFurniture,
-      creamWall,
-      partitionGlass,
-      darkMetal,
-      brassGold,
-      marbleTop,
-      chairFabric,
-      loungeBlue,
-      bankerShadeGreen,
-      warmLightEmissive,
-      screenGlow,
-      paperWhite,
-      foliageGreen,
-      bookMats,
+  // Instanced bookcases (10 frames) and books (800 books) -> 2 draw calls instead of 890 meshes
+  const bookStacksInstanced = useMemo(() => {
+    const rowsZ = LIBRARY_LAYOUT.bookcaseRowsZ;
+    const colsX = LIBRARY_LAYOUT.bookcaseColsX;
+    const [, , bd] = LIBRARY_LAYOUT.bookcaseSize;
+    const shelfYs = [0.12, 0.56, 1.0, 1.44, 1.88] as const;
+    const bookXs = [-0.4, -0.1, 0.22, 0.55, 0.88, -0.75, -1.08, 1.15] as const;
+
+    const totalBookcases = rowsZ.length * colsX.length; // 10
+    const totalBooks = totalBookcases * shelfYs.length * bookXs.length * 2; // 800
+
+    const frameMesh = new THREE.InstancedMesh(
+      sharedBookcaseFrameGeo,
+      materials.warmOakFurniture,
+      totalBookcases,
+    );
+    frameMesh.castShadow = true;
+    frameMesh.receiveShadow = true;
+
+    const booksMesh = new THREE.InstancedMesh(
+      sharedBookUnitGeo,
+      materials.instancedBookMat,
+      totalBooks,
+    );
+    booksMesh.castShadow = true;
+
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    let caseIdx = 0;
+    let bookIdx = 0;
+
+    rowsZ.forEach((rowZ, rIdx) => {
+      colsX.forEach((colX, cIdx) => {
+        dummy.position.set(colX, 0, rowZ);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        frameMesh.setMatrixAt(caseIdx++, dummy.matrix);
+
+        shelfYs.forEach((sy, sIdx) => {
+          bookXs.forEach((bx, bIdx) => {
+            const paletteHex =
+              BOOK_PALETTE[(rIdx * 3 + cIdx * 5 + sIdx * 2 + bIdx) % BOOK_PALETTE.length];
+            color.set(paletteHex);
+            const bookH = 0.26 + ((sIdx + bIdx) % 3) * 0.04;
+
+            // North-facing shelf row
+            dummy.position.set(colX + bx, sy + 0.02 + bookH / 2, rowZ - bd / 4);
+            dummy.scale.set(1, bookH, 1);
+            dummy.updateMatrix();
+            booksMesh.setMatrixAt(bookIdx, dummy.matrix);
+            booksMesh.setColorAt(bookIdx, color);
+            bookIdx++;
+
+            // South-facing shelf row
+            dummy.position.set(colX - bx, sy + 0.02 + bookH / 2, rowZ + bd / 4);
+            dummy.scale.set(1, bookH, 1);
+            dummy.updateMatrix();
+            booksMesh.setMatrixAt(bookIdx, dummy.matrix);
+            booksMesh.setColorAt(bookIdx, color);
+            bookIdx++;
+          });
+        });
+      });
+    });
+
+    frameMesh.instanceMatrix.needsUpdate = true;
+    booksMesh.instanceMatrix.needsUpdate = true;
+    if (booksMesh.instanceColor) booksMesh.instanceColor.needsUpdate = true;
+
+    return { frameMesh, booksMesh };
+  }, [materials.warmOakFurniture, materials.instancedBookMat]);
+
+  useEffect(() => {
+    return () => {
+      bookStacksInstanced.frameMesh.dispose();
+      bookStacksInstanced.booksMesh.dispose();
     };
-  }, [selected]);
+  }, [bookStacksInstanced]);
 
   const portalHalfZ = LIBRARY_LAYOUT.portalHalfWidthZ;
   const sideWallLenZ = hd - portalHalfZ;
@@ -304,60 +460,10 @@ export function BlockFLibraryInterior({ position, size, selected = false }: Prop
       {/* ============================================================== */}
       {/* 4. NORTH BOOK STACK AISLES (10 DOUBLE-SIDED OAK BOOKCASES)     */}
       {/* ============================================================== */}
-      {LIBRARY_LAYOUT.bookcaseRowsZ.map((rowZ, rIdx) =>
-        LIBRARY_LAYOUT.bookcaseColsX.map((colX, cIdx) => {
-          const [bw, bh, bd] = LIBRARY_LAYOUT.bookcaseSize;
-          return (
-            <group key={`bookcase-${rIdx}-${cIdx}`} position={[colX, 0, rowZ]}>
-              {/* Central Spine & Side Panels */}
-              <mesh position={[0, bh / 2, 0]} material={materials.warmOakFurniture} castShadow receiveShadow>
-                <boxGeometry args={[bw, bh, 0.06]} />
-              </mesh>
-              <mesh position={[-bw / 2 + 0.03, bh / 2, 0]} material={materials.warmOakFurniture} castShadow>
-                <boxGeometry args={[0.06, bh, bd]} />
-              </mesh>
-              <mesh position={[bw / 2 - 0.03, bh / 2, 0]} material={materials.warmOakFurniture} castShadow>
-                <boxGeometry args={[0.06, bh, bd]} />
-              </mesh>
-
-              {/* 5 Horizontal Shelves + Colorful Book Clusters on Both Sides */}
-              {[0.12, 0.56, 1.0, 1.44, 1.88, 2.22].map((sy, sIdx) => (
-                <group key={`shelf-${sIdx}`}>
-                  <mesh position={[0, sy, 0]} material={materials.warmOakFurniture} receiveShadow>
-                    <boxGeometry args={[bw - 0.04, 0.04, bd]} />
-                  </mesh>
-                  {sIdx < 5 &&
-                    [-0.4, -0.1, 0.22, 0.55, 0.88, -0.75, -1.08, 1.15].map((bx, bIdx) => {
-                      const mat =
-                        materials.bookMats[(rIdx * 3 + cIdx * 5 + sIdx * 2 + bIdx) % materials.bookMats.length];
-                      const bookH = 0.26 + ((sIdx + bIdx) % 3) * 0.04;
-                      return (
-                        <group key={`books-${sIdx}-${bIdx}`}>
-                          {/* North-facing shelf row */}
-                          <mesh
-                            position={[bx, sy + 0.02 + bookH / 2, -bd / 4]}
-                            material={mat}
-                            castShadow
-                          >
-                            <boxGeometry args={[0.24, bookH, 0.22]} />
-                          </mesh>
-                          {/* South-facing shelf row */}
-                          <mesh
-                            position={[-bx, sy + 0.02 + bookH / 2, bd / 4]}
-                            material={mat}
-                            castShadow
-                          >
-                            <boxGeometry args={[0.24, bookH, 0.22]} />
-                          </mesh>
-                        </group>
-                      );
-                    })}
-                </group>
-              ))}
-            </group>
-          );
-        }),
-      )}
+      <group name="library-book-stacks-instanced">
+        <primitive object={bookStacksInstanced.frameMesh} />
+        <primitive object={bookStacksInstanced.booksMesh} />
+      </group>
 
       {/* ============================================================== */}
       {/* 5. CENTRAL READING LOUNGE & PLANTERS (Z = 0, X = +1.8)         */}

@@ -2,11 +2,11 @@ import { useBackendLive } from '../../hooks/useBackendLive';
 import { useMap } from '../../state/MapProvider';
 
 const LEVEL_COLOR: Record<string, string> = {
-  empty: '#22c55e',
-  quiet: '#22c55e',
-  moderate: '#f59e0b',
-  busy: '#f97316',
-  full: '#ef4444',
+  empty: '#16a34a',
+  quiet: '#16a34a',
+  moderate: '#d97706',
+  busy: '#ea580c',
+  full: '#dc2626',
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -33,12 +33,12 @@ export function BackendLivePanel() {
     .slice(0, 5);
 
   return (
-    <section className="section" aria-label="Backend status">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: dot, display: 'inline-block' }} />
-        <strong>{label}</strong>
+    <section className="backend-panel" aria-label="Backend status">
+      <div className="backend-panel__head">
+        <span className="backend-panel__dot" style={{ background: dot }} />
+        <strong className="backend-panel__title">{label}</strong>
         {live.status === 'online' && (
-          <span style={{ opacity: 0.7 }}>
+          <span className="backend-panel__meta">
             v{live.version} · {live.latencyMs} ms
             {live.deployedCommit && live.deployedCommit !== 'dev' && live.deployedCommit !== 'unknown'
               ? ` · #${live.deployedCommit}`
@@ -47,36 +47,15 @@ export function BackendLivePanel() {
         )}
       </div>
       {live.updatingToCommit && (
-        <div
-          style={{
-            marginTop: 6,
-            padding: '4px 8px',
-            borderRadius: 6,
-            background: 'rgba(37, 99, 235, 0.18)',
-            border: '1px solid rgba(59, 130, 246, 0.45)',
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
+        <div className="backend-panel__banner">
           New deploy #{live.updatingToCommit} live — refreshing…
         </div>
       )}
       {live.reloadPendingCommit && !live.updatingToCommit && (
         <button
           type="button"
+          className="backend-panel__reload-btn"
           onClick={() => window.location.reload()}
-          style={{
-            marginTop: 6,
-            width: '100%',
-            padding: '5px 8px',
-            borderRadius: 6,
-            background: '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
         >
           Update #{live.reloadPendingCommit} ready — Reload now
         </button>
@@ -84,21 +63,21 @@ export function BackendLivePanel() {
       {live.status === 'online' && (
         <>
           {top.length > 0 ? (
-            <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, fontSize: 12 }}>
+            <ul className="backend-panel__list">
               {top.map((p) => (
-                <li key={p.place_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                <li key={p.place_id} className="backend-panel__item">
                   <span>{p.name}</span>
-                  <span style={{ color: LEVEL_COLOR[p.level] ?? '#94a3b8', fontWeight: 600 }}>
+                  <span style={{ color: LEVEL_COLOR[p.level] ?? '#64748b', fontWeight: 600 }}>
                     {p.level.replace('_', ' ')} · {Math.round(p.percentage_of_capacity ?? 0)}%
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>No crowd data for this time.</div>
+            <div className="backend-panel__empty">No crowd data for this time.</div>
           )}
           {live.updatedAt && (
-            <div style={{ fontSize: 11, opacity: 0.55, marginTop: 6 }}>Updated {fmtClock(live.updatedAt)}</div>
+            <div className="backend-panel__timestamp">Updated {fmtClock(live.updatedAt)}</div>
           )}
         </>
       )}

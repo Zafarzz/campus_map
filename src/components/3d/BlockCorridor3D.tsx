@@ -8,73 +8,216 @@ export type BlockCorridorProps = {
   parts: Footprint[];
 };
 
+function isCanvasSupported(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const c = document.createElement('canvas');
+    return Boolean(c && typeof c.getContext === 'function');
+  } catch {
+    return false;
+  }
+}
+
+let cachedFloorArrowTexture: THREE.CanvasTexture | null = null;
+
 /**
- * Creates green floor decal texture with direction arrows (photo 17-19-07).
+ * Creates green floor decal texture with direction arrows (photo 17-19-07, cached singleton).
  */
-function createFloorArrowTexture(): THREE.CanvasTexture {
+function getFloorArrowTexture(): THREE.CanvasTexture | null {
+  if (cachedFloorArrowTexture) return cachedFloorArrowTexture;
+  if (!isCanvasSupported()) return null;
+
   const canvas = document.createElement('canvas');
   canvas.width = 128;
   canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
+  let ctx: CanvasRenderingContext2D | null = null;
+  try {
+    ctx = canvas.getContext('2d');
+  } catch {
+    ctx = null;
+  }
+  if (ctx) {
+    // Transparent background
+    ctx.clearRect(0, 0, 128, 128);
 
-  // Transparent background
-  ctx.clearRect(0, 0, 128, 128);
+    // Green circular decal
+    ctx.fillStyle = '#16a34a';
+    ctx.beginPath();
+    ctx.arc(64, 64, 58, 0, Math.PI * 2);
+    ctx.fill();
 
-  // Green circular decal
-  ctx.fillStyle = '#16a34a';
-  ctx.beginPath();
-  ctx.arc(64, 64, 58, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 4;
+    ctx.stroke();
 
-  ctx.strokeStyle = '#22c55e';
-  ctx.lineWidth = 4;
-  ctx.stroke();
+    // White directional arrow
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(64, 28);
+    ctx.lineTo(88, 56);
+    ctx.lineTo(72, 56);
+    ctx.lineTo(72, 96);
+    ctx.lineTo(56, 96);
+    ctx.lineTo(56, 56);
+    ctx.lineTo(40, 56);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-  // White directional arrow
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.moveTo(64, 28);
-  ctx.lineTo(88, 56);
-  ctx.lineTo(72, 56);
-  ctx.lineTo(72, 96);
-  ctx.lineTo(56, 96);
-  ctx.lineTo(56, 56);
-  ctx.lineTo(40, 56);
-  ctx.closePath();
-  ctx.fill();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
+  cachedFloorArrowTexture = new THREE.CanvasTexture(canvas);
+  cachedFloorArrowTexture.needsUpdate = true;
+  return cachedFloorArrowTexture;
 }
 
+let cachedExitSignTexture: THREE.CanvasTexture | null = null;
+
 /**
- * Creates illuminated green exit sign texture ("CHIQISH / EXIT / ВЫХОД", photo 17-18-57).
+ * Creates illuminated green exit sign texture ("CHIQISH / EXIT / ВЫХОД", photo 17-18-57, cached singleton).
  */
-function createExitSignTexture(): THREE.CanvasTexture {
+function getExitSignTexture(): THREE.CanvasTexture | null {
+  if (cachedExitSignTexture) return cachedExitSignTexture;
+  if (!isCanvasSupported()) return null;
+
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 96;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
+  let ctx: CanvasRenderingContext2D | null = null;
+  try {
+    ctx = canvas.getContext('2d');
+  } catch {
+    ctx = null;
+  }
+  if (ctx) {
+    ctx.fillStyle = '#14532d'; // Dark green border
+    ctx.fillRect(0, 0, 256, 96);
 
-  ctx.fillStyle = '#14532d'; // Dark green border
-  ctx.fillRect(0, 0, 256, 96);
+    ctx.fillStyle = '#22c55e'; // Bright green body
+    ctx.fillRect(4, 4, 248, 88);
 
-  ctx.fillStyle = '#22c55e'; // Bright green body
-  ctx.fillRect(4, 4, 248, 88);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CHIQISH', 128, 38);
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('EXIT · ВЫХОД', 128, 72);
+  }
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 24px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('CHIQISH', 128, 38);
-  ctx.font = 'bold 20px sans-serif';
-  ctx.fillText('EXIT · ВЫХОД', 128, 72);
+  cachedExitSignTexture = new THREE.CanvasTexture(canvas);
+  cachedExitSignTexture.needsUpdate = true;
+  return cachedExitSignTexture;
+}
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
+interface SharedCorridorMaterials {
+  floorCenterMat: THREE.MeshStandardMaterial;
+  floorBorderMat: THREE.MeshStandardMaterial;
+  lobbyFloorMat: THREE.MeshStandardMaterial;
+  stairTreadMat: THREE.MeshStandardMaterial;
+  stairRiserMat: THREE.MeshStandardMaterial;
+  arrowMat: THREE.MeshStandardMaterial;
+  wallMintMat: THREE.MeshStandardMaterial;
+  partitionGlassMat: THREE.MeshStandardMaterial;
+  frostedStripeMat: THREE.MeshStandardMaterial;
+  frameMat: THREE.MeshStandardMaterial;
+  steelRailMat: THREE.MeshStandardMaterial;
+  exitSignMat: THREE.MeshStandardMaterial;
+  ceilingMat: THREE.MeshStandardMaterial;
+  ledMat: THREE.MeshStandardMaterial;
+  radiatorMat: THREE.MeshStandardMaterial;
+  pedestalMat: THREE.MeshStandardMaterial;
+}
+
+let sharedCorridorMaterials: SharedCorridorMaterials | null = null;
+
+function getSharedCorridorMaterials(): SharedCorridorMaterials {
+  if (sharedCorridorMaterials) return sharedCorridorMaterials;
+
+  sharedCorridorMaterials = {
+    floorCenterMat: new THREE.MeshStandardMaterial({
+      color: '#eae3d2',
+      roughness: 0.55,
+      metalness: 0.05,
+    }),
+    floorBorderMat: new THREE.MeshStandardMaterial({
+      color: '#475569',
+      roughness: 0.65,
+      metalness: 0.1,
+    }),
+    lobbyFloorMat: new THREE.MeshStandardMaterial({
+      color: '#dcd5c9',
+      roughness: 0.45,
+      metalness: 0.08,
+    }),
+    stairTreadMat: new THREE.MeshStandardMaterial({
+      color: '#f1f5f9',
+      roughness: 0.4,
+      metalness: 0.05,
+    }),
+    stairRiserMat: new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      roughness: 0.8,
+    }),
+    arrowMat: new THREE.MeshStandardMaterial({
+      color: '#16a34a',
+      map: getFloorArrowTexture(),
+      transparent: true,
+      roughness: 0.4,
+    }),
+    wallMintMat: new THREE.MeshStandardMaterial({
+      color: '#e4ebe6',
+      roughness: 0.82,
+    }),
+    partitionGlassMat: new THREE.MeshStandardMaterial({
+      color: '#bae6fd',
+      transparent: true,
+      opacity: 0.45,
+      roughness: 0.1,
+      metalness: 0.25,
+      depthWrite: false,
+    }),
+    frostedStripeMat: new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      transparent: true,
+      opacity: 0.85,
+      roughness: 0.35,
+    }),
+    frameMat: new THREE.MeshStandardMaterial({
+      color: '#1e293b',
+      roughness: 0.5,
+      metalness: 0.5,
+    }),
+    steelRailMat: new THREE.MeshStandardMaterial({
+      color: '#cbd5e1',
+      roughness: 0.25,
+      metalness: 0.85,
+    }),
+    exitSignMat: new THREE.MeshStandardMaterial({
+      color: '#22c55e',
+      map: getExitSignTexture(),
+      emissive: '#16a34a',
+      emissiveIntensity: 0.8,
+      roughness: 0.3,
+    }),
+    ceilingMat: new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      roughness: 0.9,
+    }),
+    ledMat: new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      emissive: '#ffffff',
+      emissiveIntensity: 0.95,
+      roughness: 0.2,
+    }),
+    radiatorMat: new THREE.MeshStandardMaterial({
+      color: '#f1f5f9',
+      roughness: 0.7,
+    }),
+    pedestalMat: new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.3,
+    }),
+  };
+
+  return sharedCorridorMaterials;
 }
 
 /**
@@ -100,136 +243,7 @@ export function BlockCorridor3D({ floorElevation, parts }: BlockCorridorProps) {
   const corridorWidth = Math.min(1.6, isXLong ? d * 0.10 : w * 0.10);
   const corridorHeight = 2.8;
 
-  const materials = useMemo(() => {
-    // Central warm beige linoleum path
-    const floorCenterMat = new THREE.MeshStandardMaterial({
-      color: '#eae3d2',
-      roughness: 0.55,
-      metalness: 0.05,
-    });
-
-    // Darker blue-grey perimeter linoleum borders
-    const floorBorderMat = new THREE.MeshStandardMaterial({
-      color: '#475569',
-      roughness: 0.65,
-      metalness: 0.1,
-    });
-
-    // Lobby polished terrazzo flooring
-    const lobbyFloorMat = new THREE.MeshStandardMaterial({
-      color: '#dcd5c9',
-      roughness: 0.45,
-      metalness: 0.08,
-    });
-
-    // Stair tread (marble / granite)
-    const stairTreadMat = new THREE.MeshStandardMaterial({
-      color: '#f1f5f9',
-      roughness: 0.4,
-      metalness: 0.05,
-    });
-
-    // Stair riser / concrete stringer
-    const stairRiserMat = new THREE.MeshStandardMaterial({
-      color: '#94a3b8',
-      roughness: 0.8,
-    });
-
-    // Arrow decal material
-    const arrowMat = new THREE.MeshStandardMaterial({
-      map: createFloorArrowTexture(),
-      transparent: true,
-      roughness: 0.4,
-    });
-
-    // Pale mint-green wall plaster
-    const wallMintMat = new THREE.MeshStandardMaterial({
-      color: '#e4ebe6',
-      roughness: 0.82,
-    });
-
-    // Glazed partition glass
-    const partitionGlassMat = new THREE.MeshStandardMaterial({
-      color: '#bae6fd',
-      transparent: true,
-      opacity: 0.45,
-      roughness: 0.1,
-      metalness: 0.25,
-      depthWrite: false,
-    });
-
-    // Frosted privacy stripes
-    const frostedStripeMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      transparent: true,
-      opacity: 0.85,
-      roughness: 0.35,
-    });
-
-    // Dark aluminum window/door frames and handrails
-    const frameMat = new THREE.MeshStandardMaterial({
-      color: '#1e293b',
-      roughness: 0.5,
-      metalness: 0.5,
-    });
-
-    // Stainless steel handrails
-    const steelRailMat = new THREE.MeshStandardMaterial({
-      color: '#cbd5e1',
-      roughness: 0.25,
-      metalness: 0.85,
-    });
-
-    // Illuminated exit sign
-    const exitSignMat = new THREE.MeshStandardMaterial({
-      map: createExitSignTexture(),
-      emissive: '#16a34a',
-      emissiveIntensity: 0.8,
-      roughness: 0.3,
-    });
-
-    // Ceiling tiles and beams
-    const ceilingMat = new THREE.MeshStandardMaterial({
-      color: '#f8fafc',
-      roughness: 0.9,
-    });
-
-    const ledMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      emissive: '#ffffff',
-      emissiveIntensity: 0.95,
-      roughness: 0.2,
-    });
-
-    const radiatorMat = new THREE.MeshStandardMaterial({
-      color: '#f1f5f9',
-      roughness: 0.7,
-    });
-
-    const pedestalMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      roughness: 0.3,
-    });
-
-    return {
-      floorCenterMat,
-      floorBorderMat,
-      lobbyFloorMat,
-      stairTreadMat,
-      stairRiserMat,
-      arrowMat,
-      wallMintMat,
-      partitionGlassMat,
-      frostedStripeMat,
-      frameMat,
-      steelRailMat,
-      exitSignMat,
-      ceilingMat,
-      ledMat,
-      radiatorMat,
-      pedestalMat,
-    };
-  }, []);
+  const materials = useMemo(() => getSharedCorridorMaterials(), []);
 
   // Bays along corridor length
   const bayCount = Math.max(4, Math.floor(corridorLen / 5.5));
@@ -412,7 +426,7 @@ function StaircaseFlight({
   width: number;
   depth: number;
   height: number;
-  materials: any;
+  materials: SharedCorridorMaterials;
 }) {
   const stepCount = 12;
   const stepH = height / stepCount;

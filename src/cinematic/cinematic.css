@@ -1,10 +1,7 @@
 .cine-open-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  background: linear-gradient(135deg, #7c3aed, #db2777); color: #fff; border: none;
-  padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
-  white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,.2);
 }
-.cine-open-btn.is-on { outline: 2px solid #fff; box-shadow: 0 0 0 3px #7c3aed; }
+.cine-open-btn.is-on { background: #1e293b; color: #fff; border-color: #1e293b; }
 
 .cine-root { position: absolute; inset: 0; pointer-events: none; z-index: 30; color: #e5e7eb; font-size: 12px; }
 .cine-root > * { pointer-events: auto; }

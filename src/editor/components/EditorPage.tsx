@@ -77,6 +77,7 @@ export const EditorPage: React.FC = () => {
   const [referenceScope, setReferenceScope] = useState<ExportReferenceScope>('all');
   const [leftTab, setLeftTab] = useState<'buildings' | 'outdoor' | 'changes'>('buildings');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [mobileDrawer, setMobileDrawer] = useState<'none' | 'left' | 'right'>('none');
 
   const [visibleLayers, setVisibleLayers] = useState<Record<EditorLayerId, boolean>>({
     buildings: true,
@@ -1073,43 +1074,62 @@ export const EditorPage: React.FC = () => {
       />
 
       {/* 2. MAIN WORKSPACE (LEFT PANEL + SVG CANVAS + RIGHT PANEL) */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
-        <EditorLeftPanel
-          doc={doc}
-          selection={selection}
-          changes={changes}
-          visibleLayers={visibleLayers}
-          activeTabOverride={leftTab}
-          onTabChange={setLeftTab}
-          onToggleLayer={handleToggleLayer}
-          onSelectionChange={(sel) => {
-            setSelection(sel);
-            // Center viewport gently when picking a building from the sidebar if not already focused
-            if (sel.buildingId && sel.buildingId !== selection.buildingId) {
-              const b = doc.buildings.find((x) => x.id === sel.buildingId);
-              if (b) {
-                setViewport((vp) => ({
-                  zoom: Math.max(vp.zoom, 7),
-                  pan: {
-                    x: 520 - b.footprint.center[0] * Math.max(vp.zoom, 7),
-                    y: 360 - b.footprint.center[1] * Math.max(vp.zoom, 7),
-                  },
-                }));
+      <div className="editor-workspace" style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+        <div className={`editor-drawer editor-drawer--left${mobileDrawer === 'left' ? ' is-open' : ''}`}>
+          <EditorLeftPanel
+            doc={doc}
+            selection={selection}
+            changes={changes}
+            visibleLayers={visibleLayers}
+            activeTabOverride={leftTab}
+            onTabChange={setLeftTab}
+            onToggleLayer={handleToggleLayer}
+            onSelectionChange={(sel) => {
+              setSelection(sel);
+              if (sel.buildingId && sel.buildingId !== selection.buildingId) {
+                const b = doc.buildings.find((x) => x.id === sel.buildingId);
+                if (b) {
+                  setViewport((vp) => ({
+                    zoom: Math.max(vp.zoom, 7),
+                    pan: {
+                      x: 520 - b.footprint.center[0] * Math.max(vp.zoom, 7),
+                      y: 360 - b.footprint.center[1] * Math.max(vp.zoom, 7),
+                    },
+                  }));
+                }
               }
-            }
-          }}
-          onAddBuilding={() => handleAddBuilding()}
-          onDeleteBuilding={handleDeleteBuilding}
-          onAddFloor={handleAddFloor}
-          onDeleteFloor={handleDeleteFloor}
-          onAddRoom={handleAddRoom}
-          onDeleteRoom={handleDeleteRoom}
-          onDeleteOutdoor={handleDeleteOutdoor}
-          onRevertChange={handleRevertChange}
-          onResetAllChanges={handleResetAllChanges}
-        />
+            }}
+            onAddBuilding={() => handleAddBuilding()}
+            onDeleteBuilding={handleDeleteBuilding}
+            onAddFloor={handleAddFloor}
+            onDeleteFloor={handleDeleteFloor}
+            onAddRoom={handleAddRoom}
+            onDeleteRoom={handleDeleteRoom}
+            onDeleteOutdoor={handleDeleteOutdoor}
+            onRevertChange={handleRevertChange}
+            onResetAllChanges={handleResetAllChanges}
+          />
+        </div>
 
         <main style={{ flex: 1, position: 'relative', minWidth: 0, height: '100%' }}>
+          {/* Mobile Drawer Toggles for Hierarchy & Inspector */}
+          <div className="editor-mobile-toggles">
+            <button
+              type="button"
+              className={`editor-mobile-toggle-btn${mobileDrawer === 'left' ? ' is-active' : ''}`}
+              onClick={() => setMobileDrawer((prev) => (prev === 'left' ? 'none' : 'left'))}
+            >
+              🏢 Layers &amp; Tree
+            </button>
+            <button
+              type="button"
+              className={`editor-mobile-toggle-btn${mobileDrawer === 'right' ? ' is-active' : ''}`}
+              onClick={() => setMobileDrawer((prev) => (prev === 'right' ? 'none' : 'right'))}
+            >
+              ⚙️ Properties {issues.length > 0 ? `(${issues.length})` : ''}
+            </button>
+          </div>
+
           <EditorCanvas
             doc={doc}
             baselineDoc={baselineDoc}
@@ -1121,7 +1141,10 @@ export const EditorPage: React.FC = () => {
             reviewMode={reviewMode}
             visibleLayers={visibleLayers}
             onToggleLayer={handleToggleLayer}
-            onSelectionChange={setSelection}
+            onSelectionChange={(sel) => {
+              setSelection(sel);
+              if (mobileDrawer === 'left') setMobileDrawer('none');
+            }}
             onViewportChange={setViewport}
             onUpdateBuildingFootprint={(bldId, center, size, action) => {
               const next = updateBuildingFootprint(doc, bldId, center, size);
@@ -1174,100 +1197,102 @@ export const EditorPage: React.FC = () => {
           )}
         </main>
 
-        <EditorRightPanel
-          doc={doc}
-          selection={selection}
-          issues={issues}
-          changes={changes}
-          referenceScope={referenceScope}
-          onReferenceScopeChange={setReferenceScope}
-          onSelectionChange={setSelection}
-          onUpdateCampusProps={(patch, action) => {
-            const next = updateCampusPropsInDoc(doc, patch);
-            applyMutation(action, next);
-          }}
-          onUpdateBuildingProps={(bldId, patch, action) => {
-            const next = updateBuildingPropsInDoc(doc, bldId, patch);
-            applyMutation(action, next);
-          }}
-          onUpdateBuildingFootprint={(bldId, center, size, action) => {
-            const next = updateBuildingFootprint(doc, bldId, center, size);
-            applyMutation(action, next);
-          }}
-          onUpdateFloorProps={(bldId, flId, patch, action) => {
-            const next = updateFloorPropsInDoc(doc, bldId, flId, patch);
-            applyMutation(action, next);
-          }}
-          onUpdateRoomProps={(bldId, flId, rmId, patch, action) => {
-            const next = updateRoomPropsInDoc(doc, bldId, flId, rmId, patch);
-            applyMutation(action, next);
-          }}
-          onUpdateRoomGeometry={(bldId, flId, rmId, lCenter, size, action) => {
-            const next = updateRoomGeometry(doc, bldId, flId, rmId, lCenter, size);
-            applyMutation(action, next);
-          }}
-          onUpdateOutdoorElement={(outId, patch, action) => {
-            const next = updateOutdoorElementInDoc(doc, outId, patch);
-            applyMutation(action, next);
-          }}
-          onAddPhotos={(target, photos, action) => {
-            const next = addPhotosToTargetInDoc(doc, target, photos);
-            applyMutation(action, next);
-            showToast(`Attached ${photos.length} reference photo(s)`);
-          }}
-          onUpdatePhoto={(target, photoId, patch, action) => {
-            const next = updatePhotoInTargetInDoc(doc, target, photoId, patch);
-            applyMutation(action, next);
-          }}
-          onReorderPhoto={(target, photoId, dir, action) => {
-            const next = reorderPhotoInTargetInDoc(doc, target, photoId, dir);
-            applyMutation(action, next);
-          }}
-          onRemovePhoto={(target, photoId, action) => {
-            const next = removePhotoFromTargetInDoc(doc, target, photoId);
-            applyMutation(action, next);
-            showToast('Removed photo attachment');
-          }}
-          onDuplicateBuilding={(bldId) => {
-            const res = duplicateBuildingInDoc(doc, bldId);
-            applyMutation('Duplicate building', res.doc);
-            if (res.newBuildingId) {
-              const bld = res.doc.buildings.find((b) => b.id === res.newBuildingId);
-              setSelection({
-                type: 'building',
-                buildingId: res.newBuildingId,
-                floorId: bld?.floors[0]?.id,
-              });
-            }
-            showToast('Duplicated building');
-          }}
-          onDuplicateRoom={(bldId, flId, rmId) => {
-            const res = duplicateRoomInDoc(doc, bldId, flId, rmId);
-            applyMutation('Duplicate floor element', res.doc);
-            if (res.newRoomId) {
-              setSelection({
-                type: 'room',
-                buildingId: bldId,
-                floorId: flId,
-                roomId: res.newRoomId,
-              });
-            }
-            showToast('Duplicated floor element');
-          }}
-          onDuplicateOutdoor={(outId) => {
-            const res = duplicateOutdoorElementInDoc(doc, outId);
-            applyMutation('Duplicate outdoor element', res.doc);
-            if (res.newOutdoorId) {
-              setSelection({ type: 'outdoor', outdoorId: res.newOutdoorId });
-            }
-            showToast('Duplicated outdoor element');
-          }}
-          onDeleteBuilding={handleDeleteBuilding}
-          onDeleteRoom={handleDeleteRoom}
-          onDeleteOutdoor={handleDeleteOutdoor}
-          onRevertChange={handleRevertChange}
-          onExportZip={handleExportZip}
-        />
+        <div className={`editor-drawer editor-drawer--right${mobileDrawer === 'right' ? ' is-open' : ''}`}>
+          <EditorRightPanel
+            doc={doc}
+            selection={selection}
+            issues={issues}
+            changes={changes}
+            referenceScope={referenceScope}
+            onReferenceScopeChange={setReferenceScope}
+            onSelectionChange={setSelection}
+            onUpdateCampusProps={(patch, action) => {
+              const next = updateCampusPropsInDoc(doc, patch);
+              applyMutation(action, next);
+            }}
+            onUpdateBuildingProps={(bldId, patch, action) => {
+              const next = updateBuildingPropsInDoc(doc, bldId, patch);
+              applyMutation(action, next);
+            }}
+            onUpdateBuildingFootprint={(bldId, center, size, action) => {
+              const next = updateBuildingFootprint(doc, bldId, center, size);
+              applyMutation(action, next);
+            }}
+            onUpdateFloorProps={(bldId, flId, patch, action) => {
+              const next = updateFloorPropsInDoc(doc, bldId, flId, patch);
+              applyMutation(action, next);
+            }}
+            onUpdateRoomProps={(bldId, flId, rmId, patch, action) => {
+              const next = updateRoomPropsInDoc(doc, bldId, flId, rmId, patch);
+              applyMutation(action, next);
+            }}
+            onUpdateRoomGeometry={(bldId, flId, rmId, lCenter, size, action) => {
+              const next = updateRoomGeometry(doc, bldId, flId, rmId, lCenter, size);
+              applyMutation(action, next);
+            }}
+            onUpdateOutdoorElement={(outId, patch, action) => {
+              const next = updateOutdoorElementInDoc(doc, outId, patch);
+              applyMutation(action, next);
+            }}
+            onAddPhotos={(target, photos, action) => {
+              const next = addPhotosToTargetInDoc(doc, target, photos);
+              applyMutation(action, next);
+              showToast(`Attached ${photos.length} reference photo(s)`);
+            }}
+            onUpdatePhoto={(target, photoId, patch, action) => {
+              const next = updatePhotoInTargetInDoc(doc, target, photoId, patch);
+              applyMutation(action, next);
+            }}
+            onReorderPhoto={(target, photoId, dir, action) => {
+              const next = reorderPhotoInTargetInDoc(doc, target, photoId, dir);
+              applyMutation(action, next);
+            }}
+            onRemovePhoto={(target, photoId, action) => {
+              const next = removePhotoFromTargetInDoc(doc, target, photoId);
+              applyMutation(action, next);
+              showToast('Removed photo attachment');
+            }}
+            onDuplicateBuilding={(bldId) => {
+              const res = duplicateBuildingInDoc(doc, bldId);
+              applyMutation('Duplicate building', res.doc);
+              if (res.newBuildingId) {
+                const bld = res.doc.buildings.find((b) => b.id === res.newBuildingId);
+                setSelection({
+                  type: 'building',
+                  buildingId: res.newBuildingId,
+                  floorId: bld?.floors[0]?.id,
+                });
+              }
+              showToast('Duplicated building');
+            }}
+            onDuplicateRoom={(bldId, flId, rmId) => {
+              const res = duplicateRoomInDoc(doc, bldId, flId, rmId);
+              applyMutation('Duplicate floor element', res.doc);
+              if (res.newRoomId) {
+                setSelection({
+                  type: 'room',
+                  buildingId: bldId,
+                  floorId: flId,
+                  roomId: res.newRoomId,
+                });
+              }
+              showToast('Duplicated floor element');
+            }}
+            onDuplicateOutdoor={(outId) => {
+              const res = duplicateOutdoorElementInDoc(doc, outId);
+              applyMutation('Duplicate outdoor element', res.doc);
+              if (res.newOutdoorId) {
+                setSelection({ type: 'outdoor', outdoorId: res.newOutdoorId });
+              }
+              showToast('Duplicated outdoor element');
+            }}
+            onDeleteBuilding={handleDeleteBuilding}
+            onDeleteRoom={handleDeleteRoom}
+            onDeleteOutdoor={handleDeleteOutdoor}
+            onRevertChange={handleRevertChange}
+            onExportZip={handleExportZip}
+          />
+        </div>
       </div>
 
       {/* 3. VERSION HISTORY MODAL */}

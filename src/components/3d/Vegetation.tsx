@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { AMPHITHEATER_HALL } from '../../data/amphitheater-hall';
 import type { CampusGeometry } from '../../domain/geometry/types';
@@ -1025,6 +1025,11 @@ export function Vegetation({
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     return mesh;
   }, [shrubs, castShadows]);
+
+  useEffect(() => () => trunkMesh?.dispose(), [trunkMesh]);
+  useEffect(() => () => deciduousMesh?.dispose(), [deciduousMesh]);
+  useEffect(() => () => coniferMesh?.dispose(), [coniferMesh]);
+  useEffect(() => () => shrubMesh?.dispose(), [shrubMesh]);
 
   if (placements.length === 0 && shrubs.length === 0) return null;
 

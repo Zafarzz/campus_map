@@ -6,7 +6,7 @@ import {
   SoftShadows,
   Stats,
 } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { Leva } from 'leva';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import { Vegetation } from '../components/3d/Vegetation';
 import { CampusEnvironmentDetail } from '../components/3d/environment/CampusEnvironmentDetail';
 import { getProceduralEnvironmentTexture } from '../components/3d/materials/pbrMaterials';
 import { useVisualTuning } from '../components/3d/tuning/useVisualTuning';
+import { WalkthroughLoadingOverlay } from '../components/ui/CampusLoadingOverlay';
 import { defaultFloor } from '../domain/campus/campusIndex';
 import { useMap } from '../state/MapProvider';
 import { sharedCampusAudio } from './audio/campusAudioEngine';
@@ -51,6 +52,13 @@ import { WayfindingPath } from './world/WayfindingPath';
 
 type GameStatus = 'start' | 'playing' | 'paused';
 
+type WalkthroughLaunchState = {
+  active: boolean;
+  title: string;
+  stageMessage: string;
+  seq: number;
+};
+
 const noop = () => {};
 
 function RendererToneMapping({ exposure }: { exposure: number }) {
@@ -74,6 +82,51 @@ function RendererToneMapping({ exposure }: { exposure: number }) {
 }
 
 /**
+ * Tracks when the Rapier <Physics> world has finished suspending WASM initialization
+ * and when active walkthrough frames have rendered after clicking Start Walkthrough.
+ */
+function PhysicsWorldReadyTracker({
+  isPlaying,
+  launchSeq,
+  onPhysicsMounted,
+  onWalkthroughFramesReady,
+}: {
+  isPlaying: boolean;
+  launchSeq: number;
+  onPhysicsMounted: () => void;
+  onWalkthroughFramesReady: (seq: number) => void;
+}) {
+  const mountedReportedRef = useRef(false);
+  const trackedSeqRef = useRef(0);
+  const playingFramesRef = useRef(0);
+
+  useEffect(() => {
+    if (!mountedReportedRef.current) {
+      mountedReportedRef.current = true;
+      onPhysicsMounted();
+    }
+  }, [onPhysicsMounted]);
+
+  useFrame(() => {
+    if (!mountedReportedRef.current) {
+      mountedReportedRef.current = true;
+      onPhysicsMounted();
+    }
+    if (!isPlaying || launchSeq === 0) return;
+    if (trackedSeqRef.current !== launchSeq) {
+      trackedSeqRef.current = launchSeq;
+      playingFramesRef.current = 0;
+    }
+    playingFramesRef.current += 1;
+    if (playingFramesRef.current === 2) {
+      onWalkthroughFramesReady(launchSeq);
+    }
+  });
+
+  return null;
+}
+
+/**
  * First-person campus exploration scene.
  * Reuses the existing Campus geometry, ContextLayer, Vegetation, Building, and visual tuning,
  * while adding Rapier physics, walkable fountain bridges, tree colliders, 2D radar minimap,
@@ -86,6 +139,16 @@ export function GameScene() {
   const tuning = useVisualTuning();
 
   const [status, setStatus] = useState<GameStatus>('start');
+  const [isSceneInitializing, setIsSceneInitializing] = useState<boolean>(true);
+  const [physicsMounted, setPhysicsMounted] = useState<boolean>(false);
+  const [walkthroughLoading, setWalkthroughLoading] = useState<WalkthroughLaunchState>({
+    active: false,
+    title: 'Starting 3D Walkthrough',
+    stageMessage: 'Synchronizing Rapier physics colliders & first-person camera...',
+    seq: 0,
+  });
+  const [interiorTransitionMsg, setInteriorTransitionMsg] = useState<string | null>(null);
+
   const [isMobile, setIsMobile] = useState<boolean>(detectMobileOrTouch);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDayPresetId>('day');
   const [qualityPreset, setQualityPreset] = useState<GraphicsQualityPresetId>(() =>
@@ -109,6 +172,14 @@ export function GameScene() {
     seq: 0,
   });
 
+  const sceneMountTimeRef = useRef<number>(
+    typeof performance !== 'undefined' ? performance.now() : Date.now(),
+  );
+  const walkthroughLaunchStartRef = useRef<number>(0);
+  const walkthroughLaunchSeqRef = useRef<number>(0);
+  const walkthroughClearTimerRef = useRef<number | null>(null);
+  const interiorTransitionTimerRef = useRef<number | null>(null);
+
   const inputRef = useRef<PlayerInputState>(createInitialInputState());
   const playerTransformRef = useRef<PlayerTransformState>({
     x: gameConfig.player.spawnPosition[0],
@@ -125,6 +196,83 @@ export function GameScene() {
 
   const enteredBuildingIdRef = useRef<string | null>(null);
   enteredBuildingIdRef.current = enteredBuildingId;
+
+  // Handle initial 3D Walk mode loading indicator until <Canvas> and <Physics> mount
+  const handlePhysicsMounted = useCallback(() => {
+    setPhysicsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isSceneInitializing) return;
+    if (physicsMounted) {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const elapsed = now - sceneMountTimeRef.current;
+      const remaining = Math.max(120, 420 - elapsed);
+      const timer = window.setTimeout(() => {
+        setIsSceneInitializing(false);
+      }, remaining);
+      return () => window.clearTimeout(timer);
+    }
+    // Safety fallback if WebGL / WASM frame callback is throttled
+    const fallbackTimer = window.setTimeout(() => {
+      setIsSceneInitializing(false);
+    }, 950);
+    return () => window.clearTimeout(fallbackTimer);
+  }, [isSceneInitializing, physicsMounted]);
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (walkthroughClearTimerRef.current !== null) {
+        window.clearTimeout(walkthroughClearTimerRef.current);
+      }
+      if (interiorTransitionTimerRef.current !== null) {
+        window.clearTimeout(interiorTransitionTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleWalkthroughFramesReady = useCallback((seq: number) => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const elapsed = now - walkthroughLaunchStartRef.current;
+    const remaining = Math.max(80, 380 - elapsed);
+    if (walkthroughClearTimerRef.current !== null) {
+      window.clearTimeout(walkthroughClearTimerRef.current);
+    }
+    walkthroughClearTimerRef.current = window.setTimeout(() => {
+      setWalkthroughLoading((prev) => (prev.seq === seq ? { ...prev, active: false } : prev));
+    }, remaining);
+  }, []);
+
+  // Safety fallback so walkthrough launch overlay never gets stuck if tab is backgrounded
+  useEffect(() => {
+    if (!walkthroughLoading.active) return;
+    const seq = walkthroughLoading.seq;
+    const safetyTimer = window.setTimeout(() => {
+      setWalkthroughLoading((prev) => (prev.seq === seq ? { ...prev, active: false } : prev));
+    }, 850);
+    return () => window.clearTimeout(safetyTimer);
+  }, [walkthroughLoading.active, walkthroughLoading.seq]);
+
+  const launchWalkthroughWithIndicator = useCallback((title: string, stageMessage: string) => {
+    sharedCampusAudio.resumeFromUserGesture();
+    resetInputState(inputRef.current);
+    // Request pointer lock synchronously inside the user's click gesture
+    requestCanvasPointerLock();
+
+    const nextSeq = walkthroughLaunchSeqRef.current + 1;
+    walkthroughLaunchSeqRef.current = nextSeq;
+    walkthroughLaunchStartRef.current =
+      typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+    setWalkthroughLoading({
+      active: true,
+      title,
+      stageMessage,
+      seq: nextSeq,
+    });
+    setStatus('playing');
+  }, []);
 
   // Synchronize audio engine with UI and Leva tuning
   useEffect(() => {
@@ -170,11 +318,25 @@ export function GameScene() {
     (buildingId: string) => {
       sharedCampusAudio.resumeFromUserGesture();
       setEnteredBuildingId((prev) => {
-        if (prev === buildingId) {
+        const isExiting = prev === buildingId;
+        const bld = index.buildings.get(buildingId);
+        const label = bld ? bld.shortName || bld.name : 'building';
+        if (interiorTransitionTimerRef.current !== null) {
+          window.clearTimeout(interiorTransitionTimerRef.current);
+        }
+        setInteriorTransitionMsg(
+          isExiting
+            ? `Exiting ${label} interior...`
+            : `Loading ${label} interior & colliders...`,
+        );
+        interiorTransitionTimerRef.current = window.setTimeout(() => {
+          setInteriorTransitionMsg(null);
+        }, 420);
+
+        if (isExiting) {
           setActiveFloorId(undefined);
           return null;
         }
-        const bld = index.buildings.get(buildingId);
         setActiveFloorId(bld ? defaultFloor(bld)?.id : undefined);
         return buildingId;
       });
@@ -198,15 +360,13 @@ export function GameScene() {
   }, []);
 
   const handleStartOrResume = useCallback(() => {
-    sharedCampusAudio.resumeFromUserGesture();
-    resetInputState(inputRef.current);
-    setStatus('playing');
-    requestCanvasPointerLock();
-  }, []);
+    launchWalkthroughWithIndicator(
+      status === 'paused' ? 'Resuming 3D Walkthrough' : 'Starting 3D Walkthrough',
+      'Synchronizing Rapier physics colliders & first-person camera...',
+    );
+  }, [launchWalkthroughWithIndicator, status]);
 
   const handleRespawn = useCallback(() => {
-    sharedCampusAudio.resumeFromUserGesture();
-    resetInputState(inputRef.current);
     setEnteredBuildingId(null);
     setTeleportRequest((prev) => ({
       position: [
@@ -217,14 +377,14 @@ export function GameScene() {
       yaw: gameConfig.player.spawnYaw,
       seq: prev.seq + 1,
     }));
-    setStatus('playing');
-    requestCanvasPointerLock();
-  }, []);
+    launchWalkthroughWithIndicator(
+      'Respawning at Main Entrance',
+      'Resetting first-person capsule & campus colliders...',
+    );
+  }, [launchWalkthroughWithIndicator]);
 
   const handleTeleport = useCallback(
     (dest: TeleportDestination) => {
-      sharedCampusAudio.resumeFromUserGesture();
-      resetInputState(inputRef.current);
       if (dest.enterBuildingId) {
         const bld = index.buildings.get(dest.enterBuildingId);
         setEnteredBuildingId(dest.enterBuildingId);
@@ -238,25 +398,29 @@ export function GameScene() {
         yaw: dest.yaw,
         seq: prev.seq + 1,
       }));
-      setStatus('playing');
-      requestCanvasPointerLock();
+      launchWalkthroughWithIndicator(
+        `Teleporting to ${dest.label}`,
+        dest.enterBuildingId
+          ? 'Loading building interior floorplan & colliders...'
+          : 'Positioning player & synchronizing terrain colliders...',
+      );
     },
-    [index],
+    [index, launchWalkthroughWithIndicator],
   );
 
   const handleSelectWayfindingTarget = useCallback(
     (target: WayfindingTarget) => {
-      sharedCampusAudio.resumeFromUserGesture();
       setWayfindingTarget(target);
       setEnteredBuildingId(target.buildingId);
       if (target.floorId) {
         setActiveFloorId(target.floorId);
       }
-      resetInputState(inputRef.current);
-      setStatus('playing');
-      requestCanvasPointerLock();
+      launchWalkthroughWithIndicator(
+        `Starting 3D Route · ${target.label}`,
+        'Building 3D wayfinding path & interior floorplan...',
+      );
     },
-    [],
+    [launchWalkthroughWithIndicator],
   );
 
   const handleToggleAudioMute = useCallback(() => {
@@ -523,6 +687,12 @@ export function GameScene() {
         {/* Physics World & First-Person Controller */}
         <Suspense fallback={null}>
           <Physics gravity={gameConfig.physics.gravity} paused={status !== 'playing'}>
+            <PhysicsWorldReadyTracker
+              isPlaying={status === 'playing'}
+              launchSeq={walkthroughLoading.seq}
+              onPhysicsMounted={handlePhysicsMounted}
+              onWalkthroughFramesReady={handleWalkthroughFramesReady}
+            />
             <CampusColliders geometry={geometry} enteredBuildingId={enteredBuildingId} />
             <FirstPersonController
               inputRef={inputRef}
@@ -537,6 +707,34 @@ export function GameScene() {
           </Physics>
         </Suspense>
       </Canvas>
+
+      {/* Initial 3D Walk Mode Loading Overlay (when user selects 3D Walk) */}
+      {isSceneInitializing && (
+        <WalkthroughLoadingOverlay
+          title="Loading 3D Walk Mode"
+          stageMessage="Initializing 3D campus geometry, Rapier physics & spatial audio..."
+          badgeText="3D WALK MODE"
+        />
+      )}
+
+      {/* Start Walkthrough / Teleport / Route Loading Overlay (when user clicks Start Walkthrough) */}
+      {!isSceneInitializing && walkthroughLoading.active && (
+        <WalkthroughLoadingOverlay
+          title={walkthroughLoading.title}
+          stageMessage={walkthroughLoading.stageMessage}
+          badgeText="STARTING WALKTHROUGH"
+        />
+      )}
+
+      {/* Non-blocking Interior / Collider Transition Indicator */}
+      {interiorTransitionMsg && !walkthroughLoading.active && (
+        <div className="scene-loader-pill" role="status" aria-live="polite" style={{ zIndex: 45 }}>
+          <span className="scene-loader-pill__spinner" aria-hidden="true" />
+          <div className="scene-loader-pill__body">
+            <span className="scene-loader-pill__text">{interiorTransitionMsg}</span>
+          </div>
+        </div>
+      )}
 
       {/* In-Game HUD & Touch Controls */}
       {status === 'playing' && (
@@ -591,6 +789,9 @@ export function GameScene() {
           onStartOrResume={handleStartOrResume}
           onRespawn={handleRespawn}
           onReturnToMap={handleReturnToMap}
+          isSceneInitializing={isSceneInitializing}
+          isStartingWalkthrough={walkthroughLoading.active}
+          loadingLabel={walkthroughLoading.active ? walkthroughLoading.title : undefined}
         />
       )}
     </div>
