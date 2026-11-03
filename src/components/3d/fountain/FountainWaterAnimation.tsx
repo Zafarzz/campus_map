@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 /**
@@ -388,6 +388,14 @@ export function FountainWaterAnimation() {
     return mat;
   }, [dropletTexture]);
 
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+      material.dispose();
+      dropletTexture?.dispose();
+    };
+  }, [geometry, material, dropletTexture]);
+
   // Цикл покадровой симуляции
   useFrame(({ camera }, delta) => {
     const points = pointsRef.current;
@@ -500,6 +508,7 @@ export function FountainWaterAnimation() {
       geometry={geometry}
       material={material}
       frustumCulled={false}
+      raycast={() => null}
     />
   );
 }

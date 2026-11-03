@@ -33,12 +33,12 @@ export function BackendLivePanel() {
     .slice(0, 5);
 
   return (
-    <section className="section" aria-label="Backend status">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: dot, display: 'inline-block' }} />
-        <strong>{label}</strong>
+    <section className="backend-panel" aria-label="Backend status">
+      <div className="backend-panel__head">
+        <span className="backend-panel__dot" style={{ background: dot }} />
+        <strong className="backend-panel__title">{label}</strong>
         {live.status === 'online' && (
-          <span style={{ opacity: 0.7 }}>
+          <span className="backend-panel__meta">
             v{live.version} · {live.latencyMs} ms
             {live.deployedCommit && live.deployedCommit !== 'dev' && live.deployedCommit !== 'unknown'
               ? ` · #${live.deployedCommit}`
@@ -47,36 +47,15 @@ export function BackendLivePanel() {
         )}
       </div>
       {live.updatingToCommit && (
-        <div
-          style={{
-            marginTop: 6,
-            padding: '4px 8px',
-            borderRadius: 6,
-            background: 'rgba(37, 99, 235, 0.18)',
-            border: '1px solid rgba(59, 130, 246, 0.45)',
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
+        <div className="backend-panel__banner">
           New deploy #{live.updatingToCommit} live — refreshing…
         </div>
       )}
       {live.reloadPendingCommit && !live.updatingToCommit && (
         <button
           type="button"
+          className="backend-panel__reload-btn"
           onClick={() => window.location.reload()}
-          style={{
-            marginTop: 6,
-            width: '100%',
-            padding: '5px 8px',
-            borderRadius: 6,
-            background: '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
         >
           Update #{live.reloadPendingCommit} ready — Reload now
         </button>
@@ -84,7 +63,7 @@ export function BackendLivePanel() {
       {live.status === 'online' && (
         <>
           {top.length > 0 ? (
-            <ul className="crowd-places-list">
+            <ul className="backend-panel__list crowd-places-list">
               {top.map((p) => {
                 const target = resolvePlaceNavigationTarget(p);
                 const isSelected = Boolean(
@@ -140,10 +119,10 @@ export function BackendLivePanel() {
               })}
             </ul>
           ) : (
-            <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>No crowd data for this time.</div>
+            <div className="backend-panel__empty">No crowd data for this time.</div>
           )}
           {live.updatedAt && (
-            <div style={{ fontSize: 11, opacity: 0.55, marginTop: 6 }}>Updated {fmtClock(live.updatedAt)}</div>
+            <div className="backend-panel__timestamp">Updated {fmtClock(live.updatedAt)}</div>
           )}
         </>
       )}

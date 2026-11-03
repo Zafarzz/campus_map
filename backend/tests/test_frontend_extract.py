@@ -138,6 +138,8 @@ def test_building_id_to_block_letter_mapping(inventory) -> None:  # type: ignore
         "bld-b": "E",
         "bld-c": "D",
         "bld-d": "F",
+        "bld-e": "SC",
+        "bld-f": "FA",
         "bld-g": "B",
         "bld-h": "A",
         "bld-i": "C",
@@ -202,7 +204,7 @@ def test_the_known_ambiguous_legacy_alias_is_detected(inventory) -> None:  # typ
 def test_connectors_are_extracted(inventory) -> None:  # type: ignore[no-untyped-def]
     """ADR-020: Block B and Block A each join Block C under cover."""
     by_id = {c.id: c for c in inventory.connectors}
-    assert set(by_id) == {"conn-bld-g-bld-i", "conn-bld-h-bld-i"}
+    assert set(by_id) == {"conn-bld-g-bld-i", "conn-bld-h-bld-i", "conn-bld-d-bld-b"}
     assert by_id["conn-bld-g-bld-i"].building_ids == ("bld-g", "bld-i")
     assert all(c.kind == "enclosed-corridor" for c in inventory.connectors)
 
@@ -229,7 +231,7 @@ def test_committed_snapshot_matches_the_front_end(inventory) -> None:  # type: i
 
 def test_snapshot_records_the_expected_totals(inventory) -> None:  # type: ignore[no-untyped-def]
     """Pins the numbers the Phase 1 report quotes."""
-    assert len(inventory.buildings) == 8
-    assert sum(len(b.floors) for b in inventory.buildings) == 24
-    assert inventory.room_count == 101
-    assert inventory.demo_room_count == 18
+    assert len(inventory.buildings) == 10
+    assert sum(len(b.floors) for b in inventory.buildings) == 27
+    assert inventory.room_count == 123
+    assert inventory.demo_room_count == 24

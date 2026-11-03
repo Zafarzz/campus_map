@@ -33,6 +33,9 @@ type Props = {
   onStartOrResume: () => void;
   onRespawn: () => void;
   onReturnToMap: () => void;
+  isSceneInitializing?: boolean;
+  isStartingWalkthrough?: boolean;
+  loadingLabel?: string;
 };
 
 /**
@@ -62,8 +65,12 @@ export function GameMenu({
   onStartOrResume,
   onRespawn,
   onReturnToMap,
+  isSceneInitializing = false,
+  isStartingWalkthrough = false,
+  loadingLabel,
 }: Props) {
   const isPaused = mode === 'paused';
+  const isBusy = isSceneInitializing || isStartingWalkthrough;
   const [query, setQuery] = useState('');
 
   const searchResults = useMemo(() => {
@@ -155,21 +162,55 @@ export function GameMenu({
         <button
           type="button"
           onClick={onStartOrResume}
+          disabled={isStartingWalkthrough}
+          aria-busy={isBusy}
+          data-testid="start-walkthrough-btn"
           style={{
             width: '100%',
-            background: '#2563eb',
+            background: isBusy ? '#1d4ed8' : '#2563eb',
             color: '#ffffff',
             border: 'none',
             borderRadius: 10,
             padding: '12px 18px',
             fontSize: 15,
             fontWeight: 700,
-            cursor: 'pointer',
+            cursor: isStartingWalkthrough ? 'wait' : 'pointer',
             boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
             marginBottom: 12,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            opacity: isStartingWalkthrough ? 0.92 : 1,
           }}
         >
-          {isPaused ? '▶ Resume Exploration' : '▶ Start Walkthrough'}
+          {isBusy ? (
+            <>
+              <span
+                className="campus-init-loader__spinner"
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderWidth: 2,
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  borderTopColor: '#ffffff',
+                }}
+                aria-hidden="true"
+              />
+              <span>
+                {loadingLabel ??
+                  (isSceneInitializing
+                    ? 'Preparing 3D Campus & Physics…'
+                    : isPaused
+                    ? 'Resuming Exploration…'
+                    : 'Starting Walkthrough…')}
+              </span>
+            </>
+          ) : isPaused ? (
+            '▶ Resume Exploration'
+          ) : (
+            '▶ Start Walkthrough'
+          )}
         </button>
 
         {/* 3D Wayfinding Room Search */}

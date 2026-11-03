@@ -8,6 +8,7 @@ import type { RoomStatus } from '../../domain/schedule/types';
 import { EXTRUDE_ROTATION, roomCenter, roomTop, useExtrudedGeometry } from './geometryUtils';
 import { isClick } from './pointer';
 import { BlockFLibraryInterior, LIBRARY_ROOM_ID } from './BlockFLibraryInterior';
+import { ClassroomInterior3D } from './ClassroomInterior3D';
 
 type Props = {
   room: RoomData;
@@ -54,11 +55,34 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
           />
         </group>
       ) : geometry.type === 'box' ? (
-        <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]} {...events}>
-          <boxGeometry args={geometry.size} />
-          {material}
-          {edges}
-        </mesh>
+        <group {...events}>
+          <ClassroomInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            capacity={room.capacity}
+            roomNumber={room.number}
+            isBigLecture={(room.capacity ?? 30) >= 60 || room.kind === 'hall'}
+            selected={selected}
+          />
+          {/* Subtle perimeter border and floor outline */}
+          <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]}>
+            <boxGeometry args={[geometry.size[0] + 0.04, 0.05, geometry.size[2] + 0.04]} />
+            <meshStandardMaterial
+              color={selected ? '#38bdf8' : hovered ? '#94a3b8' : color}
+              roughness={0.7}
+              emissive={selected ? '#0284c7' : '#000000'}
+              emissiveIntensity={selected ? 0.6 : 0}
+            />
+          </mesh>
+          {/* Selection highlight frame when selected */}
+          {selected && (
+            <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]}>
+              <boxGeometry args={geometry.size} />
+              <meshBasicMaterial visible={false} />
+              <Edges color={mapConfig.colors.roomSelected} lineWidth={3} />
+            </mesh>
+          )}
+        </group>
       ) : (
         <PolygonRoomMesh geometry={geometry} events={events}>
           {material}

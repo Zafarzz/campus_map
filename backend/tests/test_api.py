@@ -84,7 +84,7 @@ async def test_compat_campus_bare_matches_the_front_ends_campus_type(
     assert set(campus) == CAMPUS_KEYS
     assert campus["id"] == "ajou-tashkent"
     assert campus["name"] == "Ajou University in Tashkent"
-    assert len(campus["buildings"]) == 8
+    assert len(campus["buildings"]) == 10
 
     for building in campus["buildings"]:
         keys = set(building)
@@ -134,6 +134,8 @@ async def test_compat_preserves_the_front_ends_building_order(seeded_client: Asy
         "bld-b",
         "bld-c",
         "bld-d",
+        "bld-e",
+        "bld-f",
         "bld-g",
         "bld-h",
         "bld-i",
@@ -165,7 +167,7 @@ async def test_compat_wrapper_carries_provenance(seeded_client: AsyncClient) -> 
     assert body["meta"]["source"] == "confirmed"
     # 18 of 101 rooms are generated placeholders, so the flag must be true.
     assert body["meta"]["is_demo"] is True
-    assert "18 of 101 rooms" in body["meta"]["note"]
+    assert "24 of 123 rooms" in body["meta"]["note"]
 
 
 async def test_provenance_headers_are_present_on_the_bare_response(
@@ -222,9 +224,13 @@ async def test_clean_campus_endpoint(seeded_client: AsyncClient) -> None:
     body = response.json()
     assert body["id"] == "ajou-tashkent"
     assert body["timezone"] == "Asia/Tashkent"
-    assert body["building_count"] == 8
-    assert len(body["connectors"]) == 2
-    assert {c["id"] for c in body["connectors"]} == {"conn-bld-g-bld-i", "conn-bld-h-bld-i"}
+    assert body["building_count"] == 10
+    assert len(body["connectors"]) == 3
+    assert {c["id"] for c in body["connectors"]} == {
+        "conn-bld-g-bld-i",
+        "conn-bld-h-bld-i",
+        "conn-bld-d-bld-b",
+    }
 
 
 async def test_building_detail_reports_room_counts_per_floor(seeded_client: AsyncClient) -> None:

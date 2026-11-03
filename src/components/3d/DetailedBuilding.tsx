@@ -1,6 +1,6 @@
 import { useCursor } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
-import { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
 import {
@@ -15,8 +15,23 @@ import { isClick } from './pointer';
 import { BlockCFacade } from './facades/BlockCFacade';
 import { BlockBFacade } from './facades/BlockBFacade';
 import { BlockBSouthFacade } from './facades/BlockBSouthFacade';
+import { BlockAFacade } from './facades/BlockAFacade';
+import { BlockFFacade } from './facades/BlockFFacade';
+import { BlockDFacade } from './facades/BlockDFacade';
+import { BlockEFacade } from './facades/BlockEFacade';
+import { BlockFCourtyardFacade } from './facades/BlockFCourtyardFacade';
 import { SportsComplexRoof, SportsComplexFrontFacade } from './facades/SportsComplexFacade';
-import { getArchitecturalWallTextures, getWindowGlassTexture } from './materials/pbrMaterials';
+import {
+  getArchitecturalWallTextures,
+  getGranitePlinthTextures,
+  getRoofTileTextures,
+  getWindowGlassTexture,
+} from './materials/pbrMaterials';
+import {
+  applyArchitecturalGlassShader,
+  applyTravertineWeatheringShader,
+} from './shaders/architecturalShaders';
+import { NO_RAYCAST } from './geometry/staticGeometryMerger';
 
 type Props = {
   building: BuildingData;
@@ -98,36 +113,48 @@ function createTrueHipRoofGeometry(width: number, depth: number, height: number)
   const r2 = alongX ? [ridgeHalf, h, 0] : [0, h, -ridgeHalf];
 
   const verts: number[] = [];
-  const pushTri = (a: number[], b: number[], c: number[]) => {
+  const uvs: number[] = [];
+  const slopeLen = Math.hypot(alongX ? hd : hw, h);
+
+  const pushTriUV = (
+    a: number[],
+    b: number[],
+    c: number[],
+    ua: [number, number],
+    ub: [number, number],
+    uc: [number, number],
+  ) => {
     verts.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+    uvs.push(ua[0], ua[1], ub[0], ub[1], uc[0], uc[1]);
   };
 
   if (alongX) {
     // Front slope (+Z): quad bl -> br -> r2 -> r1
-    pushTri(bl, br, r2);
-    pushTri(bl, r2, r1);
+    pushTriUV(bl, br, r2, [-hw, 0], [hw, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(bl, r2, r1, [-hw, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Back slope (-Z): quad tr -> tl -> r1 -> r2
-    pushTri(tr, tl, r1);
-    pushTri(tr, r1, r2);
+    pushTriUV(tr, tl, r1, [-hw, 0], [hw, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(tr, r1, r2, [-hw, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Left hip (-X): triangle tl -> bl -> r1
-    pushTri(tl, bl, r1);
+    pushTriUV(tl, bl, r1, [-hd, 0], [hd, 0], [0, slopeLen]);
     // Right hip (+X): triangle br -> tr -> r2
-    pushTri(br, tr, r2);
+    pushTriUV(br, tr, r2, [-hd, 0], [hd, 0], [0, slopeLen]);
   } else {
     // Right slope (+X): quad br -> tr -> r2 -> r1
-    pushTri(br, tr, r2);
-    pushTri(br, r2, r1);
+    pushTriUV(br, tr, r2, [-hd, 0], [hd, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(br, r2, r1, [-hd, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Left slope (-X): quad tl -> bl -> r1 -> r2
-    pushTri(tl, bl, r1);
-    pushTri(tl, r1, r2);
+    pushTriUV(tl, bl, r1, [-hd, 0], [hd, 0], [ridgeHalf, slopeLen]);
+    pushTriUV(tl, r1, r2, [-hd, 0], [ridgeHalf, slopeLen], [-ridgeHalf, slopeLen]);
     // Front hip (+Z): triangle bl -> br -> r1
-    pushTri(bl, br, r1);
+    pushTriUV(bl, br, r1, [-hw, 0], [hw, 0], [0, slopeLen]);
     // Back hip (-Z): triangle tr -> tl -> r2
-    pushTri(tr, tl, r2);
+    pushTriUV(tr, tl, r2, [-hw, 0], [hw, 0], [0, slopeLen]);
   }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.computeVertexNormals();
   return geo;
 }
@@ -192,6 +219,8 @@ function HipRoof({
     () => createTrueHipRoofGeometry(width, depth, height),
     [width, depth, height],
   );
+  const roofPbr = useMemo(() => getRoofTileTextures(0.5, 0.5), []);
+  useEffect(() => () => roofGeo.dispose(), [roofGeo]);
   const alongX = width >= depth;
   const ridgeLen = Math.max(0.4, Math.abs(width - depth));
 
@@ -203,19 +232,24 @@ function HipRoof({
         castShadow
         receiveShadow
         geometry={roofGeo}
+        raycast={NO_RAYCAST}
       >
         <meshStandardMaterial
           color={color}
+          map={roofPbr?.map ?? null}
+          normalMap={roofPbr?.normalMap ?? null}
+          normalScale={[0.25, 0.25]}
+          roughnessMap={roofPbr?.roughnessMap ?? null}
           transparent={transparent}
           opacity={opacity}
           depthWrite={!transparent}
           roughness={roughness}
-          metalness={0.08}
+          metalness={0.12}
         />
       </mesh>
 
       {/* Ridge Cap Tile Beam */}
-      <mesh position={[0, height + 0.28, 0]} castShadow>
+      <mesh position={[0, height + 0.28, 0]} castShadow raycast={NO_RAYCAST}>
         <boxGeometry args={alongX ? [ridgeLen, 0.14, 0.24] : [0.24, 0.14, ridgeLen]} />
         <meshStandardMaterial
           color={color}
@@ -223,12 +257,12 @@ function HipRoof({
           opacity={opacity}
           depthWrite={!transparent}
           roughness={Math.max(0.4, roughness - 0.1)}
-          metalness={0.12}
+          metalness={0.18}
         />
       </mesh>
 
       {/* Molded Eaves Cornice & Fascia */}
-      <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.14, 0]} castShadow receiveShadow raycast={NO_RAYCAST}>
         <boxGeometry args={[width + 0.2, 0.28, depth + 0.2]} />
         <meshStandardMaterial
           color="#f5f0e6"
@@ -236,6 +270,7 @@ function HipRoof({
           opacity={opacity}
           depthWrite={!transparent}
           roughness={0.72}
+          metalness={0.0}
         />
       </mesh>
     </group>
@@ -314,14 +349,13 @@ function InstancedWindows({
   height,
   opacity,
   transparent,
-  windowColor,
 }: {
   width: number;
   depth: number;
   height: number;
   opacity: number;
   transparent: boolean;
-  windowColor: string;
+  windowColor?: string;
 }) {
   const windowW = 1.35;
   const windowH = 1.85;
@@ -342,28 +376,32 @@ function InstancedWindows({
       color: '#27272a',
       metalness: 0.65,
       roughness: 0.35,
-      transparent,
-      opacity,
-      depthWrite: !transparent,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
 
-    const glassMaterial = new THREE.MeshStandardMaterial({
-      color: '#0f172a',
-      map: glassTex ?? null,
-      metalness: 0.78,
-      roughness: 0.12,
-      envMapIntensity: 1.45,
-      transparent: true,
-      opacity: transparent ? opacity * 0.85 : 0.94,
-      depthWrite: !transparent,
-    });
+    const glassMaterial = applyArchitecturalGlassShader(
+      new THREE.MeshStandardMaterial({
+        color: '#16283e',
+        map: glassTex ?? null,
+        metalness: 0.15,
+        roughness: 0.08,
+        envMapIntensity: 1.6,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: true,
+      }),
+    );
 
     const frameMesh = new THREE.InstancedMesh(sharedWindowFrameGeo, frameMaterial, count);
     const glassMesh = new THREE.InstancedMesh(sharedWindowGlassGeo, glassMaterial, count);
     frameMesh.castShadow = false;
     frameMesh.receiveShadow = true;
+    frameMesh.raycast = NO_RAYCAST;
     glassMesh.castShadow = false;
     glassMesh.receiveShadow = false;
+    glassMesh.raycast = NO_RAYCAST;
 
     const dummy = new THREE.Object3D();
     let idx = 0;
@@ -425,8 +463,31 @@ function InstancedWindows({
 
     frameMesh.instanceMatrix.needsUpdate = true;
     glassMesh.instanceMatrix.needsUpdate = true;
-    return { frameMesh, glassMesh };
-  }, [count, numWindowsX, numWindowsZ, numFloors, width, depth, windowColor, glassTex, opacity, transparent]);
+    return { frameMesh, glassMesh, frameMaterial, glassMaterial };
+  }, [count, numWindowsX, numWindowsZ, numFloors, width, depth, glassTex]);
+
+  useEffect(() => {
+    if (!meshes) return;
+    const { frameMaterial, glassMaterial } = meshes;
+    frameMaterial.transparent = transparent;
+    frameMaterial.opacity = opacity;
+    frameMaterial.depthWrite = !transparent;
+    frameMaterial.needsUpdate = true;
+
+    glassMaterial.opacity = transparent ? opacity * 0.85 : 0.94;
+    glassMaterial.depthWrite = !transparent;
+    glassMaterial.needsUpdate = true;
+  }, [meshes, opacity, transparent]);
+
+  useEffect(() => {
+    if (!meshes) return;
+    return () => {
+      meshes.frameMesh.dispose();
+      meshes.glassMesh.dispose();
+      meshes.frameMaterial.dispose();
+      meshes.glassMaterial.dispose();
+    };
+  }, [meshes]);
 
   if (!meshes) return null;
 
@@ -602,6 +663,469 @@ function ClassicalPortico({
   );
 }
 
+type BuildingPartMeshProps = {
+  footprint: Footprint;
+  partIndex: number;
+  partsCount: number;
+  buildingId: string;
+  geometryHeight: number;
+  appearance: BuildingAppearance;
+  wallColor: string;
+  wallPbr: ReturnType<typeof getArchitecturalWallTextures>;
+  glassTex: THREE.CanvasTexture | null;
+  opacity: number;
+  transparent: boolean;
+};
+
+const BuildingPartMesh = React.memo(function BuildingPartMesh({
+  footprint,
+  partIndex: i,
+  partsCount,
+  buildingId,
+  geometryHeight,
+  appearance,
+  wallColor,
+  wallPbr,
+  glassTex,
+  opacity,
+  transparent,
+}: BuildingPartMeshProps) {
+  const outline = useMemo(() => footprintOutline(footprint), [footprint]);
+  const { worldX, worldZ, width, depth } = useMemo(
+    () => getFootprintMetrics(footprint),
+    [footprint],
+  );
+  const isBlockFMain =
+    appearance.customFacade === 'block-f' && (partsCount === 1 ? i === 0 : i === 1);
+  const isCustomFacade =
+    ((appearance.customFacade === 'block-c' ||
+      appearance.customFacade === 'block-b' ||
+      appearance.customFacade === 'block-a' ||
+      appearance.customFacade === 'block-d' ||
+      appearance.customFacade === 'block-e' ||
+      appearance.customFacade === 'sports-complex' ||
+      buildingId === 'bld-e') &&
+      i === 0) ||
+    appearance.customFacade === 'block-f';
+  const wallHeight =
+    appearance.customFacade === 'block-c' && i === 0
+      ? 10.8
+      : appearance.customFacade === 'block-b' && i === 0
+      ? 14.4
+      : appearance.customFacade === 'block-a' && i === 0
+      ? 8.2
+      : appearance.customFacade === 'block-d' && i === 0
+      ? 8.05
+      : appearance.customFacade === 'block-e' && i === 0
+      ? 14.35
+      : appearance.customFacade === 'block-f'
+      ? partsCount > 1 && i === 0
+        ? 4.0
+        : 8.05
+      : appearance.hasCornice
+      ? geometryHeight - 0.5
+      : geometryHeight;
+  const isBlockFVestibule = appearance.customFacade === 'block-f' && partsCount > 1 && i === 0;
+  const parapetHeight = appearance.customFacade === 'block-c' ? 2.7 : 0.8;
+  const wallGeo = useExtrudedGeometry(outline, wallHeight);
+  const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
+  const plinthPbr = useMemo(() => getGranitePlinthTextures(6, 1), []);
+
+  const wallMaterial = useMemo(() => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: wallColor,
+      map: wallPbr?.map ?? null,
+      normalMap: wallPbr?.normalMap ?? null,
+      normalScale: new THREE.Vector2(0.22, 0.22),
+      roughnessMap: wallPbr?.roughnessMap ?? null,
+      transparent,
+      opacity,
+      depthWrite: !transparent,
+      roughness: appearance.wallRoughness,
+      metalness: 0.0,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+    return applyTravertineWeatheringShader(mat);
+  }, [wallColor, wallPbr, transparent, opacity, appearance.wallRoughness]);
+
+  useEffect(() => () => wallMaterial.dispose(), [wallMaterial]);
+
+  return (
+    <group>
+      {/* 1. Main Facade Walls */}
+      <mesh
+        geometry={wallGeo}
+        material={wallMaterial}
+        rotation={EXTRUDE_ROTATION}
+        position={[0, 0, 0]}
+        castShadow
+        receiveShadow
+      />
+
+      {/* 2. Base Plinth */}
+      {appearance.hasPlinth && !isCustomFacade && (
+        <mesh position={[worldX, (appearance.plinthHeight ?? 0.6) / 2, worldZ]} castShadow receiveShadow raycast={NO_RAYCAST}>
+          <boxGeometry args={[width + 0.25, appearance.plinthHeight ?? 0.6, depth + 0.25]} />
+          <meshStandardMaterial
+            color={appearance.plinthColor ?? '#334155'}
+            map={plinthPbr?.map ?? null}
+            normalMap={plinthPbr?.normalMap ?? null}
+            normalScale={[0.25, 0.25]}
+            roughnessMap={plinthPbr?.roughnessMap ?? null}
+            transparent={transparent}
+            opacity={opacity}
+            depthWrite={!transparent}
+            roughness={0.85}
+            metalness={0.0}
+          />
+        </mesh>
+      )}
+
+      {/* 3. Exterior Windows */}
+      {appearance.hasWindows && !isCustomFacade && (
+        <group position={[worldX, 0, worldZ]}>
+          <InstancedWindows
+            width={width}
+            depth={depth}
+            height={wallHeight}
+            opacity={opacity}
+            transparent={transparent}
+            windowColor={appearance.windowColor ?? '#4b779e'}
+          />
+        </group>
+      )}
+
+      {/* 4. Ground Entrance Portal */}
+      {!isCustomFacade && (
+        <group position={[worldX, 0, worldZ]}>
+          <EntrancePortal width={width} depth={depth} opacity={opacity} transparent={transparent} />
+        </group>
+      )}
+
+      {/* Dedicated Architectural Front Facade (Block C) */}
+      {appearance.customFacade === 'block-c' && i === 0 && (
+        <group position={[worldX, 0, worldZ]}>
+          <BlockCFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="east"
+            wallHeight={10.8}
+            totalHeight={13.5}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+          />
+        </group>
+      )}
+
+      {/* Dedicated Architectural Facades for Block B:
+          - North Facade (facing courtyard/driveway): 13-bay rhythm with stair ribbons, dormers, gazebo & pipeline
+          - South Facade (facing Block C): 8-bay rhythm with central glazed curtain wall (ВИТ-1) & pediment */}
+      {appearance.customFacade === 'block-b' && i === 0 && (
+        <group position={[worldX, 0, worldZ]}>
+          <BlockBFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="north"
+            wallHeight={14.4}
+            roofHeight={appearance.roofHeight ?? 3.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+          <BlockBSouthFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="south"
+            wallHeight={14.4}
+            roofHeight={appearance.roofHeight ?? 3.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+        </group>
+      )}
+
+      {/* Dedicated Architectural Elevation for Block A (bld-h, Main Academic Block per CAD elevation) */}
+      {appearance.customFacade === 'block-a' && i === 0 && (
+        <group position={[worldX, 0, worldZ]}>
+          {/* South Facade facing perimeter fence with entrance group on right touching corridor A=>C */}
+          <BlockAFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="south"
+            wallHeight={8.2}
+            roofHeight={appearance.roofHeight ?? 3.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+          {/* North Facade facing inner campus */}
+          <BlockAFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="north"
+            wallHeight={8.2}
+            roofHeight={appearance.roofHeight ?? 3.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+        </group>
+      )}
+
+      {/* Dedicated Architectural Elevation for Block D (bld-c, 2-storey Academic Building facing lawn & fountain) */}
+      {appearance.customFacade === 'block-d' && i === 0 && (
+        <group position={[worldX, 0, worldZ]}>
+          {/* South Facade facing lawn and grand fountain */}
+          <BlockDFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="south"
+            wallHeight={8.05}
+            roofHeight={appearance.roofHeight ?? 1.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+          {/* North Facade facing inner campus rear */}
+          <BlockDFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="north"
+            wallHeight={8.05}
+            roofHeight={appearance.roofHeight ?? 1.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+        </group>
+      )}
+
+      {/* Dedicated Architectural Elevation for Block E (bld-b, 4-storey Architecture & Design Block facing Block F) */}
+      {appearance.customFacade === 'block-e' && i === 0 && (
+        <group position={[worldX, 0, worldZ]}>
+          {/* South Facade facing Block F & Suwon Hall */}
+          <BlockEFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="south"
+            wallHeight={14.35}
+            roofHeight={appearance.roofHeight ?? 3.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+          {/* North Facade facing rear */}
+          <BlockEFacade
+            buildingWidth={width}
+            buildingDepth={depth}
+            facing="north"
+            wallHeight={14.35}
+            roofHeight={appearance.roofHeight ?? 3.6}
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+        </group>
+      )}
+
+      {/* Dedicated Architectural Elevation for Block F (bld-d) */}
+      {isBlockFMain && (
+        <>
+          {/* East Facade facing perimeter fence with classical entablature & inscriptions */}
+          <group position={[worldX, 0, worldZ]}>
+            <BlockFFacade
+              buildingWidth={width}
+              buildingDepth={depth}
+              facing="east"
+              wallHeight={9.8}
+              opacity={opacity}
+              transparent={transparent}
+              wallColor={wallColor}
+              trimColor={appearance.corniceColor}
+              plinthColor={appearance.plinthColor}
+              frameColor={appearance.windowColor}
+            />
+          </group>
+
+          {/* Authentic Courtyard Ensemble matching reference photo media_1793558789621.jpg:
+              West Facade (10 window bays + basement lightwell hoods + drainpipes),
+              1-Storey Corner Entrance Vestibule, and South End Facade */}
+          <BlockFCourtyardFacade
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            roofColor={appearance.roofColor}
+          />
+        </>
+      )}
+
+      {/* Dedicated Architectural Front Facade (Sports Complex bld-e) */}
+      {(appearance.customFacade === 'sports-complex' || buildingId === 'bld-e') && i === 0 && (
+        <group position={[worldX, 0, worldZ]}>
+          <SportsComplexFrontFacade
+            width={width}
+            depth={depth}
+            wallHeight={wallHeight}
+            opacity={opacity}
+            transparent={transparent}
+          />
+        </group>
+      )}
+
+      {/* 5. Horizontal Decorative Stripes (e.g. Dormitory bands) */}
+      {appearance.accentStripe && (
+        <group position={[worldX, 0, worldZ]}>
+          <mesh position={[0, wallHeight * 0.4, 0]} castShadow>
+            <boxGeometry args={[width + 0.15, 0.4, depth + 0.15]} />
+            <meshStandardMaterial
+              color={appearance.accentStripeColor ?? '#991b1b'}
+              transparent={transparent}
+              opacity={opacity}
+              depthWrite={!transparent}
+            />
+          </mesh>
+          <mesh position={[0, wallHeight * 0.7, 0]} castShadow>
+            <boxGeometry args={[width + 0.15, 0.4, depth + 0.15]} />
+            <meshStandardMaterial
+              color={appearance.accentStripeColor ?? '#991b1b'}
+              transparent={transparent}
+              opacity={opacity}
+              depthWrite={!transparent}
+            />
+          </mesh>
+        </group>
+      )}
+
+      {/* 6. Central Glazed Curtain Wall (e.g. Modern academic block) */}
+      {appearance.glassAccent && !isCustomFacade && (
+        <mesh position={[worldX, wallHeight / 2 + 0.2, worldZ]} castShadow>
+          <boxGeometry args={[Math.min(16, width * 0.5), wallHeight - 1, depth + 0.35]} />
+          <meshStandardMaterial
+            color={appearance.glassColor ?? '#0f172a'}
+            map={glassTex}
+            transparent={transparent}
+            opacity={opacity}
+            depthWrite={!transparent}
+            metalness={0.78}
+            roughness={0.12}
+            envMapIntensity={1.45}
+          />
+        </mesh>
+      )}
+
+      {/* 7. Parapet / Cornice */}
+      {appearance.hasCornice && !isCustomFacade && (
+        <mesh geometry={parapetGeo} rotation={EXTRUDE_ROTATION} position={[0, wallHeight, 0]} castShadow>
+          <meshStandardMaterial
+            color={appearance.corniceColor ?? '#e2e8f0'}
+            transparent={transparent}
+            opacity={opacity}
+            depthWrite={!transparent}
+            roughness={0.8}
+          />
+        </mesh>
+      )}
+
+      {/* 8. Roof Structure */}
+      {appearance.roofType === 'hip' && !isBlockFVestibule ? (
+        <group position={[worldX, wallHeight, worldZ]}>
+          <HipRoof
+            width={width + (appearance.roofOverhang ?? 1.2)}
+            depth={depth + (appearance.roofOverhang ?? 1.2)}
+            height={appearance.roofHeight ?? 4.0}
+            color={appearance.roofColor}
+            opacity={opacity}
+            transparent={transparent}
+            roughness={appearance.roofRoughness}
+          />
+        </group>
+      ) : (appearance.roofType === 'barrel' || buildingId === 'bld-e' || appearance.customFacade === 'sports-complex') && depth > 20 ? (
+        <group position={[worldX, wallHeight, worldZ]}>
+          <SportsComplexRoof
+            width={width}
+            depth={depth}
+            height={appearance.roofHeight ?? 6.9}
+            color={appearance.roofColor}
+            opacity={opacity}
+            transparent={transparent}
+          />
+        </group>
+      ) : (
+        <mesh
+          position={[worldX, wallHeight + (appearance.hasCornice ? 0.2 : 0.5), worldZ]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[width - 0.8, 0.6, depth - 0.8]} />
+          <meshStandardMaterial
+            color={appearance.roofColor}
+            transparent={transparent}
+            opacity={opacity}
+            depthWrite={!transparent}
+            roughness={appearance.roofRoughness}
+          />
+        </mesh>
+      )}
+
+      {/* 9. Classical Portico Entrance */}
+      {appearance.hasPortico && (
+        <group position={[worldX, 0, worldZ]}>
+          <ClassicalPortico
+            width={width}
+            depth={depth}
+            wallHeight={wallHeight}
+            color={appearance.porticoColor ?? '#ffffff'}
+            opacity={opacity}
+            transparent={transparent}
+          />
+        </group>
+      )}
+    </group>
+  );
+});
+
 export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectBuilding }: Props) {
   const [hovered, setHovered] = useState(false);
   useCursor(hovered);
@@ -631,263 +1155,22 @@ export function DetailedBuilding({ building, geometry, dimmed, tuning, onSelectB
       onPointerOver={(e) => (e.stopPropagation(), setHovered(true))}
       onPointerOut={() => setHovered(false)}
     >
-      {geometry.parts.map((footprint, i) => {
-        const outline = footprintOutline(footprint);
-        const isCustomFacade =
-          (appearance.customFacade === 'block-c' ||
-            appearance.customFacade === 'block-b' ||
-            appearance.customFacade === 'sports-complex' ||
-            building.id === 'bld-e') &&
-          i === 0;
-        const wallHeight =
-          appearance.customFacade === 'block-c' && i === 0
-            ? 10.8
-            : appearance.customFacade === 'block-b' && i === 0
-            ? 14.4
-            : appearance.hasCornice
-            ? geometry.height - 0.5
-            : geometry.height;
-        const parapetHeight = appearance.customFacade === 'block-c' ? 2.7 : 0.8;
-        const wallGeo = useExtrudedGeometry(outline, wallHeight);
-        const parapetGeo = useExtrudedGeometry(outline, parapetHeight);
-
-        const { worldX, worldZ, width, depth } = getFootprintMetrics(footprint);
-
-        return (
-          <group key={i}>
-            {/* 1. Main Facade Walls */}
-            <mesh geometry={wallGeo} rotation={EXTRUDE_ROTATION} position={[0, 0, 0]} castShadow receiveShadow>
-              <meshStandardMaterial
-                color={wallColor}
-                map={wallPbr?.map ?? null}
-                normalMap={wallPbr?.normalMap ?? null}
-                normalScale={[0.15, 0.15]}
-                roughnessMap={wallPbr?.roughnessMap ?? null}
-                transparent={transparent}
-                opacity={opacity}
-                depthWrite={!transparent}
-                roughness={appearance.wallRoughness}
-                metalness={appearance.wallMetalness}
-                polygonOffset={true}
-                polygonOffsetFactor={1}
-                polygonOffsetUnits={1}
-              />
-            </mesh>
-
-            {/* 2. Base Plinth */}
-            {appearance.hasPlinth && !isCustomFacade && (
-              <mesh position={[worldX, (appearance.plinthHeight ?? 0.6) / 2, worldZ]} castShadow receiveShadow>
-                <boxGeometry args={[width + 0.25, appearance.plinthHeight ?? 0.6, depth + 0.25]} />
-                <meshStandardMaterial
-                  color={appearance.plinthColor ?? '#334155'}
-                  transparent={transparent}
-                  opacity={opacity}
-                  depthWrite={!transparent}
-                  roughness={0.85}
-                />
-              </mesh>
-            )}
-
-            {/* 3. Exterior Windows */}
-            {appearance.hasWindows && !isCustomFacade && (
-              <group position={[worldX, 0, worldZ]}>
-                <InstancedWindows
-                  width={width}
-                  depth={depth}
-                  height={wallHeight}
-                  opacity={opacity}
-                  transparent={transparent}
-                  windowColor={appearance.windowColor ?? '#4b779e'}
-                />
-              </group>
-            )}
-
-            {/* 4. Ground Entrance Portal */}
-            {!isCustomFacade && (
-              <group position={[worldX, 0, worldZ]}>
-                <EntrancePortal width={width} depth={depth} opacity={opacity} transparent={transparent} />
-              </group>
-            )}
-
-            {/* Dedicated Architectural Front Facade (Block C) */}
-            {appearance.customFacade === 'block-c' && i === 0 && (
-              <group position={[worldX, 0, worldZ]}>
-                <BlockCFacade
-                  buildingWidth={width}
-                  buildingDepth={depth}
-                  facing="east"
-                  wallHeight={10.8}
-                  totalHeight={13.5}
-                  opacity={opacity}
-                  transparent={transparent}
-                  wallColor={wallColor}
-                  trimColor={appearance.corniceColor}
-                  plinthColor={appearance.plinthColor}
-                  frameColor={appearance.windowColor}
-                />
-              </group>
-            )}
-
-            {/* Dedicated Architectural Facades for Block B:
-                - North Facade (facing courtyard/driveway): 13-bay rhythm with stair ribbons, dormers, gazebo & pipeline
-                - South Facade (facing Block C): 8-bay rhythm with central glazed curtain wall (ВИТ-1) & pediment */}
-            {appearance.customFacade === 'block-b' && i === 0 && (
-              <group position={[worldX, 0, worldZ]}>
-                <BlockBFacade
-                  buildingWidth={width}
-                  buildingDepth={depth}
-                  facing="north"
-                  wallHeight={14.4}
-                  roofHeight={appearance.roofHeight ?? 3.6}
-                  opacity={opacity}
-                  transparent={transparent}
-                  wallColor={wallColor}
-                  trimColor={appearance.corniceColor}
-                  plinthColor={appearance.plinthColor}
-                  frameColor={appearance.windowColor}
-                  roofColor={appearance.roofColor}
-                />
-                <BlockBSouthFacade
-                  buildingWidth={width}
-                  buildingDepth={depth}
-                  facing="south"
-                  wallHeight={14.4}
-                  roofHeight={appearance.roofHeight ?? 3.6}
-                  opacity={opacity}
-                  transparent={transparent}
-                  wallColor={wallColor}
-                  trimColor={appearance.corniceColor}
-                  plinthColor={appearance.plinthColor}
-                  frameColor={appearance.windowColor}
-                  roofColor={appearance.roofColor}
-                />
-              </group>
-            )}
-
-            {/* Dedicated Architectural Front Facade (Sports Complex bld-e) */}
-            {(appearance.customFacade === 'sports-complex' || building.id === 'bld-e') && i === 0 && (
-              <group position={[worldX, 0, worldZ]}>
-                <SportsComplexFrontFacade
-                  width={width}
-                  depth={depth}
-                  wallHeight={wallHeight}
-                  opacity={opacity}
-                  transparent={transparent}
-                />
-              </group>
-            )}
-
-            {/* 5. Horizontal Decorative Stripes (e.g. Dormitory bands) */}
-            {appearance.accentStripe && (
-              <group position={[worldX, 0, worldZ]}>
-                <mesh position={[0, wallHeight * 0.4, 0]} castShadow>
-                  <boxGeometry args={[width + 0.15, 0.4, depth + 0.15]} />
-                  <meshStandardMaterial
-                    color={appearance.accentStripeColor ?? '#991b1b'}
-                    transparent={transparent}
-                    opacity={opacity}
-                    depthWrite={!transparent}
-                  />
-                </mesh>
-                <mesh position={[0, wallHeight * 0.7, 0]} castShadow>
-                  <boxGeometry args={[width + 0.15, 0.4, depth + 0.15]} />
-                  <meshStandardMaterial
-                    color={appearance.accentStripeColor ?? '#991b1b'}
-                    transparent={transparent}
-                    opacity={opacity}
-                    depthWrite={!transparent}
-                  />
-                </mesh>
-              </group>
-            )}
-
-            {/* 6. Central Glazed Curtain Wall (e.g. Modern academic block) */}
-            {appearance.glassAccent && !isCustomFacade && (
-              <mesh position={[worldX, wallHeight / 2 + 0.2, worldZ]} castShadow>
-                <boxGeometry args={[Math.min(16, width * 0.5), wallHeight - 1, depth + 0.35]} />
-                <meshStandardMaterial
-                  color={appearance.glassColor ?? '#0f172a'}
-                  map={glassTex}
-                  transparent={transparent}
-                  opacity={opacity}
-                  depthWrite={!transparent}
-                  metalness={0.78}
-                  roughness={0.12}
-                  envMapIntensity={1.45}
-                />
-              </mesh>
-            )}
-
-            {/* 7. Parapet / Cornice */}
-            {appearance.hasCornice && !isCustomFacade && (
-              <mesh geometry={parapetGeo} rotation={EXTRUDE_ROTATION} position={[0, wallHeight, 0]} castShadow>
-                <meshStandardMaterial
-                  color={appearance.corniceColor ?? '#e2e8f0'}
-                  transparent={transparent}
-                  opacity={opacity}
-                  depthWrite={!transparent}
-                  roughness={0.8}
-                />
-              </mesh>
-            )}
-
-            {/* 8. Roof Structure */}
-            {appearance.roofType === 'hip' ? (
-              <group position={[worldX, wallHeight, worldZ]}>
-                <HipRoof
-                  width={width + (appearance.roofOverhang ?? 1.2)}
-                  depth={depth + (appearance.roofOverhang ?? 1.2)}
-                  height={appearance.roofHeight ?? 4.0}
-                  color={appearance.roofColor}
-                  opacity={opacity}
-                  transparent={transparent}
-                  roughness={appearance.roofRoughness}
-                />
-              </group>
-            ) : (appearance.roofType === 'barrel' || building.id === 'bld-e' || appearance.customFacade === 'sports-complex') && depth > 20 ? (
-              <group position={[worldX, wallHeight, worldZ]}>
-                <SportsComplexRoof
-                  width={width}
-                  depth={depth}
-                  height={appearance.roofHeight ?? 6.9}
-                  color={appearance.roofColor}
-                  opacity={opacity}
-                  transparent={transparent}
-                />
-              </group>
-            ) : (
-              <mesh
-                position={[worldX, wallHeight + (appearance.hasCornice ? 0.2 : 0.5), worldZ]}
-                castShadow
-                receiveShadow
-              >
-                <boxGeometry args={[width - 0.8, 0.6, depth - 0.8]} />
-                <meshStandardMaterial
-                  color={appearance.roofColor}
-                  transparent={transparent}
-                  opacity={opacity}
-                  depthWrite={!transparent}
-                  roughness={appearance.roofRoughness}
-                />
-              </mesh>
-            )}
-
-            {/* 9. Classical Portico Entrance */}
-            {appearance.hasPortico && (
-              <group position={[worldX, 0, worldZ]}>
-                <ClassicalPortico
-                  width={width}
-                  depth={depth}
-                  wallHeight={wallHeight}
-                  color={appearance.porticoColor ?? '#ffffff'}
-                  opacity={opacity}
-                  transparent={transparent}
-                />
-              </group>
-            )}
-          </group>
-        );
-      })}
+      {geometry.parts.map((footprint, i) => (
+        <BuildingPartMesh
+          key={i}
+          footprint={footprint}
+          partIndex={i}
+          partsCount={geometry.parts.length}
+          buildingId={building.id}
+          geometryHeight={geometry.height}
+          appearance={appearance}
+          wallColor={wallColor}
+          wallPbr={wallPbr}
+          glassTex={glassTex}
+          opacity={opacity}
+          transparent={transparent}
+        />
+      ))}
     </group>
   );
 }

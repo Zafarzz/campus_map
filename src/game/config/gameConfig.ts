@@ -211,7 +211,7 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'f101-library',
     label: '📚 F-101 Campus Library (Block F)',
-    position: [89.6, 2.2, -53.1],
+    position: [62.5, 2.2, -73.2],
     yaw: -Math.PI / 2,
     enterBuildingId: 'bld-d',
   },

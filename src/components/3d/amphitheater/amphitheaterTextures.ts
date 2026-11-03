@@ -16,10 +16,11 @@ export function getAmphitheaterFloorLogoTexture(): THREE.CanvasTexture | null {
   if (cachedFloorLogo) return cachedFloorLogo;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.scale(0.5, 0.5);
 
   const cx = 512;
   const cy = 512;
@@ -96,7 +97,7 @@ export function getAmphitheaterFloorLogoTexture(): THREE.CanvasTexture | null {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
+  texture.anisotropy = 4;
   cachedFloorLogo = texture;
   return texture;
 }
@@ -110,17 +111,18 @@ export function getBookshelfTexture(): THREE.CanvasTexture | null {
   if (cachedBookshelf) return cachedBookshelf;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.scale(0.5, 0.5);
 
   // Dark walnut cabinet backing
   ctx.fillStyle = '#261408';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, 1024, 1024);
 
   const shelfCount = 8;
-  const shelfH = canvas.height / shelfCount;
+  const shelfH = 1024 / shelfCount;
   const bookColors = ['#1e3a8a', '#991b1b', '#065f46', '#78350f', '#4c1d95', '#0f766e', '#854d0e', '#334155'];
 
   for (let s = 0; s < shelfCount; s++) {
@@ -128,7 +130,7 @@ export function getBookshelfTexture(): THREE.CanvasTexture | null {
 
     // Books
     let curX = 16;
-    while (curX < canvas.width - 24) {
+    while (curX < 1024 - 24) {
       const bookW = 10 + Math.floor((Math.sin(s * 10 + curX) + 1) * 8);
       const bookH = shelfH * 0.72 + (Math.cos(curX * 3) * 12);
       const color = bookColors[Math.abs(Math.floor(Math.sin(curX + s) * bookColors.length)) % bookColors.length];
@@ -151,11 +153,11 @@ export function getBookshelfTexture(): THREE.CanvasTexture | null {
 
     // Wooden shelf board
     ctx.fillStyle = '#78350f';
-    ctx.fillRect(0, yShelf + shelfH - 12, canvas.width, 12);
+    ctx.fillRect(0, yShelf + shelfH - 12, 1024, 12);
     ctx.fillStyle = '#92400e';
-    ctx.fillRect(0, yShelf + shelfH - 12, canvas.width, 2);
+    ctx.fillRect(0, yShelf + shelfH - 12, 1024, 2);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.fillRect(0, yShelf + shelfH, canvas.width, 6);
+    ctx.fillRect(0, yShelf + shelfH, 1024, 6);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -175,40 +177,44 @@ export function getAmphitheaterScreenTexture(): THREE.CanvasTexture | null {
   if (cachedScreen) return cachedScreen;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 1280;
-  canvas.height = 700;
+  canvas.width = 640;
+  canvas.height = 350;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.scale(0.5, 0.5);
+
+  const logicalW = 1280;
+  const logicalH = 700;
 
   // Dark cyber-blue background with gradient
-  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  const grad = ctx.createLinearGradient(0, 0, 0, logicalH);
   grad.addColorStop(0, '#030712');
   grad.addColorStop(1, '#0f172a');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, logicalW, logicalH);
 
   // Digital grid mesh
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
   ctx.lineWidth = 1;
-  for (let x = 0; x < canvas.width; x += 40) {
+  for (let x = 0; x < logicalW; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
+    ctx.lineTo(x, logicalH);
     ctx.stroke();
   }
-  for (let y = 0; y < canvas.height; y += 40) {
+  for (let y = 0; y < logicalH; y += 40) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
+    ctx.lineTo(logicalW, y);
     ctx.stroke();
   }
 
   // Header Bar
   ctx.fillStyle = '#1e293b';
-  ctx.fillRect(40, 30, canvas.width - 80, 60);
+  ctx.fillRect(40, 30, logicalW - 80, 60);
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 2;
-  ctx.strokeRect(40, 30, canvas.width - 80, 60);
+  ctx.strokeRect(40, 30, logicalW - 80, 60);
 
   ctx.fillStyle = '#38bdf8';
   ctx.font = 'bold 24px "Montserrat", sans-serif';
@@ -218,23 +224,23 @@ export function getAmphitheaterScreenTexture(): THREE.CanvasTexture | null {
 
   ctx.fillStyle = '#fde047';
   ctx.textAlign = 'right';
-  ctx.fillText('MAIN AUDITORIUM • LIVE SESSION', canvas.width - 60, 60);
+  ctx.fillText('MAIN AUDITORIUM • LIVE SESSION', logicalW - 60, 60);
 
   // Main Screen Title
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 56px "Montserrat", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('INTERNATIONAL SCIENTIFIC CONFERENCE', canvas.width / 2, 220);
+  ctx.fillText('INTERNATIONAL SCIENTIFIC CONFERENCE', logicalW / 2, 220);
 
   ctx.fillStyle = '#38bdf8';
   ctx.font = '32px "Montserrat", sans-serif';
-  ctx.fillText('Advanced Engineering & Global Education 2026', canvas.width / 2, 280);
+  ctx.fillText('Advanced Engineering & Global Education 2026', logicalW / 2, 280);
 
   // Decorative Audio/Signal Waveforms & Graphics
   ctx.strokeStyle = '#22d3ee';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  for (let x = 80; x < canvas.width - 80; x += 10) {
+  for (let x = 80; x < logicalW - 80; x += 10) {
     const y = 430 + Math.sin(x * 0.03) * 45 * Math.sin(x * 0.005);
     if (x === 80) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
@@ -266,7 +272,7 @@ export function getAmphitheaterScreenTexture(): THREE.CanvasTexture | null {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
+  texture.anisotropy = 4;
   cachedScreen = texture;
   return texture;
 }
@@ -279,36 +285,37 @@ export function getGrilyatoTexture(): THREE.CanvasTexture | null {
   if (cachedGrilyato) return cachedGrilyato;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
+  canvas.width = 128;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.scale(0.5, 0.5);
 
   // Dark deep background
   ctx.fillStyle = '#060a12';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, 256, 256);
 
   // Thin open-cell metal ribs
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 4;
   const step = 32;
-  for (let x = 0; x <= canvas.width; x += step) {
+  for (let x = 0; x <= 256; x += step) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
+    ctx.lineTo(x, 256);
     ctx.stroke();
   }
-  for (let y = 0; y <= canvas.height; y += step) {
+  for (let y = 0; y <= 256; y += step) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
+    ctx.lineTo(256, y);
     ctx.stroke();
   }
 
   // Cell highlight
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
   ctx.lineWidth = 1;
-  ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  ctx.strokeRect(2, 2, 256 - 4, 256 - 4);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -327,27 +334,28 @@ export function getParquetFloorTexture(): THREE.CanvasTexture | null {
   if (cachedParquet) return cachedParquet;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.scale(0.5, 0.5);
 
   // Light warm Scandinavian laminate color
   ctx.fillStyle = '#e2d8c3';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, 512, 512);
 
   // Planks
   const plankH = 32;
-  for (let y = 0; y < canvas.height; y += plankH) {
+  for (let y = 0; y < 512; y += plankH) {
     ctx.fillStyle = (y / plankH) % 2 === 0 ? '#ded4bd' : '#e6dcc8';
-    ctx.fillRect(0, y, canvas.width, plankH);
+    ctx.fillRect(0, y, 512, plankH);
 
     // Plank seams
     ctx.strokeStyle = '#c4b79b';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
+    ctx.lineTo(512, y);
     ctx.stroke();
   }
 
@@ -369,10 +377,11 @@ export function getSlateRoofTexture(): THREE.CanvasTexture | null {
   if (cachedSlateRoof) return cachedSlateRoof;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.scale(0.5, 0.5);
 
   // Rich terracotta red base coat
   ctx.fillStyle = '#8f1d1d';
@@ -415,8 +424,9 @@ export function getSlateRoofTexture(): THREE.CanvasTexture | null {
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(8, 6);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
+  texture.anisotropy = 4;
   cachedSlateRoof = texture;
   return texture;
 }
+
 

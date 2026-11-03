@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { CampusGeometry, Footprint } from '../../../domain/geometry/types';
+import { NO_RAYCAST } from '../geometry/staticGeometryMerger';
 
 export interface StreetLampSpec {
   x: number;
@@ -67,14 +68,19 @@ function isInsideBuildingMargin(
       return true;
     }
   }
-  // Exclude rendered sports courts and running tracks
+  // Exclude rendered sports courts, pitches and running tracks
   for (const ctx of geometry.context) {
-    if (ctx.kind === 'court' || ctx.kind === 'track') {
+    if (ctx.kind === 'court' || ctx.kind === 'track' || ctx.kind === 'pitch') {
       if (isPointInsideFootprintWithMargin(x, z, ctx.footprint, Math.max(1.2, margin * 0.6))) {
         return true;
       }
     }
   }
+  // Explicit world-space bounds for 3D sports facilities in SportsFacilities.tsx:
+  // - Small Soccer Pitch & Multi-Sport / Tennis Courts (x in [11.5, 73.5], z in [-9.6, 41.4])
+  if (x >= 11.5 && x <= 73.5 && z >= -9.6 && z <= 41.4) return true;
+  // - Regulation Grand Football Stadium (x in [-105.0, -49.0], z in [-131.0, -26.0])
+  if (x >= -105.0 && x <= -49.0 && z >= -131.0 && z <= -26.0) return true;
   // Keep clear of fountain water basins
   if (x > -39.0 && x < 34.0 && z > 6.2 && z < 25.6) return true;
   if (x > -6.5 && x < 17.5 && z > -29.1 && z < -17.1) return true;
@@ -204,10 +210,6 @@ export function computeCampusStreetLamps(geometry: CampusGeometry): StreetLampSp
  */
 export function computeCampusBenchesAndBins(geometry: CampusGeometry): BenchSpec[] {
   const candidates: BenchSpec[] = [
-    // Fountain plaza outer borders facing promenade
-    { x: 26, z: -3.6, rotY: 0, hasBin: true },
-    { x: 26, z: 35.4, rotY: Math.PI, hasBin: false },
-    { x: 26, z: -4.2, rotY: 0, hasBin: false },
     // Wide North-South Pedestrian Avenue (east of Building F and athletic courts)
     { x: 88.5, z: -40.0, rotY: -Math.PI / 2, hasBin: true },
     { x: 88.5, z: -20.0, rotY: -Math.PI / 2, hasBin: false },
@@ -284,21 +286,11 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
     const totems = useMemo(() => allTotems.slice(0, Math.round(allTotems.length * propRatio)), [allTotems, propRatio]);
     const bins = useMemo(() => benches.filter((b) => b.hasBin), [benches]);
 
-    // Horizon silhouette trees around the outer perimeter (R = 235..275m)
-    const horizonTrees = useMemo(() => {
-      const items: { x: number; z: number; scaleXZ: number; scaleY: number }[] = [];
-      const count = quality === 'high' ? 88 : quality === 'medium' ? 56 : 28;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const r = 238 + ((i * 17) % 34);
-        const x = Math.cos(angle) * r;
-        const z = Math.sin(angle) * r;
-        const scaleXZ = 3.8 + ((i * 7) % 5) * 0.55;
-        const scaleY = 3.4 + ((i * 11) % 5) * 0.55;
-        items.push({ x, z, scaleXZ, scaleY });
-      }
-      return items;
-    }, [quality]);
+    // Outer perimeter trees removed per user request: "убери также пустые зоны за пределами кампуса"
+    const horizonTrees = useMemo(
+      () => [] as { x: number; z: number; scaleXZ: number; scaleY: number }[],
+      [],
+    );
 
     // Instanced refs
     const poleMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -490,6 +482,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, lamps.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <cylinderGeometry args={[0.065, 0.1, 4.6, 8]} />
               <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.75} />
@@ -500,13 +493,18 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               ref={armMeshRef}
               args={[undefined, undefined, lamps.length]}
               castShadow={castPropShadow}
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[0.06, 0.06, 0.55]} />
               <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.75} />
             </instancedMesh>
 
             {/* Street Lamp Lantern Globes */}
-            <instancedMesh ref={lanternMeshRef} args={[undefined, undefined, lamps.length]}>
+            <instancedMesh
+              ref={lanternMeshRef}
+              args={[undefined, undefined, lamps.length]}
+              raycast={NO_RAYCAST}
+            >
               <cylinderGeometry args={[0.16, 0.11, 0.26, 8]} />
               <meshStandardMaterial
                 color={enableNightLights ? '#fef3c7' : '#f8fafc'}
@@ -535,6 +533,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, benches.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[1.85, 0.08, 0.52]} />
               <meshStandardMaterial color="#92400e" roughness={0.72} metalness={0.08} />
@@ -546,6 +545,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, benches.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[1.85, 0.42, 0.07]} />
               <meshStandardMaterial color="#b45309" roughness={0.7} metalness={0.08} />
@@ -556,6 +556,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               ref={benchLegsRef}
               args={[undefined, undefined, benches.length]}
               castShadow={castPropShadow}
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[1.65, 0.42, 0.46]} />
               <meshStandardMaterial color="#1e293b" roughness={0.5} metalness={0.7} />
@@ -567,6 +568,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, bins.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <cylinderGeometry args={[0.22, 0.2, 0.82, 10]} />
               <meshStandardMaterial color="#334155" roughness={0.45} metalness={0.6} />
@@ -578,13 +580,18 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
               args={[undefined, undefined, totems.length]}
               castShadow={castPropShadow}
               receiveShadow
+              raycast={NO_RAYCAST}
             >
               <boxGeometry args={[0.68, 2.7, 0.18]} />
               <meshStandardMaterial color="#1e3a8a" roughness={0.35} metalness={0.45} />
             </instancedMesh>
 
             {/* Wayfinding Illuminated Gold Accent Header */}
-            <instancedMesh ref={totemHeaderRef} args={[undefined, undefined, totems.length]}>
+            <instancedMesh
+              ref={totemHeaderRef}
+              args={[undefined, undefined, totems.length]}
+              raycast={NO_RAYCAST}
+            >
               <boxGeometry args={[0.7, 0.34, 0.2]} />
               <meshStandardMaterial
                 color="#f59e0b"
@@ -599,58 +606,14 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
 
         {skyLifeEnabled && (
           <group name="campus-long-range-atmosphere">
-            {/* Distant Horizon Tree-Line Ring */}
-            <instancedMesh
-              ref={horizonTrunkRef}
-              args={[undefined, undefined, horizonTrees.length]}
-            >
-              <cylinderGeometry args={[0.35, 0.5, 1, 6]} />
-              <meshStandardMaterial color="#5c4033" roughness={0.95} />
-            </instancedMesh>
-            <instancedMesh
-              ref={horizonCanopyRef}
-              args={[undefined, undefined, horizonTrees.length]}
-            >
-              <dodecahedronGeometry args={[1, 1]} />
-              <meshStandardMaterial color="#ffffff" roughness={0.86} />
-            </instancedMesh>
-
             {/* Soaring Bird Flock */}
             <instancedMesh
               ref={birdsRef}
               args={[soaringBirdGeo, undefined, birdCount]}
+              raycast={NO_RAYCAST}
             >
               <meshBasicMaterial color="#334155" side={THREE.DoubleSide} />
             </instancedMesh>
-
-            {/* Soft Drifting High-Altitude Cumulus Clouds */}
-            <group ref={cloudsGroupRef} position={[0, 92, 0]}>
-              {[
-                [-115, 6, -98, 24, 9.5, 16],
-                [98, 10, -112, 28, 11.0, 18],
-                [-132, 4, 88, 25, 9.0, 15],
-                [122, 8, 96, 26, 10.5, 18],
-                [12, 14, -148, 30, 11.5, 20],
-                [-22, 11, 158, 28, 10.0, 18],
-              ]
-                .slice(0, quality === 'low' ? 3 : 6)
-                .map(([cx, cy, cz, sx, sy, sz], idx) => (
-                  <mesh
-                    key={`cloud-${idx}`}
-                    geometry={cumulusCloudGeo}
-                    position={[cx, cy, cz]}
-                    scale={[sx, sy, sz]}
-                  >
-                    <meshBasicMaterial
-                      color={enableNightLights ? '#475569' : '#ffffff'}
-                      vertexColors
-                      transparent
-                      opacity={enableNightLights ? 0.38 : 0.85}
-                      depthWrite={false}
-                    />
-                  </mesh>
-                ))}
-            </group>
           </group>
         )}
       </group>

@@ -46,14 +46,43 @@ export function SearchBox() {
 
   return (
     <div className="search">
-      <input
-        type="search"
-        className="search__input"
-        placeholder="Search room, subject, professor, group…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label="Search room, subject, professor, or group"
-      />
+      <div className="search__input-wrap">
+        <svg
+          className="search__icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="search"
+          className="search__input"
+          placeholder="Search room, subject, professor, group…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search room, subject, professor, or group"
+        />
+        {query && (
+          <button
+            type="button"
+            className="search__clear"
+            onClick={() => setQuery('')}
+            aria-label="Clear search"
+            title="Clear search"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {query.trim() && (
         <ul className="search__results" role="listbox">
           {results.length === 0 && emptyDiagnosis && (
@@ -96,7 +125,7 @@ export function SearchBox() {
                 }}
               >
                 <span className="search__title">
-                  {r.title}
+                  <span>{r.title}</span>
                   {r.lesson && (
                     <span className="search__time">
                       {formatTime(r.lesson.startsAt)}–{formatTime(r.lesson.endsAt)}

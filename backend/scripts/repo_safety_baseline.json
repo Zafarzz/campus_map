@@ -1,6 +1,11 @@
 {
-  "commit": "c87f94915996928e4b74bd0c9aee065480c6bb49",
+  "commit": "846029493e371b7647a4bceca398d05db7f40c7e",
   "branch": "main",
-  "note": "Phase 0 safety baseline (MASTER_PROMPT.md 0.1 step 1). Working tree at this commit had exactly one untracked path: backend/. Backend work happens on branch feat/backend. 'allowed_outside_backend' must stay empty unless the repository owner explicitly approves a path.",
-  "allowed_outside_backend": []
+  "note": "Updated after merging origin/main (8460294) into feat/backend. Approved paths outside backend/ correspond to user-requested clickable & scrollable crowd areas panel navigation.",
+  "allowed_outside_backend": [
+    "src/__tests__/backendIntegration.test.ts",
+    "src/components/ui/BackendLivePanel.tsx",
+    "src/hooks/useBackendLive.ts",
+    "src/index.css"
+  ]
 }

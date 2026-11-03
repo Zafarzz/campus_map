@@ -50,6 +50,8 @@ type MapContextValue = {
 
   showReference: boolean;
   setShowReference: (v: boolean) => void;
+
+  scheduleLoading?: boolean;
 };
 
 const MapContext = createContext<MapContextValue | null>(null);
@@ -64,6 +66,9 @@ type LoadedCampus = { campus: Campus; index: CampusIndex; geometry: CampusGeomet
 
 export function MapProvider({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
   const [loaded, setLoaded] = useState<LoadedCampus | null>(null);
+  const [loadingStage, setLoadingStage] = useState<string>('Initializing campus...');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState<boolean>(true);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [weekLessons, setWeekLessons] = useState<ReadonlyMap<WeekdayIndex, Lesson[]>>(() => new Map());
   const [catalog, setCatalog] = useState<TimetableCatalog>(EMPTY_TIMETABLE_CATALOG);
@@ -74,33 +79,45 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
   const dateKey = toLocalDateKey(now);
   const weekMondayKey = toLocalDateKey(resolveSimulatedDate(now, 0, 0));
 
-  useEffect(() => {
-    let alive = true;
-    const syncCampus = () => {
-      loadCampus().then((campus) => {
-        if (!alive) return;
+  const syncCampus = useCallback(() => {
+    setLoadError(null);
+    setLoadingStage('Loading campus structure & building footprints...');
+    loadCampus()
+      .then((campus) => {
+        setLoadingStage('Preparing 3D building geometry & floors...');
         setLoaded((prev) =>
           prev && JSON.stringify(prev.campus) === JSON.stringify(campus)
             ? prev
             : { campus, index: createCampusIndex(campus), geometry: geometryProvider.build(campus) },
         );
+      })
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : 'Failed to initialize campus data.');
       });
-    };
+  }, []);
+
+  useEffect(() => {
     syncCampus();
     window.addEventListener('campus:backend-updated', syncCampus);
     return () => {
-      alive = false;
       window.removeEventListener('campus:backend-updated', syncCampus);
     };
-  }, []);
+  }, [syncCampus]);
 
   useEffect(() => {
     if (!loaded) return;
     let alive = true;
+    setScheduleLoading(true);
     const refresh = () =>
-      loadLessonsForDate(loaded.campus, dateKey).then(
-        (l) => alive && setLessons((prev) => (JSON.stringify(prev) === JSON.stringify(l) ? prev : l)),
-      );
+      loadLessonsForDate(loaded.campus, dateKey)
+        .then((l) => {
+          if (!alive) return;
+          setLessons((prev) => (JSON.stringify(prev) === JSON.stringify(l) ? prev : l));
+          setScheduleLoading(false);
+        })
+        .catch(() => {
+          if (alive) setScheduleLoading(false);
+        });
     refresh();
     // With the backend on, poll so schedule changes (imports, cancellations, bookings) show up live.
     const timer = isBackendEnabled ? window.setInterval(refresh, BACKEND_REFRESH_MS) : undefined;
@@ -179,7 +196,23 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
 
   const clearSelection = useCallback(() => setSelection({}), []);
 
-  if (!loaded) return <>{fallback}</>;
+  if (loadError) {
+    return (
+      <div className="campus-init-loader" role="alert">
+        <div className="campus-init-loader__card">
+          <div className="campus-init-loader__error-title">Unable to Load Campus Data</div>
+          <p className="campus-init-loader__error-desc">{loadError}</p>
+          <button type="button" className="btn-primary" onClick={syncCampus}>
+            Retry Loading
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loaded) {
+    return <>{fallback ?? <div className="loading">{loadingStage}</div>}</>;
+  }
 
   const value: MapContextValue = {
     ...loaded,
@@ -197,6 +230,7 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
     setTime,
     showReference,
     setShowReference,
+    scheduleLoading,
   };
 
   return <MapContext.Provider value={value}>{children}</MapContext.Provider>;

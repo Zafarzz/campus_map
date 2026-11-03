@@ -13,8 +13,8 @@ export function getAtticBannerTexture(): THREE.CanvasTexture | null {
   if (cachedAtticTexture) return cachedAtticTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 256;
+  canvas.width = 1024;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -24,19 +24,19 @@ export function getAtticBannerTexture(): THREE.CanvasTexture | null {
 
   // Subtle stone joint borders
   ctx.strokeStyle = '#d5ccbc';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
 
   // Text setup
   ctx.fillStyle = '#2d2824';
-  ctx.font = 'bold 82px "Montserrat", "Arial", sans-serif';
+  ctx.font = 'bold 41px "Montserrat", "Arial", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   // Crisp embossed shadow
   ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
   ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 2;
+  ctx.shadowOffsetY = 1;
   ctx.shadowBlur = 0;
 
   const text = 'TOSHKENT SHAHRIDAGI ADJU UNIVERSITETI';
@@ -58,8 +58,8 @@ export function getCanopySignTexture(): THREE.CanvasTexture | null {
   if (cachedCanopyTexture) return cachedCanopyTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 256;
+  canvas.width = 1024;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -69,14 +69,14 @@ export function getCanopySignTexture(): THREE.CanvasTexture | null {
 
   // High-contrast clean architectural text
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 96px "Montserrat", "Arial", sans-serif';
+  ctx.font = 'bold 48px "Montserrat", "Arial", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
   ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 3;
-  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  ctx.shadowBlur = 2;
 
   const text = 'AJOU UNIVERSITY IN TASHKENT';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -85,6 +85,204 @@ export function getCanopySignTexture(): THREE.CanvasTexture | null {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   cachedCanopyTexture = texture;
+  return texture;
+}
+
+let cachedDualFriezeTexture: THREE.CanvasTexture | null = null;
+let cachedEnglishFriezeTexture: THREE.CanvasTexture | null = null;
+let cachedKoreanFriezeTexture: THREE.CanvasTexture | null = null;
+
+/**
+ * High-resolution dedicated texture for English signage frieze panel (Bays 2–3 / Axes 2–4):
+ * "AJOU UNIVERSITY IN TASHKENT"
+ * Reconstructed directly from 2D Blueprint Photo 2 («ФАСАД КОРПУСА В ОСЯХ 1–7»).
+ */
+export function getAjouEnglishFriezeTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  if (cachedEnglishFriezeTexture) return cachedEnglishFriezeTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Background light travertine matching classical wall frieze
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Architectural panel border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+
+  // Horizontal reveal shadow lines top and bottom
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(3, 6, canvas.width - 6, 2);
+  ctx.fillRect(3, canvas.height - 8, canvas.width - 6, 2);
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  // Volumetric English text: "AJOU UNIVERSITY IN TASHKENT" (calibrated height to fit cleanly below cornice)
+  ctx.font = '900 80px "Montserrat", "Arial Black", "Arial", sans-serif';
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = '3px';
+  }
+  ctx.shadowColor = 'rgba(0, 43, 102, 0.35)';
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 3;
+
+  // Dark navy stroke outline + rich cobalt/navy fill
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#001433';
+  ctx.strokeText('AJOU UNIVERSITY IN TASHKENT', canvas.width / 2, canvas.height / 2 + 2);
+  ctx.fillStyle = '#002b66';
+  ctx.fillText('AJOU UNIVERSITY IN TASHKENT', canvas.width / 2, canvas.height / 2 + 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  cachedEnglishFriezeTexture = texture;
+  return texture;
+}
+
+/**
+ * High-resolution dedicated texture for Korean signage frieze panel (Bay 5 / Axes 5–6):
+ * "아주대학교 타슈켄트"
+ * Reconstructed directly from 2D Blueprint Photo 2 («ФАСАД КОРПУСА В ОСЯХ 1–7»).
+ */
+export function getAjouKoreanFriezeTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  if (cachedKoreanFriezeTexture) return cachedKoreanFriezeTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1536;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Background light travertine matching classical wall frieze
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Architectural panel border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+
+  // Horizontal reveal shadow lines top and bottom
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(3, 6, canvas.width - 6, 2);
+  ctx.fillRect(3, canvas.height - 8, canvas.width - 6, 2);
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  // Volumetric Korean CJK typography using installed Noto Sans CJK KR: "아주대학교 타슈켄트"
+  ctx.font = '900 85px "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = '4px';
+  }
+  ctx.shadowColor = 'rgba(0, 43, 102, 0.35)';
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 3;
+
+  // Dual-pass stroke + fill for razor-sharp legibility
+  ctx.lineWidth = 4.5;
+  ctx.strokeStyle = '#001433';
+  ctx.strokeText('아주대학교 타슈켄트', canvas.width / 2, canvas.height / 2 + 2);
+  ctx.fillStyle = '#002b66';
+  ctx.fillText('아주대학교 타슈켄트', canvas.width / 2, canvas.height / 2 + 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  cachedKoreanFriezeTexture = texture;
+  return texture;
+}
+
+/**
+ * Creates high-resolution texture for Block F entablature frieze:
+ * English: "AJOU UNIVERSITY IN TASHKENT" on the left,
+ * Korean: "아주대학교 타슈켄트" on the right.
+ * Reconstructed from blueprint: "ФАСАД КОРПУСА «AJOU UNIVERSITY IN TASHKENT» В ОСЯХ 1–7".
+ */
+export function getAjouDualFriezeTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  if (cachedDualFriezeTexture) return cachedDualFriezeTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Background light travertine / white frieze matching the classical building wall
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Architectural architrave panel border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+
+  // Subtle horizontal reveal shadow line along top and bottom
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(3, 6, canvas.width - 6, 2);
+  ctx.fillRect(3, canvas.height - 8, canvas.width - 6, 2);
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  // 1. English text centered over Bays 2–3:
+  ctx.font = '900 48px "Montserrat", "Arial Black", "Arial", sans-serif';
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = '1px';
+  }
+  ctx.shadowColor = 'rgba(0, 43, 102, 0.4)';
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 2;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#001433';
+  ctx.strokeText('AJOU UNIVERSITY IN TASHKENT', 682, canvas.height / 2);
+  ctx.fillStyle = '#002b66';
+  ctx.fillText('AJOU UNIVERSITY IN TASHKENT', 682, canvas.height / 2);
+
+  // 2. Korean text centered over Bay 5:
+  ctx.font = '900 50px "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "NanumGothic", "Arial Unicode MS", sans-serif';
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = '2px';
+  }
+  ctx.shadowColor = 'rgba(0, 43, 102, 0.45)';
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = 2;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#001433';
+  ctx.strokeText('아주대학교 타슈켄트', 1536, canvas.height / 2);
+  ctx.fillStyle = '#002b66';
+  ctx.fillText('아주대학교 타슈켄트', 1536, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  cachedDualFriezeTexture = texture;
   return texture;
 }
 

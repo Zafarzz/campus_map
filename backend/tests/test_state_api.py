@@ -89,7 +89,7 @@ async def test_state_returns_every_room_including_free_ones(scheduled_client: As
     assert response.status_code == 200
     body = response.json()
 
-    assert len(body["rooms"]) == 101, "all seeded rooms must be present"
+    assert len(body["rooms"]) == 123, "all seeded rooms must be present"
     assert {item["state"] for item in body["rooms"]} <= {kind.value for kind in RoomStateKind}
     assert body["mode"] == "simulate"
     assert body["timezone"] == "Asia/Tashkent"

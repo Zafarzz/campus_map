@@ -16,10 +16,10 @@ pytestmark = pytest.mark.db
 
 async def test_seed_loads_the_whole_campus(seeded_session: AsyncSession) -> None:
     assert await seeded_session.scalar(select(func.count()).select_from(Campus)) == 1
-    assert await seeded_session.scalar(select(func.count()).select_from(Building)) == 8
-    assert await seeded_session.scalar(select(func.count()).select_from(Floor)) == 24
-    assert await seeded_session.scalar(select(func.count()).select_from(Room)) == 101
-    assert await seeded_session.scalar(select(func.count()).select_from(Connector)) == 2
+    assert await seeded_session.scalar(select(func.count()).select_from(Building)) == 10
+    assert await seeded_session.scalar(select(func.count()).select_from(Floor)) == 27
+    assert await seeded_session.scalar(select(func.count()).select_from(Room)) == 123
+    assert await seeded_session.scalar(select(func.count()).select_from(Connector)) == 3
 
 
 async def test_seeded_ids_are_the_front_ends_ids(seeded_session: AsyncSession) -> None:
@@ -53,7 +53,7 @@ async def test_demo_flag_mirrors_the_front_ends_provenance(seeded_session: Async
     front end renders a "Demo room" tag from exactly this distinction.
     """
     demo = await seeded_session.scalar(select(func.count()).select_from(Room).where(Room.is_demo.is_(True)))
-    assert demo == 18
+    assert demo == 24
 
     placeholder = await seeded_session.get(Room, "bld-a-f1-r1")
     assert placeholder is not None and placeholder.is_demo is True
@@ -115,13 +115,13 @@ async def test_seeding_twice_changes_nothing(session: AsyncSession) -> None:
 
     first = await seed_campus(session, inventory, timezone="Asia/Tashkent", random_seed=1)
     await session.flush()
-    assert first.created["rooms"] == 101
+    assert first.created["rooms"] == 123
     assert not first.deleted
 
     second = await seed_campus(session, inventory, timezone="Asia/Tashkent", random_seed=1)
     await session.flush()
     assert "rooms" not in second.created
-    assert second.updated["rooms"] == 101
+    assert second.updated["rooms"] == 123
     assert not second.deleted
     assert second.totals == first.totals
 
@@ -159,4 +159,4 @@ async def test_seed_records_a_run_with_the_inventory_hash(seeded_session: AsyncS
     assert run is not None
     assert len(run.inventory_hash) == 64
     assert run.counts is not None
-    assert run.counts["totals"]["rooms"] == 101
+    assert run.counts["totals"]["rooms"] == 123

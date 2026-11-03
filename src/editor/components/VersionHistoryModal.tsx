@@ -85,8 +85,8 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
     >
       <div
         style={{
-          width: 650,
-          maxHeight: '85vh',
+          width: 'min(650px, 94vw)',
+          maxHeight: '88dvh',
           backgroundColor: '#ffffff',
           borderRadius: 12,
           border: '1px solid #cbd5e1',

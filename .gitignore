@@ -32,3 +32,6 @@ pnpm-debug.log*
 # Temporary and scratch files
 *.tmp
 *.zip
+/photo_*.jpg
+/image*.png
+todo_list.md

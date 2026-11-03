@@ -4,7 +4,7 @@ export const DEFAULT_APPEARANCE: BuildingAppearance = {
   preset: 'default',
   wallColor: '#f1f5f9',
   wallRoughness: 0.85,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'flat',
   roofColor: '#64748b',
   roofRoughness: 0.8,
@@ -49,8 +49,8 @@ export const ACADEMIC_MODERN: BuildingAppearance = {
   ...DEFAULT_APPEARANCE,
   preset: 'academic-modern',
   wallColor: '#f8fafc',
-  wallRoughness: 0.75,
-  wallMetalness: 0.1,
+  wallRoughness: 0.78,
+  wallMetalness: 0.0,
   roofType: 'flat',
   roofColor: '#475569',
   roofRoughness: 0.8,
@@ -101,8 +101,8 @@ export const SPORTS_COMPLEX: BuildingAppearance = {
   ...DEFAULT_APPEARANCE,
   preset: 'sports-complex',
   wallColor: '#f1f5f9',
-  wallRoughness: 0.7,
-  wallMetalness: 0.15,
+  wallRoughness: 0.76,
+  wallMetalness: 0.0,
   roofType: 'barrel',
   roofColor: '#22252a',
   roofHeight: 6.9,
@@ -135,10 +135,11 @@ export const BLOCK_C_FRONT: BuildingAppearance = {
   preset: 'block-c-front',
   wallColor: '#e2c391',
   wallRoughness: 0.82,
-  wallMetalness: 0.04,
-  roofType: 'flat',
-  roofColor: '#475569',
-  roofRoughness: 0.85,
+  wallMetalness: 0.0,
+  roofType: 'hip',
+  roofColor: '#991b1b', // Terracotta red hip roof matching Block A and Block B per media_1793538000291.png
+  roofHeight: 3.6,
+  roofRoughness: 0.7,
   hasCornice: true,
   corniceColor: '#f1e6cf',
   hasPlinth: true,
@@ -154,7 +155,7 @@ export const BLOCK_B_FRONT: BuildingAppearance = {
   preset: 'block-b-front',
   wallColor: '#ebdcc5', // Warm travertine / cream beige
   wallRoughness: 0.8,
-  wallMetalness: 0.05,
+  wallMetalness: 0.0,
   roofType: 'hip',
   roofColor: '#991b1b', // Classic red metal tile roof
   roofRoughness: 0.7,
@@ -170,6 +171,90 @@ export const BLOCK_B_FRONT: BuildingAppearance = {
   customFacade: 'block-b',
 };
 
+export const BLOCK_A_FRONT: BuildingAppearance = {
+  ...DEFAULT_APPEARANCE,
+  preset: 'block-a-front',
+  wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793539586758.jpg
+  wallRoughness: 0.8,
+  wallMetalness: 0.0,
+  roofType: 'hip',
+  roofColor: '#991b1b', // Terracotta red hip roof
+  roofRoughness: 0.7,
+  roofHeight: 3.6,
+  roofOverhang: 1.0,
+  hasCornice: true,
+  corniceColor: '#f8fafc',
+  hasPlinth: true,
+  plinthColor: '#334155', // Dark granite / basalt plinth (+0.000 to +0.8m)
+  plinthHeight: 0.8,
+  hasWindows: true,
+  windowColor: '#1e3a5f', // Deep architectural blue reflective glass
+  customFacade: 'block-a',
+};
+
+export const BLOCK_F_FRONT: BuildingAppearance = {
+  ...DEFAULT_APPEARANCE,
+  preset: 'block-f-front',
+  wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793540287791.png
+  wallRoughness: 0.8,
+  wallMetalness: 0.0,
+  roofType: 'hip',
+  roofColor: '#8a99a8', // Architectural steel grey standing-seam metal roof matching reference photo
+  roofHeight: 1.4,
+  roofOverhang: 0.8,
+  roofRoughness: 0.6,
+  hasCornice: true,
+  corniceColor: '#f8fafc',
+  hasPlinth: true,
+  plinthColor: '#334155', // Dark granite / basalt plinth (+0.000 to +0.600m)
+  plinthHeight: 0.6,
+  hasWindows: true,
+  windowColor: '#1e293b', // Dark graphite architectural metal frame
+  customFacade: 'block-f',
+};
+
+export const BLOCK_D_FRONT: BuildingAppearance = {
+  ...DEFAULT_APPEARANCE,
+  preset: 'block-d-front',
+  wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793540478176.png
+  wallRoughness: 0.8,
+  wallMetalness: 0.0,
+  roofType: 'hip',
+  roofColor: '#991b1b', // Terracotta / burgundy red hip roof per elevation (+8.600m)
+  roofRoughness: 0.7,
+  roofHeight: 1.6,
+  roofOverhang: 1.0,
+  hasCornice: true,
+  corniceColor: '#f8fafc',
+  hasPlinth: true,
+  plinthColor: '#334155', // Dark granite plinth (+0.000 to +0.600m)
+  plinthHeight: 0.6,
+  hasWindows: true,
+  windowColor: '#27272a', // Dark graphite architectural metal frame (unified with Block C)
+  customFacade: 'block-d',
+};
+
+export const BLOCK_E_FRONT: BuildingAppearance = {
+  ...DEFAULT_APPEARANCE,
+  preset: 'block-e-front',
+  wallColor: '#ebdcc5', // Warm travertine / sand cream beige per CAD elevation media_1793540858849.png
+  wallRoughness: 0.8,
+  wallMetalness: 0.0,
+  roofType: 'hip',
+  roofColor: '#991b1b', // Terracotta red hip roof
+  roofRoughness: 0.7,
+  roofHeight: 3.6,
+  roofOverhang: 1.0,
+  hasCornice: true,
+  corniceColor: '#f8fafc',
+  hasPlinth: true,
+  plinthColor: '#334155', // Dark granite plinth (+0.000 to +0.700m)
+  plinthHeight: 0.7,
+  hasWindows: true,
+  windowColor: '#1e3a5f', // Deep architectural blue reflective glass
+  customFacade: 'block-e',
+};
+
 export const APPEARANCE_PRESETS: Record<string, BuildingAppearance> = {
   'academic-classic': ACADEMIC_CLASSIC,
   'academic-modern': ACADEMIC_MODERN,
@@ -179,17 +264,21 @@ export const APPEARANCE_PRESETS: Record<string, BuildingAppearance> = {
   'utility': UTILITY,
   'block-c-front': BLOCK_C_FRONT,
   'block-b-front': BLOCK_B_FRONT,
+  'block-a-front': BLOCK_A_FRONT,
+  'block-d-front': BLOCK_D_FRONT,
+  'block-e-front': BLOCK_E_FRONT,
+  'block-f-front': BLOCK_F_FRONT,
   'default': DEFAULT_APPEARANCE,
 };
 
 export const BUILDING_APPEARANCE_REGISTRY: Record<string, BuildingAppearance> = {
   'bld-a': ACADEMIC_CLASSIC,
-  'bld-h': ACADEMIC_CLASSIC, // Building A (Main block)
-  'bld-c': ACADEMIC_CLASSIC, // Building D (2-storey block with red roof)
+  'bld-h': BLOCK_A_FRONT,    // Building A (Main block calibrated to 2D elevation media_1793539586758.jpg)
+  'bld-c': BLOCK_D_FRONT,    // Building D (2-storey block facing fountain calibrated to CAD elevation media_1793540478176.png)
   'bld-g': BLOCK_B_FRONT,    // Building B (4-storey block facing Block C, calibrated to CAD)
   'bld-e': SPORTS_COMPLEX,   // Sports / C-complex
-  'bld-b': UTILITY,          // Utility
-  'bld-d': UTILITY,          // Building F
+  'bld-b': BLOCK_E_FRONT,    // Building E (4-storey academic block facing Block F calibrated to CAD elevation media_1793540858849.png)
+  'bld-d': BLOCK_F_FRONT,    // Building F (Block F calibrated to CAD elevation media_1793540287791.png)
   'bld-f': ACADEMIC_CLASSIC, // Cluster red
   'bld-i': BLOCK_C_FRONT,    // Block C Front Facade (next to Block A and B)
   'bld-j': DORMITORY,        // Block J (Dormitory Quadrangle)
