@@ -16,19 +16,19 @@ describe('Authentication Service & Password Security', () => {
 
   describe('validatePasswordStrength', () => {
     it('rejects passwords shorter than 6 characters', () => {
-      const res = validatePasswordStrength('Ab1!', '202590207', 'Ab1!');
+      const res = validatePasswordStrength('Ab1!', '202590123', 'Ab1!');
       expect(res.minLength).toBe(false);
       expect(res.isValid).toBe(false);
     });
 
     it('validates uppercase, lowercase, digits, and special characters', () => {
-      const weak = validatePasswordStrength('password', '202590207', 'password');
+      const weak = validatePasswordStrength('password', '202590123', 'password');
       expect(weak.hasUppercase).toBe(false);
       expect(weak.hasDigit).toBe(false);
       expect(weak.hasSpecialChar).toBe(false);
       expect(weak.isValid).toBe(false);
 
-      const strong = validatePasswordStrength('Campus#2026', '202590207', 'Campus#2026');
+      const strong = validatePasswordStrength('Campus#2026', '202590123', 'Campus#2026');
       expect(strong.minLength).toBe(true);
       expect(strong.hasUppercase).toBe(true);
       expect(strong.hasLowercase).toBe(true);
@@ -40,13 +40,13 @@ describe('Authentication Service & Password Security', () => {
     });
 
     it('rejects passwords identical to the student ID or email', () => {
-      const same = validatePasswordStrength('202590207', '202590207', '202590207');
+      const same = validatePasswordStrength('202590123', '202590123', '202590123');
       expect(same.notIdentifier).toBe(false);
       expect(same.isValid).toBe(false);
     });
 
     it('detects mismatched password confirmation', () => {
-      const mismatch = validatePasswordStrength('Campus#2026', '202590207', 'Different#2026');
+      const mismatch = validatePasswordStrength('Campus#2026', '202590123', 'Different#2026');
       expect(mismatch.passwordsMatch).toBe(false);
       expect(mismatch.isValid).toBe(false);
     });
@@ -58,14 +58,14 @@ describe('Authentication Service & Password Security', () => {
       expect(getStoredUser()).toBeNull();
 
       const profile: UserProfile = {
-        user_id: 'std-202590207',
+        user_id: 'std-202590123',
         account_type: 'student',
         is_admin: false,
-        student_id: '202590207',
-        display_name: 'ROBIYAXON MUZAFFAROVA',
-        first_name: 'ROBIYAXON',
-        last_name: 'MUZAFFAROVA',
-        fathers_name: 'JAHONGIR QIZI',
+        student_id: '202590123',
+        display_name: 'DEMO STUDENT',
+        first_name: 'DEMO',
+        last_name: 'STUDENT',
+        fathers_name: '',
         department: 'IT-Business',
         group_no: 'I25D',
         must_change_password: false,
@@ -78,7 +78,7 @@ describe('Authentication Service & Password Security', () => {
       expect(getStoredToken()).toBe('test-token-123');
       const stored = getStoredUser();
       expect(stored).not.toBeNull();
-      expect(stored?.student_id).toBe('202590207');
+      expect(stored?.student_id).toBe('202590123');
       expect(stored?.group_no).toBe('I25D');
 
       clearSession();
@@ -88,14 +88,14 @@ describe('Authentication Service & Password Security', () => {
   });
 
   describe('Offline Fallback Demo Login', () => {
-    it('authenticates known student 202590207 offline and sets must_change_password if initial', async () => {
+    it('authenticates known student 202590123 offline and sets must_change_password if initial', async () => {
       const res = await loginUser({
         account_type: 'student',
-        student_id: '202590207',
-        password: '202590207',
+        student_id: '202590123',
+        password: '202590123',
       });
 
-      expect(res.student_id).toBe('202590207');
+      expect(res.student_id).toBe('202590123');
       expect(res.group_no).toBe('I25D');
       expect(res.must_change_password).toBe(true);
       expect(getStoredToken()).toBeTruthy();

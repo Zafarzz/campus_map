@@ -29,7 +29,7 @@ export const DEFAULT_LOGIN_CONFIG: LoginConfigResponse = {
       title: 'Student',
       default_selected: true,
       input_label: 'Student ID',
-      input_placeholder: 'e.g. 202590207',
+      input_placeholder: 'e.g. 202590123',
       helper_text: 'First time? Use your 9-digit Student ID as both login and password.',
     },
     {
@@ -45,12 +45,12 @@ export const DEFAULT_LOGIN_CONFIG: LoginConfigResponse = {
 
 // Known demo accounts for offline fallback when Docker/FastAPI backend is offline
 const DEMO_FALLBACK_ACCOUNTS: Record<string, Partial<UserProfile>> = {
-  '202590207': {
-    student_id: '202590207',
-    display_name: 'ROBIYAXON MUZAFFAROVA',
-    first_name: 'ROBIYAXON',
-    last_name: 'MUZAFFAROVA',
-    fathers_name: 'JAHONGIR QIZI',
+  '202590123': {
+    student_id: '202590123',
+    display_name: 'DEMO STUDENT',
+    first_name: 'DEMO',
+    last_name: 'STUDENT',
+    fathers_name: '',
     department: 'IT-Business',
     group_no: 'I25D',
     account_type: 'student',

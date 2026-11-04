@@ -22,6 +22,7 @@ import { AuthHeaderButton } from './components/auth/AuthHeaderButton';
 import { AuthModal } from './components/auth/AuthModal';
 import { AuthProvider } from './state/AuthContext';
 import { MapProvider, useMap } from './state/MapProvider';
+import './components/ui/panelMinimal.css';
 
 const LazyEditorPage = lazy(() =>
   import('./editor/components/EditorPage').then((m) => ({ default: m.EditorPage })),
@@ -152,7 +153,7 @@ function AppLayout() {
         <header className="header">
           <div className="header__top">
             <div className="header__brand">
-              <span className="header__logo" aria-hidden="true">AUT</span>
+              <img src="/assets/aut-seal.png" alt="Ajou University in Tashkent" className="header__logo" width="38" height="38" />
               <div>
                 <h1 className="header__title">Campus Map</h1>
                 <Breadcrumbs />

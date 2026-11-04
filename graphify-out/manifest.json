@@ -804,9 +804,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793739947.4327254,
-    "seen": 1793740890.0127308,
-    "ast_hash": "b4a0ed628be29a4119cebc42ad0751ea",
+    "mtime": 1793773939.031515,
+    "seen": 1793775250.7097874,
+    "ast_hash": "b4a2118030c3576efdc4af8aef6497d6",
     "semantic_hash": ""
   },
   "src/__tests__/ajouArtObject.test.ts": {
@@ -2256,27 +2256,27 @@
     "semantic_hash": ""
   },
   "src/__tests__/auth.test.ts": {
-    "mtime": 1793740085.7140098,
-    "seen": 1793740890.0134323,
-    "ast_hash": "deacda0ce23bc3da90d6c8b51cbeaee5",
+    "mtime": 1793770594.1660411,
+    "seen": 1793775250.7105718,
+    "ast_hash": "507d01bf20286bc4a9d763ca05408ef1",
     "semantic_hash": ""
   },
   "src/components/auth/AuthHeaderButton.tsx": {
-    "mtime": 1793739869.546672,
-    "seen": 1793740890.0431557,
-    "ast_hash": "4f88eb4fb622ac7cf03874976a02be49",
+    "mtime": 1793770557.1869876,
+    "seen": 1793775250.7470853,
+    "ast_hash": "2ae9a257f0ad8f07d5ce36ce57505e9f",
     "semantic_hash": ""
   },
   "src/components/auth/AuthModal.tsx": {
-    "mtime": 1793739904.4073608,
-    "seen": 1793740890.0431607,
-    "ast_hash": "ae4983785a9f01ff122176b1b41c4855",
+    "mtime": 1793770469.9090624,
+    "seen": 1793775250.7470987,
+    "ast_hash": "2fe119306bf2da8a81a33bec55e1e8e0",
     "semantic_hash": ""
   },
   "src/services/auth/authService.ts": {
-    "mtime": 1793740123.9307551,
-    "seen": 1793740890.0646133,
-    "ast_hash": "63a1fc79cbba0f63d932af922d2788fe",
+    "mtime": 1793770594.144819,
+    "seen": 1793775250.7725267,
+    "ast_hash": "28822b623b06ffc2efb58e12dcf5f379",
     "semantic_hash": ""
   },
   "src/services/auth/authTypes.ts": {
@@ -2289,6 +2289,18 @@
     "mtime": 1793739835.9205058,
     "seen": 1793740890.0664523,
     "ast_hash": "cb0842f4138c8f1fcd0c33491debc151",
+    "semantic_hash": ""
+  },
+  "src/components/auth/AuthIcons.tsx": {
+    "mtime": 1793770350.3425941,
+    "seen": 1793775250.7470927,
+    "ast_hash": "6ceea4d44585a8f1b584b9597dce11ca",
+    "semantic_hash": ""
+  },
+  "public/assets/aut-seal.png": {
+    "mtime": 1793773624.0654857,
+    "seen": 1793775250.7963564,
+    "ast_hash": "eff5380df06eeff9ecda962d23102e69",
     "semantic_hash": ""
   },
   "package-lock.json": {
