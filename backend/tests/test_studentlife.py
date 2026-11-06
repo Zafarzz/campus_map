@@ -408,6 +408,21 @@ async def test_lost_found_lifecycle_and_claim(
     assert resolved.status == "approved"
     assert item.status is LostFoundStatus.returned
 
+    # 4. Outdoor / non-FK building_id ("campus-grounds") + contact_info must not fail FK checks
+    outdoor_item, _ = await studentlife_service.report_lost_found_item(
+        seeded_session,
+        reporter_user_id=finder,
+        kind=LostFoundKind.lost,
+        category="electronics",
+        title="Black wireless earbuds",
+        description="Dropped near courtyard benches",
+        contact_info="@aut_finder",
+        building_id="campus-grounds",
+        now=NOW + timedelta(hours=2),
+    )
+    assert outdoor_item.building_id is None
+    assert outdoor_item.contact_info == "@aut_finder"
+
 
 @pytest.mark.db
 async def test_dorm_services_and_machine_status(

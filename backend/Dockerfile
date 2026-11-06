@@ -33,7 +33,7 @@ FROM base AS dev
 RUN pip install -e ".[dev]"
 COPY . .
 # Run as a non-root user even in development.
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser /srv
+RUN useradd --create-home --uid 10001 appuser && mkdir -p /var/lib/campus_map_storage && chown -R appuser:appuser /srv /var/lib/campus_map_storage
 USER appuser
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
@@ -46,7 +46,7 @@ COPY alembic ./alembic
 COPY alembic.ini ./
 COPY locales ./locales
 COPY scripts ./scripts
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser /srv
+RUN useradd --create-home --uid 10001 appuser && mkdir -p /var/lib/campus_map_storage && chown -R appuser:appuser /srv /var/lib/campus_map_storage
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

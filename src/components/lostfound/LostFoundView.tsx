@@ -134,7 +134,7 @@ function processImageFile(file: File): Promise<string> {
       const img = new Image();
       img.onerror = () => reject(new Error('Failed to parse image'));
       img.onload = () => {
-        const MAX_DIM = 1200;
+        const MAX_DIM = 960;
         let { width, height } = img;
         if (width > MAX_DIM || height > MAX_DIM) {
           if (width > height) {
@@ -154,7 +154,7 @@ function processImageFile(file: File): Promise<string> {
           return;
         }
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       img.src = result;
     };
@@ -283,7 +283,7 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
         description: reportDescription.trim() || undefined,
         contact_info: reportContact.trim() || undefined,
         photo_base64: reportPhotoBase64 || undefined,
-        building_id: reportBuilding,
+        building_id: reportBuilding === 'campus-grounds' ? undefined : reportBuilding,
         handover_point: reportHandover.trim() || undefined,
         verification_question: reportQuestion.trim() || undefined,
       };

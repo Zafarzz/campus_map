@@ -222,6 +222,15 @@ main() {
     exit 1
   fi
 
+  log "Ensuring PostgreSQL Alembic migrations & app privileges are at head ..."
+  compose run --rm -T backend-init /bin/sh -ec '
+    export DATABASE_URL="postgresql+asyncpg://campus_app:${POSTGRES_APP_PASSWORD}@db:5432/campus"
+    export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+    export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
+    alembic upgrade head
+    python scripts/grant_app_privileges.py
+  '
+
   log "Waiting for end-to-end readiness (/readyz + /version.json == #${APP_COMMIT}) ..."
   if ! wait_for_healthy "${APP_COMMIT}"; then
     compose logs --tail=60 api frontend || true

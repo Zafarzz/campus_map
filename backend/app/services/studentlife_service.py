@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.storage import StorageAdapter, strip_image_exif
+from app.adapters.storage import InvalidImageError, StorageAdapter, strip_image_exif
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.domain.academic import Meeting, MeetingRule, Section
 from app.domain.base import (
@@ -44,7 +44,7 @@ from app.domain.booking import Booking, Resource
 from app.domain.evidence import Signal
 from app.domain.operations import Ticket
 from app.domain.people import Consent, EnrollmentRef, TeacherProfile
-from app.domain.spatial import Building, Campus, Room
+from app.domain.spatial import Building, Campus, Floor, Room
 from app.domain.studentlife import (
     DormNotice,
     LostFoundClaim,
@@ -732,9 +732,31 @@ async def report_lost_found_item(
     clean_title = mask_sensitive_text(title.strip())
     clean_desc = mask_sensitive_text(description.strip())
 
+    norm_building_id: str | None = None
+    if building_id:
+        cand_bld = building_id.strip()
+        is_real_bld = bool(cand_bld) and cand_bld not in {"all", "campus-grounds"}
+        if is_real_bld and await session.get(Building, cand_bld) is not None:
+            norm_building_id = cand_bld
+
+    norm_floor_id: str | None = None
+    if floor_id:
+        cand_flr = floor_id.strip()
+        if cand_flr and await session.get(Floor, cand_flr) is not None:
+            norm_floor_id = cand_flr
+
+    norm_room_id: str | None = None
+    if room_id:
+        cand_rm = room_id.strip()
+        if cand_rm and await session.get(Room, cand_rm) is not None:
+            norm_room_id = cand_rm
+
     photo_key: str | None = None
     if photo_bytes is not None and storage is not None:
-        stripped, content_type = strip_image_exif(photo_bytes)
+        try:
+            stripped, content_type = strip_image_exif(photo_bytes)
+        except InvalidImageError as exc:
+            raise ValidationError(str(exc), code="invalid_photo") from exc
         ext = content_type.split("/")[-1]
         key = f"lost-found/{uuid.uuid4().hex}.{ext}"
         stored = storage.put_bytes(key, stripped, content_type=content_type)
@@ -748,10 +770,10 @@ async def report_lost_found_item(
         title=clean_title,
         description=clean_desc,
         photo_storage_key=photo_key,
-        contact_info=contact_info.strip() if contact_info else None,
-        building_id=building_id,
-        floor_id=floor_id,
-        room_id=room_id,
+        contact_info=contact_info.strip() if contact_info and contact_info.strip() else None,
+        building_id=norm_building_id,
+        floor_id=norm_floor_id,
+        room_id=norm_room_id,
         pin_x_m=pin_x_m,
         pin_z_m=pin_z_m,
         occurred_at=occ,

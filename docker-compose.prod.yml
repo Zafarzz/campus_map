@@ -25,7 +25,8 @@ services:
     pull_policy: never
     ports: !override
       - "${API_HOST:-127.0.0.1}:${API_PORT:-8000}:8000"
-    volumes: !override []
+    volumes: !override
+      - media_data:/var/lib/campus_map_storage
     command:
       - /bin/sh
       - -ec

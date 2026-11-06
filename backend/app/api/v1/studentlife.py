@@ -30,6 +30,7 @@ Endpoints:
 from __future__ import annotations
 
 import base64
+import os
 import tempfile
 import uuid
 from datetime import datetime
@@ -60,7 +61,20 @@ router = APIRouter(tags=["studentlife"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
-_DEFAULT_STORAGE = LocalDiskStorageAdapter(Path(tempfile.gettempdir()) / "campus_map_storage")
+def _build_default_storage() -> LocalDiskStorageAdapter:
+    preferred = os.environ.get("CAMPUS_STORAGE_DIR", "/var/lib/campus_map_storage")
+    try:
+        probe = Path(preferred)
+        probe.mkdir(parents=True, exist_ok=True)
+        marker = probe / ".write_probe"
+        marker.write_bytes(b"ok")
+        marker.unlink(missing_ok=True)
+        return LocalDiskStorageAdapter(probe)
+    except OSError:
+        return LocalDiskStorageAdapter(Path(tempfile.gettempdir()) / "campus_map_storage")
+
+
+_DEFAULT_STORAGE = _build_default_storage()
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +340,7 @@ async def create_lost_found(
         if "," in raw_b64:
             raw_b64 = raw_b64.split(",", 1)[1]
         try:
-            photo_bytes = base64.b64decode(raw_b64, validate=True)
+            photo_bytes = base64.b64decode("".join(raw_b64.split()), validate=True)
         except Exception as exc:
             raise ValidationError("Invalid base64 photo payload.", code="invalid_photo_base64") from exc
 

@@ -120,15 +120,15 @@
     "semantic_hash": ""
   },
   "backend/app/api/v1/auth.py": {
-    "mtime": 1793856960.650536,
-    "seen": 1793857859.2011845,
-    "ast_hash": "567fcec5660ee6cfbb686f8f852561dd",
+    "mtime": 1793956178.4598198,
+    "seen": 1793965367.3924785,
+    "ast_hash": "778ba88f2389ca0f9b2ebe26febb7b63",
     "semantic_hash": ""
   },
   "backend/app/api/v1/bookings.py": {
-    "mtime": 1793906876.4972937,
-    "seen": 1793907253.8060646,
-    "ast_hash": "21234733491e96df363b4f71e5cade15",
+    "mtime": 1793956178.46463,
+    "seen": 1793965367.3924866,
+    "ast_hash": "60863ef8e0459fa4af131fef3bb4fe7d",
     "semantic_hash": ""
   },
   "backend/app/api/v1/busyness.py": {
@@ -198,9 +198,9 @@
     "semantic_hash": ""
   },
   "backend/app/api/v1/studentlife.py": {
-    "mtime": 1793945443.3491347,
-    "seen": 1793946991.453973,
-    "ast_hash": "f6d81de302f198594b0ffd9489367c2d",
+    "mtime": 1793957512.6028929,
+    "seen": 1793965367.398616,
+    "ast_hash": "6d4cbf2dd0c4842b9c93b6fb71ba1723",
     "semantic_hash": ""
   },
   "backend/app/api/v1/tickets.py": {
@@ -216,8 +216,8 @@
     "semantic_hash": ""
   },
   "backend/app/core/config.py": {
-    "mtime": 1793856889.1675546,
-    "seen": 1793857859.2039924,
+    "mtime": 1793956178.4653568,
+    "seen": 1793965367.3994608,
     "ast_hash": "a5b6c593029dedaa81c7e1b070ab6342",
     "semantic_hash": ""
   },
@@ -324,9 +324,9 @@
     "semantic_hash": ""
   },
   "backend/app/domain/studentlife.py": {
-    "mtime": 1793943721.7700183,
-    "seen": 1793946991.471621,
-    "ast_hash": "cbf976a23a6e6fe467c1318de8393d95",
+    "mtime": 1793956178.4653568,
+    "seen": 1793965367.4070175,
+    "ast_hash": "255a0f79c0bdb6b7ed25237e17587ec8",
     "semantic_hash": ""
   },
   "backend/app/engines/__init__.py": {
@@ -468,9 +468,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/booking_service.py": {
-    "mtime": 1793885855.6121428,
-    "seen": 1793886466.7560205,
-    "ast_hash": "d8058694c2fdf11f4f64596ad6d9bfea",
+    "mtime": 1793956178.47025,
+    "seen": 1793965367.4208732,
+    "ast_hash": "1c039445a4854408dd5600f2a59af6f8",
     "semantic_hash": ""
   },
   "backend/app/services/campus_service.py": {
@@ -492,9 +492,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/demo_schedule_service.py": {
-    "mtime": 1793906857.497173,
-    "seen": 1793907253.834053,
-    "ast_hash": "7f077c4aeb46d99cc1a8765453d8e4d8",
+    "mtime": 1793956178.4713588,
+    "seen": 1793965367.4221325,
+    "ast_hash": "513fefca72e408531e903340b10c0c6c",
     "semantic_hash": ""
   },
   "backend/app/services/history_service.py": {
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/studentlife_service.py": {
-    "mtime": 1793943887.985058,
-    "seen": 1793946991.509751,
-    "ast_hash": "d4b8e5cb49e4d62a964d26029dd0f1c9",
+    "mtime": 1793964928.6801977,
+    "seen": 1793965367.4261801,
+    "ast_hash": "6e2c1e8fbeadb724b55612093ad4fed5",
     "semantic_hash": ""
   },
   "backend/app/services/ticket_service.py": {
@@ -750,9 +750,9 @@
     "semantic_hash": ""
   },
   "backend/tests/test_studentlife.py": {
-    "mtime": 1793112478.0531447,
-    "seen": 1793735383.2832267,
-    "ast_hash": "3fd2392eb9873076656d18209e19669d",
+    "mtime": 1793957764.100891,
+    "seen": 1793965367.4507396,
+    "ast_hash": "7b766a4ad197d7c7a8107b3f1f0378f1",
     "semantic_hash": ""
   },
   "backend/tests/test_tickets.py": {
@@ -774,9 +774,9 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1793456565.7217772,
-    "seen": 1793735383.2832398,
-    "ast_hash": "6d46d6406ff9f6b353e007ee30abfce9",
+    "mtime": 1793957674.7015364,
+    "seen": 1793965367.4521139,
+    "ast_hash": "d773f8896083655a83e3438edc8ba575",
     "semantic_hash": ""
   },
   "package.json": {
@@ -798,14 +798,14 @@
     "semantic_hash": ""
   },
   "scripts/deploy-server.sh": {
-    "mtime": 1793456954.7224884,
-    "seen": 1793735383.283254,
-    "ast_hash": "12c88cd0a79d8940f29931c65d79a049",
+    "mtime": 1793957709.0878112,
+    "seen": 1793965367.4538052,
+    "ast_hash": "4c20e45b215bf569ea47c0c59be7dd9b",
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793820130.3291364,
-    "seen": 1793854201.290978,
+    "mtime": 1793956178.566659,
+    "seen": 1793965367.4538136,
     "ast_hash": "a15440ad611a4d362cd956d7146f9163",
     "semantic_hash": ""
   },
@@ -1548,9 +1548,9 @@
     "semantic_hash": ""
   },
   "src/services/api/apiClient.ts": {
-    "mtime": 1793857005.232086,
-    "seen": 1793857859.245384,
-    "ast_hash": "b2697510c99af8b8bf01ad11bc29def6",
+    "mtime": 1793956178.5947447,
+    "seen": 1793965367.5843055,
+    "ast_hash": "9af68f06dcf439f2f5b75073ad02fa16",
     "semantic_hash": ""
   },
   "src/services/campus/campusService.ts": {
@@ -2232,8 +2232,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/student_auth_service.py": {
-    "mtime": 1793816581.294108,
-    "seen": 1793817330.1491435,
+    "mtime": 1793956178.4744048,
+    "seen": 1793965367.4261737,
     "ast_hash": "682a34d813e80e9b8335d08ce1bc3e57",
     "semantic_hash": ""
   },
@@ -2274,8 +2274,8 @@
     "semantic_hash": ""
   },
   "src/services/auth/authService.ts": {
-    "mtime": 1793857237.0079305,
-    "seen": 1793857859.2453873,
+    "mtime": 1793956178.6055925,
+    "seen": 1793965367.5843163,
     "ast_hash": "4fc85dec458f9571ee624cf47b9f7dfa",
     "semantic_hash": ""
   },
@@ -2286,15 +2286,15 @@
     "semantic_hash": ""
   },
   "src/state/AuthContext.tsx": {
-    "mtime": 1793857083.0485396,
-    "seen": 1793857859.2465463,
-    "ast_hash": "8d4837a201efdd03a5115ce48349b8db",
+    "mtime": 1793956178.6250517,
+    "seen": 1793965367.5874898,
+    "ast_hash": "746948ccd9eb5f7fe38827d47ef149c2",
     "semantic_hash": ""
   },
   "src/components/auth/AuthIcons.tsx": {
-    "mtime": 1793944317.7083192,
-    "seen": 1793946991.660921,
-    "ast_hash": "c7a393ea3b245d6062741993bfb485ef",
+    "mtime": 1793956178.5712662,
+    "seen": 1793965367.51912,
+    "ast_hash": "e06a861ba02d88aa1aa36695f7cd24b1",
     "semantic_hash": ""
   },
   "public/assets/aut-seal.png": {
@@ -2304,63 +2304,69 @@
     "semantic_hash": ""
   },
   "src/__tests__/servicesIntegration.test.ts": {
-    "mtime": 1793946650.5899987,
-    "seen": 1793946991.609705,
-    "ast_hash": "5da663f5da5f4d6e03a2ab0107797317",
+    "mtime": 1793956178.5712662,
+    "seen": 1793965367.4639187,
+    "ast_hash": "45cf0037dda9cd4f1f10dbaab778927f",
     "semantic_hash": ""
   },
   "src/components/booking/BookingsView.tsx": {
-    "mtime": 1793907082.2041843,
-    "seen": 1793907253.906337,
-    "ast_hash": "7fc780294e582e08b3cbb95c2e9a8b74",
+    "mtime": 1793956178.5813024,
+    "seen": 1793965367.5197427,
+    "ast_hash": "bfbc47b6834aedde293295150069fe93",
     "semantic_hash": ""
   },
   "src/components/lostfound/LostFoundView.tsx": {
-    "mtime": 1793955462.7668755,
-    "seen": 1793955606.9917927,
-    "ast_hash": "07a69e3db28b984a4c86e9405f87ad2b",
+    "mtime": 1793957730.4890099,
+    "seen": 1793965367.5197625,
+    "ast_hash": "9efd07759c15ee54b8215bae271c58bb",
     "semantic_hash": ""
   },
   "src/components/ui/AuthRequiredCard.tsx": {
-    "mtime": 1793816762.130542,
-    "seen": 1793817330.1815622,
-    "ast_hash": "e89892a0603c066d9ceb2a85fc743625",
+    "mtime": 1793956178.5882325,
+    "seen": 1793965367.5197704,
+    "ast_hash": "086885b7ccce4aa9791b5df89d3804d7",
     "semantic_hash": ""
   },
   "src/components/ui/CampusNavRail.tsx": {
-    "mtime": 1793819163.2653415,
-    "seen": 1793819880.0701878,
-    "ast_hash": "9aa8668af47dc56b4439e671f5bc356c",
+    "mtime": 1793956178.5940378,
+    "seen": 1793965367.523508,
+    "ast_hash": "f82628529cc09eb6ef236a0034b10a8b",
     "semantic_hash": ""
   },
   "src/services/booking/bookingService.ts": {
-    "mtime": 1793906897.097445,
-    "seen": 1793907253.9466035,
-    "ast_hash": "c0d6e6ad7de2f698e6be5aac49cd0cf1",
+    "mtime": 1793956178.6106002,
+    "seen": 1793965367.5847883,
+    "ast_hash": "6a8c7064013947c8ccb72805ab92827c",
     "semantic_hash": ""
   },
   "src/services/booking/bookingTypes.ts": {
-    "mtime": 1793816653.776625,
-    "seen": 1793817330.1984823,
-    "ast_hash": "fcdb6039001d3f99e0ac50eed58a30a8",
+    "mtime": 1793956178.613685,
+    "seen": 1793965367.5847938,
+    "ast_hash": "5068bdf95f51d1d7edbb6b391d83f778",
     "semantic_hash": ""
   },
   "src/services/lostfound/lostFoundService.ts": {
-    "mtime": 1793955478.7706058,
-    "seen": 1793955607.03295,
-    "ast_hash": "ce37a97c68c49c505f1104e12e61e529",
+    "mtime": 1793957736.0102446,
+    "seen": 1793965367.5866275,
+    "ast_hash": "36dad201bc28c796326d530e0c42d150",
     "semantic_hash": ""
   },
   "src/services/lostfound/lostFoundTypes.ts": {
-    "mtime": 1793944228.117963,
-    "seen": 1793946991.7098708,
-    "ast_hash": "319e1102bb9c34489bf6edc76cb30ec4",
+    "mtime": 1793956178.618802,
+    "seen": 1793965367.5866356,
+    "ast_hash": "49c3025778093842d030b84d3f1e9a65",
     "semantic_hash": ""
   },
   "src/components/crowds/CrowdedPlacesView.tsx": {
-    "mtime": 1793853686.3907473,
-    "seen": 1793854201.3269138,
-    "ast_hash": "6b2811ffe4d7305b356515a2e83bb34a",
+    "mtime": 1793956178.5833404,
+    "seen": 1793965367.5197546,
+    "ast_hash": "0036eb2d21e21e896b1db14f233a1149",
+    "semantic_hash": ""
+  },
+  "backend/alembic/versions/9c5e2b7a1f03_add_lost_found_contact_info.py": {
+    "mtime": 1793957407.90963,
+    "seen": 1793965367.3814116,
+    "ast_hash": "7fe9d71d76edd51e513ff71c755d4b30",
     "semantic_hash": ""
   },
   "package-lock.json": {

@@ -1,17 +1,17 @@
 # Graph Report - campus_map  (2026-11-06)
 
 ## Corpus Check
-- 368 files · ~409,651 words
+- 369 files · ~410,082 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 21 file(s) not represented in the graph (top: (none) 8, .css 4, .example 2)
 
 ## Summary
-- 5603 nodes · 16799 edges · 206 communities (173 shown, 33 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 1759 edges (avg confidence: 0.93)
+- 5609 nodes · 16818 edges · 223 communities (188 shown, 35 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 1764 edges (avg confidence: 0.93)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ff12f9e6`
+- Built from commit: `33c2d62b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -26,13 +26,13 @@
 - schedule_service.py
 - estimate_occupancy
 - test_room_state.py
-- ADR-0003: PostgreSQL 18, the `campus` schema, two roles, and explicit grants
+- App.tsx
 - demo-campus.ts
 - GameScene.tsx
 - BookingsView.tsx
 - parse_csv
 - academic_service.py
-- engines/studentlife.py
+- studentlife_service.py
 - stream.py
 - _slot
 - test_state_api.py
@@ -40,21 +40,21 @@
 - crowd_service.py
 - test_booking.py
 - time.py
-- import_service.py
+- apply_import
 - test_recurrence.py
 - AmphitheaterHall.tsx
-- studentlife_service.py
+- CampusGeometry
 - dataclasses
 - state_service.py
 - test_timetable_import.py
 - AuthIcons.tsx
 - App.tsx
-- Settings
+- maintenance.py
 - test_frontend_extract.py
 - Settings
 - api
 - test_demo_schedule.py
-- v1/state.py
+- base.py
 - .from_default
 - validate.py
 - v1/studentlife.py
@@ -72,15 +72,15 @@
 - package.json
 - busyness.py
 - bookings.py
-- MetricsMiddleware
+- get_settings
 - facilities_service.py
 - exportService.ts
 - storage.py
 - attachmentStorage.ts
 - fetch_edupage_timetable.py
-- RecurrenceError
-- argparse
-- Provenance
+- OverrideSpec
+- StaticGeometryBatcher
+- crowd_level_for_fraction
 - json
 - useBackendLive.ts
 - expand_rule
@@ -88,16 +88,16 @@
 - GEOMETRY_SPEC — единая спецификация геометрии
 - ADR-0010: The timetable source is the university's public EduPage (aSc) export
 - facilities_service.py
-- ResourceOccupancy
+- AppUser
 - ClassroomInterior3D.tsx
 - test_timetable_import.py
-- base.py
+- Base
 - Building
-- ticket_service.py
-- ValidationError
+- test_tickets.py
+- import_service.py
 - Campus Digital Twin Platform: Python Backend
 - import_timetable
-- _slot
+- CampusMap.tsx
 - measure_state_performance.py
 - compilerOptions
 - .from_json
@@ -107,13 +107,13 @@
 - datetime
 - env.py
 - errors.py
-- compat_service.py
+- schemas/compat.py
 - CampusAudioEngine
-- StaticGeometryBatcher
+- react
 - js_literal.py
 - Role
 - run_timetable_optimisation_scenario
-- LostFoundItem
+- ticket_service.py
 - frontend
 - backend-init
 - state_changed
@@ -121,24 +121,24 @@
 - api
 - db
 - deploy-server.sh
-- Floor
+- history_service.py
 - capture_views.mjs
 - geometry/types.ts
 - healthcheck
-- test_migrations.py
+- Settings
 - sqlalchemy
 - SpatialSceneManager.tsx
 - cinematicStore.ts
-- pathMath.ts
+- CinematicCameraController.tsx
 - services
 - _generate_one
-- InProcessBroker
+- test_facilities.py
 - AsyncSession
 - env_file
 - build
 - Runbooks
 - _isolate_environment
-- test_every_occurrence_keeps_its_local_wall_clock
+- RecurrenceError
 - AGENTS.md — главный регламент работы AI-агентов
 - LostFoundView.tsx
 - [0.1.0] — 2026-10-17 — Phase 1: Foundation
@@ -150,17 +150,17 @@
 - 2. Детальный аудит по корпусам
 - demo_schedule_service.py
 - TimetableRow
-- TestEnvelope
-- PROJECT_UNDERSTANDING
+- loadCampus
+- SpaceKind
 - Role
 - cinematic/presets.ts
 - Подробный перечень задач этапа B
 - include_object
 - parse_xlsx
-- .parse
+- notification_service.py
 - CLAUDE.md
 - .claude/CLAUDE.md
-- .migration_url
+- BlockCFacade.tsx
 - 2. Before & After Visual Comparison
 - DECISIONS.md
 - ADR-0002: Python 3.13, with Docker as the canonical runtime
@@ -170,14 +170,14 @@
 - 20. Layer 10: AI and intelligence
 - PROPOSED_ROOT_CHANGES
 - crowd_service.py
-- check_walking_transitions
+- compat_service.py
 - 21. Layer 11: Management analytics
 - Timetable data and teachers' names
 - Отчёт об импорте: Корпус A (1-й этаж, `bld-h-f1`)
-- ADR-0012: WebSocket topics over a broker, with an in-process fallback
+- v1/compat.py
 - Campus Digital Twin — backend
 - CampusNavRail.tsx
-- test_an_unbounded_rule_over_a_huge_window_hits_the_ceiling
+- RoomState
 - 13. Layer 3: Academic operations
 - 14. Layer 4: Facilities
 - 18. Layer 8: Outdoors and logistics
@@ -189,40 +189,57 @@
 - Отчёт об импорте: Корпус F (2-й этаж, `bld-d-f2`)
 - Отчёт об импорте: Корпус B (1-й этаж, `bld-g-f1`)
 - Отчёт об импорте: Корпус A (2-й этаж, `bld-h-f2`)
-- [0.1.0] — 2026-10-17 — Phase 1: Foundation
+- Building.tsx
 - Privacy
-- ParticleKind
-- _guard
+- FrontendInventory
+- settle_due_rooms
 - Отчёт об импорте: Корпус E (1-й этаж, `bld-b-f1`)
 - 6. Architecture
-- fetch_active_edupage_payload
+- Interval
 - tools/README.md
 - CampusFountain.tsx
 - Decisions
 - changeTracker.ts
-- test_academic.py
-- ADR-0005: Modular monolith layout
-- scan_attendance_qr
+- replay.py
+- pathMath.ts
+- ImportBatch
 - StudentRosterEntry
 - v1/notifications.py
-- EdupageSyncResult
+- demo_schedule.py
 - test_the_starts_soon_window_can_be_overridden
 - Содержание решений
 - test_the_default_ceiling_is_documented_and_generous
+- schedule_prior
+- Подробный перечень задач этапа A
 - adr/README.md
-- _is_exclusion_violation
+- ImportReport
+- AttendancePrior
+- test_sync_edupage_purges_demo_schedule_and_switches_versions
+- Performance: measured numbers for Layer 0
+- IMPLEMENTATION_PLAN — детальный план реализации
+- ExportReferenceScope
 - Vegetation.tsx
 - CinematicRecorderEngine
+- rematerialise
+- ADR-0007: Seed by re-deriving the front end's room inventory, read-only
+- ADR-0008: The front end's identifiers are the contract; aliases are many-to-many
+- test_student_login_and_password_change_lifecycle
+- 3. Системы координат (proposed)
+- detect_account_type
+- ImportDiff
 - ADR-0006: The compatibility layer is a contract, not a convenience
+- _first_occurrence_date
+- test_a_dry_run_writes_no_timetable_rows
+- test_the_compat_window_default_comes_from_settings
 
 ## God Nodes (most connected - your core abstractions)
 1. `Role` - 94 edges
 2. `Settings` - 86 edges
 3. `react` - 86 edges
-4. `ValidationError` - 77 edges
+4. `ValidationError` - 78 edges
 5. `ensure_principal_user()` - 76 edges
 6. `NotFoundError` - 76 edges
-7. `Room` - 74 edges
+7. `Room` - 75 edges
 8. `get_settings()` - 73 edges
 9. `Base` - 71 edges
 10. `Resource` - 67 edges
@@ -242,18 +259,18 @@
 ## Import Cycles
 - None detected.
 
-## Communities (206 total, 33 thin omitted)
+## Communities (223 total, 35 thin omitted)
 
 ### Community 0 - "DetailedBuilding.tsx"
-Cohesion: 0.08
-Nodes (67): 1. Root-Cause Diagnosis, BuildingPartMesh, BuildingPartMeshProps, ClassicalPortico(), createTrueHipRoofGeometry(), EntrancePortal(), getFootprintMetrics(), HipRoof() (+59 more)
+Cohesion: 0.12
+Nodes (45): BuildingPartMesh, BuildingPartMeshProps, ClassicalPortico(), EntrancePortal(), getFootprintMetrics(), InstancedWindows(), mergeBufferGeometries(), Props (+37 more)
 
 ### Community 1 - "Hub"
-Cohesion: 0.12
-Nodes (4): Connection, Hub, Recorder, TestHub
+Cohesion: 0.08
+Nodes (8): _publish_changes(), Topic, Connection, Hub, Verification, Recorder, TestHub, TestTopicParsing
 
 ### Community 2 - "exam_seating.py"
-Cohesion: 0.10
+Cohesion: 0.11
 Nodes (17): _are_seats_adjacent(), build_grid_seat_map(), _consecutive_divide_heuristic(), _diagnose_infeasibility(), ExamPlanResult, ExamPlanSettings, format_exam_plan_csv(), format_student_slips() (+9 more)
 
 ### Community 3 - "v1/facilities.py"
@@ -261,152 +278,152 @@ Cohesion: 0.19
 Nodes (23): AssetCheckoutIn, AssetCreateIn, AssetReturnIn, checkout_asset(), CleaningPlanGenerateIn, complete_cleaning_task(), create_asset(), create_cleaning_plan() (+15 more)
 
 ### Community 4 - "ensure_principal_user"
-Cohesion: 0.17
-Nodes (36): approve_lab_booking(), approve_scenario(), AttendanceReviewIn, AttendanceScanIn, AttendanceSessionOpenIn, BookingRejectIn, CapabilityGrantIn, close_attendance_session() (+28 more)
+Cohesion: 0.16
+Nodes (37): approve_lab_booking(), approve_scenario(), AttendanceReviewIn, AttendanceScanIn, AttendanceSessionOpenIn, BookingRejectIn, CapabilityGrantIn, close_attendance_session() (+29 more)
 
 ### Community 5 - "RoomStateKind"
-Cohesion: 0.06
-Nodes (41): ConfirmationState, RoomStateEvent, StateSnapshot, _details(), _differs(), events_since(), latest_sequence(), _latest_states() (+33 more)
+Cohesion: 0.10
+Nodes (29): RoomStateKind, RoomStateEvent, record_transitions(), _state(), test_a_confirmation_change_is_recorded(), test_a_first_evaluation_records_every_room(), test_a_naive_replay_window_is_refused(), test_a_non_positive_step_is_refused() (+21 more)
 
 ### Community 6 - "test_import_service.py"
-Cohesion: 0.08
-Nodes (30): rollback_import(), _apply(), test_a_conflicting_occupancy_is_skipped_and_reported_not_a_crash(), test_a_dry_run_records_its_report_for_audit(), test_a_dry_run_writes_no_timetable_rows(), test_a_file_with_errors_is_refused_and_writes_nothing(), test_a_foreign_header_layout_imports_without_a_code_change(), test_a_rollback_keeps_the_batch_row_as_an_audit_trail() (+22 more)
+Cohesion: 0.11
+Nodes (21): _apply(), test_a_file_with_errors_is_refused_and_writes_nothing(), test_a_foreign_header_layout_imports_without_a_code_change(), test_a_rollback_leaves_the_demo_timetable_alone(), test_a_rollback_removes_exactly_what_the_batch_created(), test_an_empty_file_is_refused(), test_an_import_with_no_dates_and_no_term_is_refused(), test_an_import_without_a_term_creates_one_from_the_data() (+13 more)
 
 ### Community 7 - "schedule_service.py"
-Cohesion: 0.18
-Nodes (9): Meeting, day_is_demo(), lessons_between(), lessons_by_room_for_day(), lessons_for_day(), lessons_for_room(), timetable_catalog(), res1_monday() (+1 more)
+Cohesion: 0.24
+Nodes (6): day_is_demo(), lessons_between(), lessons_by_room_for_day(), lessons_for_day(), lessons_for_room(), timetable_catalog()
 
 ### Community 8 - "estimate_occupancy"
 Cohesion: 0.04
-Nodes (20): SignalType, _confidence_from_weight(), confirmation_for(), Estimate, estimate_occupancy(), EstimatorConfig, _headcount_band(), _provenance_for() (+12 more)
+Nodes (23): ConfirmationState, Provenance, SignalType, _confidence_from_weight(), confirmation_for(), Estimate, estimate_occupancy(), EstimatorConfig (+15 more)
 
 ### Community 9 - "test_room_state.py"
-Cohesion: 0.05
-Nodes (55): RoomStateKind, BuildingSummary, Interval, next_transition_at(), RoomContext, state_at(), states_for_day(), summarise() (+47 more)
+Cohesion: 0.08
+Nodes (39): next_transition_at(), state_at(), _context(), _lesson(), _local(), test_a_cancelled_slot_is_free_until_the_next_lesson(), test_a_days_walk_covers_the_day_in_fixed_steps(), test_a_free_room_in_service_is_bookable() (+31 more)
 
-### Community 10 - "ADR-0003: PostgreSQL 18, the `campus` schema, two roles, and explicit grants"
-Cohesion: 0.40
-Nodes (4): ADR-0003: PostgreSQL 18, the `campus` schema, two roles, and explicit grants, Alternatives rejected, Consequences, Context
+### Community 10 - "App.tsx"
+Cohesion: 0.11
+Nodes (32): App(), AppLayout(), isEditorRoute(), LazyEditorPage, LazyGameScene, MobileSheetSnap, SECTION_HEADERS, CrowdedPlacesView() (+24 more)
 
 ### Community 11 - "demo-campus.ts"
-Cohesion: 0.06
-Nodes (50): 9. Архитектурное разделение слоёв и визуальная подсистема (Этап C) [факт], ADR-015: Перевод визуальных стилей зданий из кода в данные конфигурации, ADR-021: Архитектурные фасады высокой точности на базе CAD-чертежей (Блок C и Блок B), 1.6 Идентификаторы (фактический формат), vitest, AJOU_ART_MATERIALS, DEFAULT_TUNING_VALUES, BuildingStructure (+42 more)
+Cohesion: 0.08
+Nodes (34): 1.6 Идентификаторы (фактический формат), vitest, AJOU_ART_DIMENSIONS, AJOU_ART_MATERIALS, FOUNTAIN_DIMENSIONS, FOUNTAIN_MATERIALS, BuildingStructure, campusInfo (+26 more)
 
 ### Community 12 - "GameScene.tsx"
-Cohesion: 0.04
-Nodes (104): 3.1 Hard architectural rules I must respect, 3.2 The golden rules for agents (`AGENTS.md` §4), 3.3 The target architecture the docs describe, 3. Architecture and implementation guidance given in the repo's docs, 7. Целевая архитектура после этапов A–C [предложение], ADR-020: Межкорпусные переходы (Connectors) как отдельная сущность геометрии, Реестр архитектурных решений, Задача A0: Инфраструктурная стабилизация репозитория (+96 more)
+Cohesion: 0.08
+Nodes (54): ADR-0001, @react-three/rapier, AMPHITHEATER_BUILDING, AMPHITHEATER_HALL, AmphitheaterHallSpec, ADR-0029, defaultFloor(), AudioListenerState (+46 more)
 
 ### Community 13 - "BookingsView.tsx"
 Cohesion: 0.09
-Nodes (42): AUT_WORKING_PERIODS, BOOKABLE_BUILDINGS, BookableBuildingOption, BookingsView(), BookingsViewProps, BUILDING_NAMES, computeRoomFreeWindows(), computeTashkentPeriod() (+34 more)
+Nodes (41): ClockIcon(), AUT_WORKING_PERIODS, BOOKABLE_BUILDINGS, BookableBuildingOption, BookingsView(), BookingsViewProps, BUILDING_NAMES, computeRoomFreeWindows() (+33 more)
 
 ### Community 14 - "parse_csv"
 Cohesion: 0.05
 Nodes (6): parse_csv(), TestBrokenFile, TestCsvParsing, TestDiff, TestValidation, _validate()
 
 ### Community 15 - "academic_service.py"
-Cohesion: 0.12
-Nodes (20): render_qr_svg(), approve_scenario(), close_attendance_session(), create_resource_blackout(), export_exam_plan_csv_for_id(), export_exam_plan_pdf_for_id(), get_attendance_session_summary(), get_current_qr_token() (+12 more)
+Cohesion: 0.06
+Nodes (37): Blackout, AttendanceRate, AttendanceRecord, AttendanceSession, OccupancyEstimate, Signal, UserDevice, EnrollmentRef (+29 more)
 
-### Community 16 - "engines/studentlife.py"
-Cohesion: 0.07
-Nodes (18): LostFoundKind, compute_free_windows(), intersect_windows(), LostFoundCandidate, LostFoundMatch, mask_sensitive_text(), match_lost_found(), match_study_groups() (+10 more)
+### Community 16 - "studentlife_service.py"
+Cohesion: 0.04
+Nodes (57): NotFoundError, LostFoundKind, LostFoundStatus, StudyGroupStatus, TeacherVisibilityMode, TeacherProfile, LostFoundItem, compute_free_windows() (+49 more)
 
 ### Community 17 - "stream.py"
-Cohesion: 0.18
-Nodes (11): _beat(), _current_sequence(), _error(), _send_catch_up(), _serve(), stream(), stream_changes(), _try_subscribe() (+3 more)
+Cohesion: 0.10
+Nodes (12): _beat(), _current_sequence(), _error(), _send_catch_up(), _serve(), stream(), stream_changes(), _try_subscribe() (+4 more)
 
 ### Community 18 - "_slot"
-Cohesion: 0.08
-Nodes (9): BookingPolicy, propose_alternatives(), Slot, validate_request(), _load_blackouts(), _slot(), TestAlternatives, TestSlot (+1 more)
+Cohesion: 0.07
+Nodes (11): BookingPolicy, _merge(), _opening_hours_violations(), violation(), PolicyViolation, Slot, validate_request(), ViolationCode (+3 more)
 
 ### Community 19 - "test_state_api.py"
 Cohesion: 0.06
 Nodes (31): test_a_legacy_room_id_resolves_for_state_too(), test_a_naive_at_is_rejected_by_the_clean_api(), test_a_scheduled_lesson_is_unconfirmed_not_empty(), test_a_single_room_state_matches_the_bulk_answer(), test_a_utc_z_suffix_is_accepted(), test_an_out_of_range_window_is_rejected(), test_an_unknown_building_is_404(), test_an_unknown_room_state_is_404() (+23 more)
 
 ### Community 20 - "Subscription"
-Cohesion: 0.11
-Nodes (4): RedisBroker, Subscription, Verification, TestBackpressure
+Cohesion: 0.08
+Nodes (5): InProcessBroker, RedisBroker, Subscription, TestBackpressure, TestInProcessBroker
 
 ### Community 21 - "crowd_service.py"
-Cohesion: 0.05
-Nodes (23): building_distance_m(), calibrate_arrival_multiplier(), canteen_arrival_rate(), CanteenQueueConfig, CanteenQueueEstimate, ClassChangeFlowResult, compute_class_change_flows(), compute_schedule_proxy_by_how() (+15 more)
+Cohesion: 0.04
+Nodes (29): building_distance_m(), calibrate_arrival_multiplier(), canteen_arrival_rate(), CanteenQueueConfig, check_walking_transitions(), compute_class_change_flows(), compute_hourly_profile(), compute_schedule_proxy_by_how() (+21 more)
 
 ### Community 22 - "test_booking.py"
-Cohesion: 0.12
-Nodes (34): ConflictError, OccupancyKind, Resource, ResourceOccupancy, BookingRequest, create_booking(), test_lab_booking_prerequisites_approval_and_ical(), resource() (+26 more)
+Cohesion: 0.08
+Nodes (42): ConflictError, ValidationError, Resource, free_windows(), propose_alternatives(), BookingRequest, check_in(), create_booking() (+34 more)
 
 ### Community 23 - "time.py"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (25): campus_date(), campus_day_bounds(), campus_instant_at_minutes(), campus_local_naive(), ensure_aware(), minutes_since_campus_midnight(), parse_campus_local_naive(), to_campus() (+17 more)
 
-### Community 24 - "import_service.py"
-Cohesion: 0.10
-Nodes (22): new_uuid(), parse_edupage(), apply_import(), ApplyResult, _build_rule(), _clear_term_rules(), count_batch_rows(), dry_run_import() (+14 more)
+### Community 24 - "apply_import"
+Cohesion: 0.17
+Nodes (12): apply_import(), ApplyResult, _build_rule(), dry_run_import(), _ensure_course(), _ensure_section(), _existing_identities(), _find_term() (+4 more)
 
 ### Community 25 - "test_recurrence.py"
-Cohesion: 0.10
-Nodes (36): RecurrenceSpec, weekly_rrule(), _local_starts(), test_a_bare_yyyymmdd_exdate_is_accepted(), test_a_biweekly_rule_skips_the_odd_week(), test_a_date_only_exdate_removes_the_whole_local_day(), test_a_lesson_already_running_when_the_window_opens_is_included(), test_a_lesson_in_the_skipped_hour_of_a_spring_transition_still_resolves() (+28 more)
+Cohesion: 0.13
+Nodes (32): expand_rule(), RecurrenceSpec, _local_starts(), test_a_bare_yyyymmdd_exdate_is_accepted(), test_a_biweekly_rule_skips_the_odd_week(), test_a_date_only_exdate_removes_the_whole_local_day(), test_a_lesson_already_running_when_the_window_opens_is_included(), test_a_lesson_in_the_skipped_hour_of_a_spring_transition_still_resolves() (+24 more)
 
 ### Community 26 - "AmphitheaterHall.tsx"
-Cohesion: 0.32
-Nodes (13): AmphitheaterHall(), createAmphitheaterHipRoofGeometry(), createOctagonShape(), createTierRingGeometry(), ADR-0029, getAmphitheaterFloorLogoTexture(), getAmphitheaterScreenTexture(), getBookshelfTexture() (+5 more)
+Cohesion: 0.34
+Nodes (12): AmphitheaterHall(), createAmphitheaterHipRoofGeometry(), createOctagonShape(), createTierRingGeometry(), ADR-0029, getAmphitheaterFloorLogoTexture(), getAmphitheaterScreenTexture(), getBookshelfTexture() (+4 more)
 
-### Community 27 - "studentlife_service.py"
+### Community 27 - "CampusGeometry"
 Cohesion: 0.07
-Nodes (37): NotFoundError, StudyGroupStatus, TeacherVisibilityMode, TeacherProfile, LostFoundClaim, StudyGroupMember, StudyGroupRequest, StudyGroupSession (+29 more)
+Nodes (38): 3.1 Hard architectural rules I must respect, 3.2 The golden rules for agents (`AGENTS.md` §4), 3.3 The target architecture the docs describe, 3. Architecture and implementation guidance given in the repo's docs, 1. Стек и точки входа [факт], 2.1 Зависимости модулей, 2. Модули [факт], 3. Поток данных: от источника геометрии до 3D [факт] (+30 more)
 
 ### Community 28 - "dataclasses"
-Cohesion: 0.10
-Nodes (4): Broker, get_broker(), Topic, TopicKind
+Cohesion: 0.08
+Nodes (5): get_logger(), _inject_request_id(), Broker, get_broker(), TopicKind
 
 ### Community 29 - "state_service.py"
-Cohesion: 0.06
-Nodes (28): RoomState, StateOptions, _booking_confirmation(), _evaluate(), invalidate_state_cache(), _load_booking_intervals(), _load_meeting_intervals(), load_room_contexts() (+20 more)
+Cohesion: 0.08
+Nodes (24): StateOptions, _booking_confirmation(), _evaluate(), invalidate_state_cache(), _load_booking_intervals(), _load_meeting_intervals(), load_room_contexts(), _load_rooms() (+16 more)
 
 ### Community 30 - "test_timetable_import.py"
-Cohesion: 0.10
-Nodes (11): _coerce_date(), _coerce_int(), _coerce_time(), _coerce_week_pattern(), _ics_datetime(), _ics_exdates(), _ics_text(), _ics_until() (+3 more)
+Cohesion: 0.07
+Nodes (13): _coerce_date(), _coerce_int(), _coerce_time(), _coerce_week_pattern(), _ics_datetime(), _ics_exdates(), _ics_text(), _ics_until() (+5 more)
 
 ### Community 31 - "AuthIcons.tsx"
-Cohesion: 0.17
-Nodes (32): AuthHeaderButton(), AlertIcon(), ArrowLeftIcon(), BriefcaseIcon(), CampusIcon(), CheckIcon(), ChevronDownIcon(), ClockIcon() (+24 more)
+Cohesion: 0.15
+Nodes (35): AuthHeaderButton(), AlertIcon(), ArrowLeftIcon(), BriefcaseIcon(), CameraIcon(), CampusIcon(), CheckIcon(), ChevronDownIcon() (+27 more)
 
 ### Community 32 - "App.tsx"
-Cohesion: 0.04
-Nodes (105): The seams, and how the front end switches, Context, 1.1 Constraints this places on the backend, 1. Framework and build setup, 7.1 Compatibility endpoints (shapes from §3, verbatim), 7.2 Identifier stability guarantees, 7.3 Known risks to flag before Phase 1, 7. Proposed integration shape (+97 more)
+Cohesion: 0.07
+Nodes (61): Context, 4.2 Time and state, C-8 — Gaps: things the master prompt needs that the repo has none of, Задача B7: Синхронизация 2D ↔ 3D и экспорт документа, LessonBlock(), RoomDetails(), FULL_DAY_NAMES, TEACHING_DAY_NAMES (+53 more)
 
-### Community 33 - "Settings"
-Cohesion: 0.03
-Nodes (47): _db(), healthz(), metrics(), readyz(), get_settings(), Settings, create_engine(), Database (+39 more)
+### Community 33 - "maintenance.py"
+Cohesion: 0.06
+Nodes (24): AppEnv, dispose_database(), get_database(), register_exception_handlers(), configure_logging(), RequestContextMiddleware, MetricsMiddleware, broadcast_heartbeat() (+16 more)
 
 ### Community 34 - "test_frontend_extract.py"
 Cohesion: 0.06
 Nodes (26): JsLiteralError, parse_js_literal(), strip_comments(), inventory(), test_booleans_and_null(), test_building_id_to_block_letter_mapping(), test_committed_snapshot_matches_the_front_end(), test_confirmed_cad_rooms_keep_their_stable_ids() (+18 more)
 
 ### Community 35 - "Settings"
-Cohesion: 0.10
-Nodes (13): anyio_backend(), clean_database(), client(), database(), frontend_src(), _maintenance_url(), migrated_database(), pytest_collection_modifyitems() (+5 more)
+Cohesion: 0.07
+Nodes (17): create_engine(), Database, anyio_backend(), clean_database(), client(), database(), frontend_src(), _maintenance_url() (+9 more)
 
 ### Community 36 - "api"
 Cohesion: 0.05
 Nodes (42): build, command, depends_on, env_file, environment, ports, restart, volumes (+34 more)
 
 ### Community 37 - "test_demo_schedule.py"
-Cohesion: 0.08
-Nodes (19): DemoLesson, fnv1a_unit(), generate_demo_lessons(), _pick(), _slot_instants(), _utf16_code_units(), test_a_character_outside_the_bmp_counts_as_two_code_units(), test_a_slot_crossing_midnight_rolls_to_the_next_day() (+11 more)
+Cohesion: 0.10
+Nodes (17): fnv1a_unit(), generate_demo_lessons(), _pick(), test_a_character_outside_the_bmp_counts_as_two_code_units(), test_a_slot_crossing_midnight_rolls_to_the_next_day(), test_bulk_occupancy_matches_javascript_exactly(), test_classrooms_draw_from_the_subject_list(), test_different_dates_give_different_timetables() (+9 more)
 
-### Community 38 - "v1/state.py"
-Cohesion: 0.11
-Nodes (17): BuildingSummaryOut, OccurrenceOut, RoomStateOut, StateModel, StateResponse, TransitionOut, TransitionsResponse, get_room_state() (+9 more)
+### Community 38 - "base.py"
+Cohesion: 0.05
+Nodes (26): BuildingSummaryOut, OccurrenceOut, RoomStateOut, StateModel, StateResponse, TransitionOut, TransitionsResponse, get_room_state() (+18 more)
 
 ### Community 39 - ".from_default"
-Cohesion: 0.09
-Nodes (5): AttendancePrior, schedule_prior(), update_attendance_prior(), TestAttendancePrior, TestSchedulePrior
+Cohesion: 0.15
+Nodes (3): update_attendance_prior(), test_the_attendance_posterior_is_always_a_valid_rate(), TestAttendancePrior
 
 ### Community 40 - "validate.py"
-Cohesion: 0.06
-Nodes (18): _build_diff(), _build_lookup(), _dates_overlap(), _find_double_bookings(), _find_walking_transition_warnings(), ImportReport, Issue, IssueCode (+10 more)
+Cohesion: 0.07
+Nodes (17): _build_diff(), _build_lookup(), _dates_overlap(), _find_double_bookings(), _find_walking_transition_warnings(), Issue, IssueCode, _local_time_exists() (+9 more)
 
 ### Community 41 - "v1/studentlife.py"
 Cohesion: 0.13
@@ -414,27 +431,27 @@ Nodes (38): book_teacher_appointment_endpoint(), claim_lost_found(), ConsentIn, 
 
 ### Community 42 - "domain/types.ts"
 Cohesion: 0.12
-Nodes (40): ADR-0023, 10. Архитектура 2D Visual Editor (`src/editor/`) [факт], RoomKind, Vec2, CHANGE_CATEGORY_LABELS, AlignmentGuide, DragState, EditorCanvasProps (+32 more)
+Nodes (39): ADR-0023, 10. Архитектура 2D Visual Editor (`src/editor/`) [факт], Vec2, CHANGE_CATEGORY_LABELS, AlignmentGuide, DragState, EditorCanvasProps, HandleType (+31 more)
 
 ### Community 43 - "test_api.py"
 Cohesion: 0.09
 Nodes (26): test_a_current_id_wins_over_an_alias(), test_a_legacy_room_id_resolves_to_its_current_room(), test_an_ambiguous_legacy_id_is_a_409_not_a_guess(), test_an_inbound_request_id_is_honoured(), test_building_detail_reports_room_counts_per_floor(), test_building_rooms_are_ordered_by_floor(), test_clean_campus_endpoint(), test_compat_block_a_rooms_come_from_the_cad_drawings() (+18 more)
 
 ### Community 44 - "parse_at"
-Cohesion: 0.19
-Nodes (10): CrowdReportIn, get_best_time(), get_busyness(), get_canteen_queue(), get_display_view(), get_flows(), get_walking_check(), list_busyness() (+2 more)
+Cohesion: 0.17
+Nodes (11): CrowdReportIn, get_best_time(), get_busyness(), get_canteen_queue(), get_display_view(), get_flows(), get_walking_check(), list_busyness() (+3 more)
 
 ### Community 45 - "attendance.py"
 Cohesion: 0.11
-Nodes (10): classify_attendance_scan(), _compute_window_token(), generate_rotating_qr_token(), hash_device_identifier(), haversine_distance_metres(), RotatingQrToken, ScanClassification, TokenVerificationResult (+2 more)
+Nodes (10): classify_attendance_scan(), _compute_window_token(), generate_rotating_qr_token(), hash_device_identifier(), haversine_distance_metres(), render_qr_png(), RotatingQrToken, TokenVerificationResult (+2 more)
 
 ### Community 46 - "env"
 Cohesion: 0.06
 Nodes (35): concurrency, cancel-in-progress, group, if, name, needs, runs-on, steps (+27 more)
 
 ### Community 47 - "seed_demo_campus.py"
-Cohesion: 0.08
-Nodes (21): extract_inventory(), ExtractedBuilding, ExtractedConnector, ExtractedFloor, ExtractedRoom, FrontendInventory, _opt_int(), _opt_str() (+13 more)
+Cohesion: 0.13
+Nodes (15): extract_inventory(), ExtractedBuilding, ExtractedConnector, ExtractedFloor, ExtractedRoom, _opt_int(), _opt_str(), _read() (+7 more)
 
 ### Community 48 - "v1/campus.py"
 Cohesion: 0.17
@@ -445,112 +462,112 @@ Cohesion: 0.20
 Nodes (32): revertIndividualChange(), EditorCanvas(), EditorLeftPanel(), EditorPage(), EditorTopBar(), VersionHistoryModal(), addBuildingToDoc(), addFloorToDoc() (+24 more)
 
 ### Community 50 - "test_notifications.py"
-Cohesion: 0.07
-Nodes (22): ChannelAdapter, default_channel_adapters(), DeliveryResult, EmailAdapter, InAppAdapter, SmsAdapter, TelegramAdapter, WebPushAdapter (+14 more)
+Cohesion: 0.13
+Nodes (10): ChannelAdapter, default_channel_adapters(), DeliveryResult, EmailAdapter, InAppAdapter, SmsAdapter, TelegramAdapter, WebPushAdapter (+2 more)
 
 ### Community 51 - "Room"
-Cohesion: 0.15
-Nodes (14): DataProvenance, RoomKind, SeedRun, Room, RoomAlias, campus_counts(), _bump(), _remove_stale() (+6 more)
+Cohesion: 0.20
+Nodes (10): RoomKind, RoomAlias, _bump(), _remove_stale(), seed_campus(), SeedResult, _sync_aliases(), _sync_connectors() (+2 more)
 
 ### Community 52 - "pytest"
-Cohesion: 0.12
-Nodes (19): AppEnv, build(), test_campus_timezone_is_required(), test_campus_timezone_must_be_a_real_iana_zone(), test_campus_timezone_rejects_an_empty_string(), test_compat_window_defaults_to_the_front_ends_value(), test_cors_origins_are_parsed_and_trimmed(), test_development_allows_the_conveniences() (+11 more)
+Cohesion: 0.13
+Nodes (18): build(), test_campus_timezone_is_required(), test_campus_timezone_must_be_a_real_iana_zone(), test_campus_timezone_rejects_an_empty_string(), test_compat_window_defaults_to_the_front_ends_value(), test_cors_origins_are_parsed_and_trimmed(), test_development_allows_the_conveniences(), test_email_domains_are_normalised() (+10 more)
 
 ### Community 53 - "package.json"
-Cohesion: 0.10
-Nodes (26): devDependencies, @types/react@^19.3.0, @types/react-dom@^19.3.0, @types/three@^0.186.0, typescript@^7.0.2, vite@^8.3.3, @vitejs/plugin-basic-ssl@^2.3.0, @vitejs/plugin-react@^6.1.2 (+18 more)
+Cohesion: 0.07
+Nodes (36): dependencies, leva@^0.10.1, react@^19.3.0, react-dom@^19.3.0, @react-three/drei@^10.7.9, @react-three/fiber@^9.8.1, @react-three/rapier@^2.2.0, three@^0.186.1 (+28 more)
 
 ### Community 54 - "busyness.py"
-Cohesion: 0.12
-Nodes (8): _opening_hours_violations(), violation(), PolicyViolation, rank_candidates(), _reason_for(), RoomCandidate, ViolationCode, TestRanking
+Cohesion: 0.10
+Nodes (8): _feature_keys(), _free_minutes(), _has_features(), search_rooms(), rank_candidates(), _reason_for(), RoomCandidate, TestRanking
 
 ### Community 55 - "bookings.py"
 Cohesion: 0.16
 Nodes (11): BookingCreate, BookingOut, cancel_booking(), check_in(), create_booking(), list_bookings(), list_resources(), _may_act_on() (+3 more)
 
+### Community 56 - "get_settings"
+Cohesion: 0.07
+Nodes (13): _db(), healthz(), metrics(), readyz(), get_settings(), init_database(), render_latest(), _route_template() (+5 more)
+
 ### Community 57 - "facilities_service.py"
-Cohesion: 0.13
-Nodes (14): AssetCondition, AssetStatus, RoomStatusCompat, SpaceKind, Asset, AssetLoan, check_overdue_and_maintenance_alerts(), checkout_asset() (+6 more)
+Cohesion: 0.12
+Nodes (21): AssetCondition, AssetStatus, Asset, AssetLoan, RoomHealthBreakdown, check_overdue_and_maintenance_alerts(), checkout_asset(), complete_cleaning_task() (+13 more)
 
 ### Community 58 - "exportService.ts"
-Cohesion: 0.12
-Nodes (28): editorDocToCampusAndGeom(), ExportReferenceScope, buildCampusEditZipPackage(), downloadCampusEditZip(), escapeXml(), EXPORT_SCHEMA_VERSION, ExportedObjectReferencesMetadata, ExportedReferencePhotoEntry (+20 more)
+Cohesion: 0.14
+Nodes (24): buildCampusEditZipPackage(), downloadCampusEditZip(), escapeXml(), EXPORT_SCHEMA_VERSION, ExportedObjectReferencesMetadata, ExportedReferencePhotoEntry, generateCampusOverviewSvg(), generateFloorPlanSvg() (+16 more)
 
 ### Community 59 - "storage.py"
 Cohesion: 0.07
-Nodes (10): has_exif_metadata(), InvalidImageError, LocalDiskStorageAdapter, S3CompatibleStorageAdapter, StorageAdapter, StoredObject, strip_image_exif(), [0.3.0] — 2026-10-21 — Phase 3: Crowds, Student Life & Shared Platform Services (+2 more)
+Nodes (10): has_exif_metadata(), InvalidImageError, LocalDiskStorageAdapter, S3CompatibleStorageAdapter, StorageAdapter, StoredObject, strip_image_exif(), _build_default_storage() (+2 more)
 
 ### Community 60 - "attachmentStorage.ts"
-Cohesion: 0.14
-Nodes (26): EditorRightPanel(), DIRECTION_PRESETS, formatBytes(), PhotoAttachmentsSection(), PhotoAttachmentsSectionProps, PhotoAttachment, PhotoTargetSpec, base64ToUint8() (+18 more)
+Cohesion: 0.16
+Nodes (23): EditorRightPanel(), DIRECTION_PRESETS, formatBytes(), PhotoAttachmentsSection(), base64ToUint8(), clearAllAttachmentBlobs(), createPhotoAttachmentFromFile(), deleteAttachmentBlob() (+15 more)
 
 ### Community 61 - "fetch_edupage_timetable.py"
-Cohesion: 0.30
+Cohesion: 0.32
 Nodes (8): fetch_timetable(), list_timetables(), main(), _post(), room_report(), run(), summarise(), tables_of()
 
-### Community 62 - "RecurrenceError"
-Cohesion: 0.13
-Nodes (9): _apply_override(), OverrideSpec, RecurrenceError, test_a_cancelled_occurrence_stays_in_the_series_flagged(), test_a_dtstart_with_an_offset_is_rejected(), test_a_move_override_without_a_new_start_is_rejected(), test_an_exdate_matches_the_original_start_not_a_moved_one(), test_an_override_that_ends_before_it_starts_is_rejected() (+1 more)
+### Community 62 - "OverrideSpec"
+Cohesion: 0.29
+Nodes (4): OverrideSpec, test_a_cancelled_occurrence_stays_in_the_series_flagged(), test_a_move_override_without_a_new_start_is_rejected(), test_an_unknown_override_action_is_rejected()
 
-### Community 63 - "argparse"
-Cohesion: 0.15
-Nodes (12): compose(), main(), main(), psql(), restore(), row_counts(), run(), self_test() (+4 more)
-
-### Community 64 - "Provenance"
-Cohesion: 0.08
-Nodes (12): CrowdLevel, Provenance, BestTimeProfile, compute_hourly_profile(), HourlyBucketProfile, crowd_level_for_fraction(), fraction_for_crowd_level(), test_busyness_api_endpoints() (+4 more)
+### Community 63 - "StaticGeometryBatcher"
+Cohesion: 0.23
+Nodes (25): AjouArtObject(), BlockCorridor3D(), createConnectorHipRoofGeometry(), GlazedConnectorMesh(), Props, ADR-0020, CampusFountain(), CampusWalkways() (+17 more)
 
 ### Community 65 - "json"
-Cohesion: 0.23
-Nodes (11): Baseline, CheckError, collect_findings(), find_repo_root(), Findings, git(), is_waived(), load_baseline() (+3 more)
+Cohesion: 0.12
+Nodes (19): Baseline, CheckError, collect_findings(), find_repo_root(), Findings, git(), is_waived(), load_baseline() (+11 more)
 
 ### Community 66 - "useBackendLive.ts"
 Cohesion: 0.11
 Nodes (28): BackendLivePanel(), fmtClock(), LEVEL_COLOR, pad(), BackendLive, BusynessPlace, markAutoReloaded(), navigateToPlaceOnMap() (+20 more)
 
 ### Community 67 - "expand_rule"
-Cohesion: 0.15
-Nodes (7): _build_rule(), expand_rule(), _extend_bare_until(), _is_excluded(), _normalise_exdates(), Occurrence, parse_local_naive()
+Cohesion: 0.10
+Nodes (8): _apply_override(), _build_rule(), _extend_bare_until(), _is_excluded(), _normalise_exdates(), Occurrence, parse_local_naive(), test_a_dtstart_with_an_offset_is_rejected()
 
 ### Community 69 - "GEOMETRY_SPEC — единая спецификация геометрии"
-Cohesion: 0.04
-Nodes (53): ADR-0001: Backend scope, and how it relates to ADR-013 ("no separate backend"), Alternatives rejected, Consequences, Context, Decision, 2.1 Geometry is **not** a backend concern, 2. How the front end gets its data today, 3.1 Campus tree — `src/domain/campus/types.ts` (+45 more)
+Cohesion: 0.12
+Nodes (17): 10. Открытые вопросы, влияющие на эту спецификацию, 5.1 Общие правила, 5.2 Форматы новых ID, 5.3 Совместимость со старыми ID, 5.4 Метаданные, 5. Идентификаторы и метаданные (proposed), 6.1 Правила, 6.2 Инварианты (+9 more)
 
 ### Community 70 - "ADR-0010: The timetable source is the university's public EduPage (aSc) export"
 Cohesion: 0.40
-Nodes (5): ADR-0010: The timetable source is the university's public EduPage (aSc) export, Alternatives rejected, Consequences, Context, Decision
+Nodes (4): ADR-0010: The timetable source is the university's public EduPage (aSc) export, Alternatives rejected, Consequences, Context
 
 ### Community 71 - "facilities_service.py"
-Cohesion: 0.07
-Nodes (30): render_qr_png(), AssetLabelItem, CleaningPlanResult, compute_room_dirt_score(), compute_room_health_score(), EnvironmentalSample, _estimate_travel_minutes(), evaluate_asset_maintenance_due() (+22 more)
+Cohesion: 0.08
+Nodes (15): AssetLabelItem, CleaningPlanResult, compute_room_dirt_score(), _estimate_travel_minutes(), evaluate_asset_maintenance_due(), format_cleaning_route_sheet_csv(), is_loan_overdue(), _nearest_neighbour_cleaning_fallback() (+7 more)
 
-### Community 72 - "ResourceOccupancy"
-Cohesion: 0.15
-Nodes (14): Campus, text(), make_resource(), period(), test_a_booking_may_start_exactly_when_a_lesson_ends(), test_a_cancelled_occupancy_frees_its_slot(), test_an_empty_period_is_refused(), test_btree_gist_and_the_exclusion_constraint_exist() (+6 more)
+### Community 72 - "AppUser"
+Cohesion: 0.11
+Nodes (18): hash_password(), verify_password(), AppUser, UserRole, _build_staff_profile(), _build_student_profile(), change_student_password(), _compute_effective_roles() (+10 more)
 
 ### Community 73 - "ClassroomInterior3D.tsx"
-Cohesion: 0.16
-Nodes (15): ClassroomInteriorProps, getLectureScreenMaterial(), getSharedClassroomMaterials(), getWhiteboardTexture(), isCanvasSupported(), mergeStaticGeometries(), screenMaterialCache, screenTextureCache (+7 more)
+Cohesion: 0.09
+Nodes (32): BlockCorridorProps, getExitSignTexture(), getFloorArrowTexture(), getSharedCorridorMaterials(), isCanvasSupported(), SharedCorridorMaterials, ClassroomInteriorProps, getLectureScreenMaterial() (+24 more)
 
 ### Community 74 - "test_timetable_import.py"
-Cohesion: 0.09
-Nodes (8): sniff_format(), _normalise(), parse_weekday(), _squash(), test_a_single_well_formed_row_always_validates(), test_every_row_is_either_usable_or_has_a_reported_issue(), TestFormatSniffing, TestWeekdayParsing
+Cohesion: 0.18
+Nodes (5): sniff_format(), _source_label(), test_a_single_well_formed_row_always_validates(), test_every_row_is_either_usable_or_has_a_reported_issue(), TestFormatSniffing
 
-### Community 75 - "base.py"
-Cohesion: 0.06
-Nodes (34): upgrade(), Base, Course, ExamPlan, ImportBatch, MeetingOverride, Term, CleaningTaskStatus (+26 more)
+### Community 75 - "Base"
+Cohesion: 0.08
+Nodes (25): Base, Course, ExamPlan, MeetingOverride, Term, IsDemoMixin, ScenarioStatus, TimestampMixin (+17 more)
 
 ### Community 76 - "Building"
-Cohesion: 0.11
-Nodes (16): Building, Connector, CampusTree, test_block_letters_are_stored_not_derived(), test_buildings_without_any_plan_are_marked_demo(), test_campus_timezone_is_stored_on_the_row(), test_connectors_link_known_buildings_only(), test_demo_flag_mirrors_the_front_ends_provenance() (+8 more)
+Cohesion: 0.09
+Nodes (17): SeedRun, Connector, CampusTree, load_campus_tree(), test_block_letters_are_stored_not_derived(), test_buildings_without_any_plan_are_marked_demo(), test_campus_timezone_is_stored_on_the_row(), test_connectors_link_known_buildings_only() (+9 more)
 
-### Community 77 - "ticket_service.py"
-Cohesion: 0.06
-Nodes (29): TicketPriority, TicketStatus, Ticket, TicketEvent, CandidateExistingTicket, compute_sla_due_at(), compute_ticket_metrics(), find_duplicate_ticket() (+21 more)
+### Community 77 - "test_tickets.py"
+Cohesion: 0.09
+Nodes (11): TicketStatus, CandidateExistingTicket, compute_sla_due_at(), find_duplicate_ticket(), InvalidTicketTransitionError, is_ticket_blocking_room(), validate_ticket_transition(), test_ticket_blocks_use_overlays_room_out_of_service() (+3 more)
 
-### Community 78 - "ValidationError"
-Cohesion: 0.11
-Nodes (21): ValidationError, OccupancyStatus, Booking, export_resource_ical(), approve_booking(), BookingResult, cancel_booking(), check_in() (+13 more)
+### Community 78 - "import_service.py"
+Cohesion: 0.05
+Nodes (49): now(), DataProvenance, OccupancyKind, OccupancyStatus, Booking, ResourceOccupancy, Building, Campus (+41 more)
 
 ### Community 79 - "Campus Digital Twin Platform: Python Backend"
 Cohesion: 0.10
@@ -560,33 +577,33 @@ Nodes (20): 11. Layer 1: Crowds ("how busy is it right now?"), 12. Layer 2: Stud
 Cohesion: 0.16
 Nodes (5): get_import(), import_timetable(), list_imports(), _parse_column_map(), rollback_import()
 
-### Community 81 - "_slot"
-Cohesion: 0.16
-Nodes (4): free_windows(), _merge(), test_free_windows_never_overlap_each_other_or_the_busy_blocks(), TestFreeWindows
+### Community 81 - "CampusMap.tsx"
+Cohesion: 0.11
+Nodes (27): 8.1 Можно менять независимо (в рамках своей задачи, без ADR), 8.2 Требуют согласованного изменения (ADR + обновление документов), 8. Границы изменений, 1.1 Единицы и оси, 1.2 Начало координат кампуса, 1.3 Здания, 1.4 Этажи, 1.7 Поворот — расхождение конвенций (+19 more)
 
 ### Community 82 - "measure_state_performance.py"
-Cohesion: 0.15
-Nodes (5): main(), _report(), run(), _synthesise(), _time_calls()
+Cohesion: 0.17
+Nodes (6): new_uuid(), main(), _report(), run(), _synthesise(), _time_calls()
 
 ### Community 83 - "compilerOptions"
 Cohesion: 0.12
 Nodes (16): compilerOptions, allowJs, allowSyntheticDefaultImports, forceConsistentCasingInFileNames, isolatedModules, jsx, lib, module (+8 more)
 
 ### Community 85 - "test_timetable_import.py"
-Cohesion: 0.11
-Nodes (3): ParseResult, ColumnMapping, TestColumnMapping
+Cohesion: 0.16
+Nodes (3): _normalise(), _squash(), TestColumnMapping
 
 ### Community 86 - "authService.ts"
-Cohesion: 0.17
-Nodes (27): changePasswordUser(), clearSession(), DEFAULT_LOGIN_CONFIG, DEMO_FALLBACK_ACCOUNTS, fetchCurrentUser(), getStorageItem(), getStoredToken(), getStoredUser() (+19 more)
+Cohesion: 0.18
+Nodes (26): changePasswordUser(), clearSession(), DEFAULT_LOGIN_CONFIG, DEMO_FALLBACK_ACCOUNTS, fetchCurrentUser(), getStorageItem(), getStoredToken(), getStoredUser() (+18 more)
 
 ### Community 87 - "storageService.ts"
-Cohesion: 0.37
-Nodes (15): createInitialDocument(), createInitialOutdoorElements(), pxRectToMeters(), createNamedVersion(), deleteVersion(), initStorage(), isIDBAvailable(), isLocalStorageAvailable() (+7 more)
+Cohesion: 0.33
+Nodes (16): createInitialDocument(), createInitialOutdoorElements(), pxRectToMeters(), VersionType, createNamedVersion(), deleteVersion(), initStorage(), isIDBAvailable() (+8 more)
 
 ### Community 88 - "datetime"
-Cohesion: 0.17
-Nodes (11): extract_edupage_catalog(), _extract_tables(), parse_edupage(), _parse_hhmm(), _parse_weeks_mask(), pseudonymise_teacher(), resolve_edupage_room_code(), _safe_short_code() (+3 more)
+Cohesion: 0.10
+Nodes (14): extract_edupage_catalog(), _extract_tables(), parse_edupage(), _parse_hhmm(), _parse_weeks_mask(), pseudonymise_teacher(), resolve_edupage_room_code(), _safe_short_code() (+6 more)
 
 ### Community 89 - "env.py"
 Cohesion: 0.23
@@ -594,31 +611,31 @@ Nodes (5): _configure(), do_run_migrations(), run_migrations_offline(), run_migr
 
 ### Community 90 - "errors.py"
 Cohesion: 0.07
-Nodes (21): AmbiguousAliasError, AppError, _code_for_status(), error_payload(), NotImplementedYetError, register_exception_handlers(), _app_error(), _http_error() (+13 more)
+Nodes (17): _code_for_status(), error_payload(), NotImplementedYetError, _app_error(), _http_error(), _unhandled(), _validation_error(), _safe_error() (+9 more)
 
-### Community 91 - "compat_service.py"
-Cohesion: 0.06
-Nodes (31): CompatBuilding, CompatCampus, CompatCampusResponse, CompatCatalogResponse, CompatFloor, CompatLesson, CompatLessonsResponse, CompatLiveCountsResponse (+23 more)
+### Community 91 - "schemas/compat.py"
+Cohesion: 0.11
+Nodes (12): CompatBuilding, CompatCampus, CompatCampusResponse, CompatCatalogResponse, CompatFloor, CompatLessonsResponse, CompatLiveCountsResponse, CompatModel (+4 more)
 
-### Community 93 - "StaticGeometryBatcher"
-Cohesion: 0.08
-Nodes (64): three, AjouArtObject(), AjouArtObjectProps, BlockCorridor3D(), BlockCorridorProps, getExitSignTexture(), getFloorArrowTexture(), getSharedCorridorMaterials() (+56 more)
+### Community 93 - "react"
+Cohesion: 0.07
+Nodes (36): 6. Ограничения и технический долг [факт], react, three, AjouArtObjectProps, windowTexture, getPaverTexture(), WalkwaySegment, contextColors (+28 more)
 
 ### Community 94 - "js_literal.py"
 Cohesion: 0.27
 Nodes (12): _Cursor, _find_declaration(), find_export(), _parse_array(), _parse_key(), _parse_keyword(), _parse_number(), _parse_object() (+4 more)
 
 ### Community 95 - "Role"
-Cohesion: 0.06
-Nodes (27): create_access_token(), current_principal(), decode_access_token(), hash_password(), optional_principal(), Principal, validate_password_strength(), test_admin_implies_every_role() (+19 more)
+Cohesion: 0.07
+Nodes (23): AuthenticationError, create_access_token(), current_principal(), decode_access_token(), optional_principal(), Principal, require_roles(), validate_password_strength() (+15 more)
 
 ### Community 96 - "run_timetable_optimisation_scenario"
 Cohesion: 0.13
 Nodes (13): compute_timetable_metrics(), _diagnose_timetable_infeasibility(), LectureInput, optimise_timetable(), OptimiserConfig, OptimiserResult, OptimiserRoomInput, OptimiserWeights (+5 more)
 
-### Community 97 - "LostFoundItem"
-Cohesion: 0.16
-Nodes (8): LostFoundStatus, LostFoundItem, list_dorm_notices(), list_lost_found_items(), report_lost_found_item(), test_dorm_services_and_machine_status(), test_lost_found_lifecycle_and_claim(), test_studentlife_api_endpoints()
+### Community 97 - "ticket_service.py"
+Cohesion: 0.15
+Nodes (12): Ticket, TicketEvent, TicketMetricsSummary, create_ticket(), escalate_overdue_tickets(), _find_auto_assignee(), get_ticket_metrics(), get_ticket_with_events() (+4 more)
 
 ### Community 98 - "frontend"
 Cohesion: 0.18
@@ -629,11 +646,11 @@ Cohesion: 0.18
 Nodes (11): depends_on, command, condition, depends_on, image, restart, volumes, condition (+3 more)
 
 ### Community 100 - "state_changed"
-Cohesion: 0.11
-Nodes (16): state_changed(), 10.1 Timetable ingestion, 10.2 Room state engine, 10.3 Evidence store and occupancy estimator, 10.4 Booking engine, 10.5 Real-time delivery, 10.6 History (foundation of the "time machine"), 10. Layer 0: Core (timetable, room state, evidence, bookings, real time, history) (+8 more)
+Cohesion: 0.10
+Nodes (18): state_changed(), ADR-0012: WebSocket topics over a broker, with an in-process fallback, Alternatives rejected, Backpressure: drop the oldest, count the loss, Context, Decision, The token travels in the query string, Topic widening lives in the hub (+10 more)
 
 ### Community 101 - "v1/tickets.py"
-Cohesion: 0.19
+Cohesion: 0.20
 Nodes (11): create_ticket(), escalate_overdue_tickets(), get_ticket(), get_ticket_metrics(), list_tickets(), rate_ticket(), _serialize_ticket(), TicketCreateIn (+3 more)
 
 ### Community 102 - "api"
@@ -648,49 +665,53 @@ Nodes (10): entrypoint, environment, image, ports, restart, volumes, POSTGRES_DB
 Cohesion: 0.51
 Nodes (9): backup_db_if_migrations_changed(), compose(), detect_docker(), log(), main(), rollback(), deploy-server.sh script, sync_demo_inventory_if_needed() (+1 more)
 
-### Community 105 - "Floor"
+### Community 105 - "history_service.py"
 Cohesion: 0.13
-Nodes (10): Floor, count_rooms_per_floor(), get_building(), _get_campus_by_id(), get_room(), list_building_rooms(), list_buildings(), load_campus_tree() (+2 more)
+Nodes (11): _differs(), events_since(), latest_sequence(), _latest_states(), _load_baseline(), _load_events(), _reconstruct(), _RecordedState (+3 more)
 
 ### Community 107 - "geometry/types.ts"
-Cohesion: 0.04
-Nodes (94): 3.4 Render contract (read-only reference) — `src/domain/geometry/types.ts`, ADR-0001, 1. Стек и точки входа [факт], 2.1 Зависимости модулей, 2. Модули [факт], 3. Поток данных: от источника геометрии до 3D [факт], 4. 3D-сцена [факт], 6. Ограничения и технический долг [факт] (+86 more)
+Cohesion: 0.06
+Nodes (51): ADR-007: Аддитивное расширение render-модели для планировок этажей, ADR-020: Межкорпусные переходы (Connectors) как отдельная сущность геометрии, 1.5 Помещения, ClassroomInterior3D(), Props, roomTop(), PolygonRoomMesh(), Props (+43 more)
 
 ### Community 108 - "healthcheck"
 Cohesion: 0.54
 Nodes (8): healthcheck, healthcheck, healthcheck, interval, retries, start_period, test, timeout
 
-### Community 109 - "test_migrations.py"
-Cohesion: 0.17
-Nodes (9): _run_alembic(), _alembic(), _count(), _include(), test_models_and_migration_agree(), _compare(), test_the_version_table_survives_an_upgrade(), test_upgrade_then_downgrade_then_upgrade() (+1 more)
+### Community 109 - "Settings"
+Cohesion: 0.06
+Nodes (11): Settings, Decision, _run_alembic(), _alembic(), _count(), _include(), test_models_and_migration_agree(), _compare() (+3 more)
 
 ### Community 110 - "sqlalchemy"
-Cohesion: 0.18
-Nodes (4): upgrade(), upgrade(), downgrade(), upgrade()
+Cohesion: 0.17
+Nodes (7): upgrade(), upgrade(), upgrade(), downgrade(), upgrade(), downgrade(), upgrade()
 
 ### Community 111 - "SpatialSceneManager.tsx"
 Cohesion: 0.13
-Nodes (15): buildCampusSpatialZones(), _camPos, computeBuildingRaycastBounds(), computeFootprintsBounds(), DEFAULT_ZONE_STATE, _frustum, _projScreenMatrix, SpatialLOD (+7 more)
+Nodes (16): buildCampusSpatialZones(), _camPos, computeBuildingRaycastBounds(), computeFootprintsBounds(), DEFAULT_ZONE_STATE, _frustum, _projScreenMatrix, SpatialLOD (+8 more)
 
 ### Community 112 - "cinematicStore.ts"
-Cohesion: 0.11
-Nodes (19): CinematicState, clampTime(), ControllerApi, initial(), listeners, loadStored(), RecordingState, __resetCinematicForTests() (+11 more)
+Cohesion: 0.12
+Nodes (18): CinematicState, ControllerApi, initial(), listeners, loadStored(), RecordingState, __resetCinematicForTests(), ResolutionOption (+10 more)
 
-### Community 113 - "pathMath.ts"
-Cohesion: 0.14
-Nodes (22): Cinematic Mode (`src/cinematic/`), CameraTimeline(), fmt(), CinematicCameraController(), poseAt(), isTyping(), smoothstep(), IconPause() (+14 more)
+### Community 113 - "CinematicCameraController.tsx"
+Cohesion: 0.13
+Nodes (17): Cinematic Mode (`src/cinematic/`), CinematicCameraController(), poseAt(), Controls, isTyping(), MAX_BANK, SavedCamera, smoothstep() (+9 more)
 
 ### Community 114 - "services"
-Cohesion: 0.33
-Nodes (5): name, name, services, volumes, pgdata
+Cohesion: 0.25
+Nodes (7): name, name, name, services, volumes, media_data, pgdata
 
 ### Community 115 - "_generate_one"
-Cohesion: 0.15
-Nodes (6): _generate_one(), test_generated_lessons_match_the_front_ends_picks(), test_slot_times_convert_from_campus_local_to_utc(), test_the_hash_matches_javascript_exactly(), test_the_lesson_id_matches_the_front_ends_format(), test_the_occupancy_threshold_is_the_right_way_round()
+Cohesion: 0.18
+Nodes (5): _generate_one(), test_generated_lessons_match_the_front_ends_picks(), test_slot_times_convert_from_campus_local_to_utc(), test_the_lesson_id_matches_the_front_ends_format(), test_the_occupancy_threshold_is_the_right_way_round()
+
+### Community 116 - "test_facilities.py"
+Cohesion: 0.13
+Nodes (10): TicketPriority, compute_room_health_score(), EnvironmentalSample, RoomTicketSample, compute_ticket_metrics(), next_escalated_priority(), TicketMetricSample, test_facilities_full_api_lifecycle() (+2 more)
 
 ### Community 117 - "AsyncSession"
-Cohesion: 0.13
-Nodes (7): scheduled_client(), scheduled_session(), test_a_cancelled_lesson_holds_no_occupancy(), test_day_is_demo_reports_generated_data(), test_lessons_for_day_uses_campus_local_bounds(), test_reseeding_the_schedule_does_not_duplicate(), test_weekends_are_skipped_but_weekdays_are_not()
+Cohesion: 0.12
+Nodes (8): scheduled_client(), scheduled_session(), test_a_cancelled_lesson_holds_no_occupancy(), test_day_is_demo_reports_generated_data(), test_lessons_for_day_uses_campus_local_bounds(), test_reseeding_the_schedule_does_not_duplicate(), test_the_state_service_matches_the_generator_room_by_room(), test_weekends_are_skipped_but_weekdays_are_not()
 
 ### Community 118 - "env_file"
 Cohesion: 0.60
@@ -704,33 +725,37 @@ Nodes (5): build, context, dockerfile, target, build
 Cohesion: 0.17
 Nodes (11): Applying a schema change, Backup and restore, Local stack will not start, Proving nothing outside `backend/` changed, Refreshing the timetable snapshot, `relation "campus" does not exist` or `permission denied for schema campus`, Resetting the local database completely, Rolling back a migration (+3 more)
 
+### Community 122 - "RecurrenceError"
+Cohesion: 0.14
+Nodes (10): RecurrenceError, weekly_rrule(), test_a_non_positive_duration_is_rejected(), test_an_unknown_timezone_is_rejected(), test_every_occurrence_keeps_its_local_wall_clock(), test_expansion_is_a_pure_function_of_its_window(), test_weekly_rrule_emits_sorted_deduplicated_days(), test_weekly_rrule_rejects_an_empty_weekday_list() (+2 more)
+
 ### Community 123 - "AGENTS.md — главный регламент работы AI-агентов"
 Cohesion: 0.18
 Nodes (11): 1. О проекте и его целях, 2. Фактический стек и ключевые точки входа, 3. Комплект архитектурной документации, 4. Золотые правила для AI-агентов (Gemini & Claude), 5. Инструкции по этапам работ, 6. Правила проверки и тестирования, AGENTS.md — главный регламент работы AI-агентов, Для агентов Этапа A (Точные планировки) (+3 more)
 
 ### Community 124 - "LostFoundView.tsx"
-Cohesion: 0.13
-Nodes (33): CameraIcon(), PhoneIcon(), PlusIcon(), TelegramIcon(), BUILDINGS, CATEGORIES, formatTimeAgo(), LostFoundView() (+25 more)
+Cohesion: 0.14
+Nodes (30): PlusIcon(), BUILDINGS, CATEGORIES, formatTimeAgo(), LostFoundView(), LostFoundViewProps, parseContact(), processImageFile() (+22 more)
 
 ### Community 129 - "[0.1.0] — 2026-10-17 — Phase 1: Foundation"
-Cohesion: 0.33
-Nodes (6): [0.2.0] — 2026-10-19 — Phase 2: Layer 0 core, Added, Changed, Fixed, Known limits, Measured
+Cohesion: 0.22
+Nodes (8): [0.2.0] — 2026-10-19 — Phase 2: Layer 0 core, [0.4.0] — 2026-10-31 — Phase 4: Academic Operations, Facilities & Scenario Engine, Added, Changed, Changelog, Fixed, Known limits, Measured
 
 ### Community 133 - "CinematicMode.tsx"
 Cohesion: 0.21
 Nodes (17): CameraPresets(), CameraSettings(), CinematicButton(), CinematicOverlay(), PathStorage(), Section(), Slider(), useCinematicClean() (+9 more)
 
 ### Community 134 - "6. Contradictions and gaps found"
-Cohesion: 0.22
-Nodes (9): 6. Contradictions and gaps found, C-1 — ADR-013 says "no separate backend"; this project is a backend, C-2 — ADR-004's stage gate vs. starting backend work now, C-3 — `docs/ARCHITECTURE.md` is stale in six specific ways, C-4 — `README.md` describes a branch that does not exist, C-5 — `bld-i`'s identity is described three different ways, C-6 — Two room-ID generations coexist, and one collides, C-7 — The master prompt's §2.1 description of the front end is partly wrong (+1 more)
+Cohesion: 0.12
+Nodes (17): 1. Files read, in the order required by §0.1 step 2, 2.1 The project's own staged roadmap (not the backend's), 2. What the product is, in my own words, 5.1 The authoritative building ↔ block mapping (`PDF_INVENTORY.md` §3, Q3 resolved), 5. Decisions already made (so I do not re-decide them), 6. Contradictions and gaps found, 7. My open questions (backend-specific), 8. What the documents tell me to do, and to avoid (+9 more)
 
 ### Community 137 - "icons.tsx"
-Cohesion: 0.30
-Nodes (13): CameraKeyframeList(), KeyframeInspector(), NumField(), IconCamera(), IconCopy(), IconDown(), IconEye(), IconPlay() (+5 more)
+Cohesion: 0.20
+Nodes (21): CameraKeyframeList(), KeyframeInspector(), NumField(), CameraTimeline(), fmt(), clampTime(), IconCamera(), IconCopy() (+13 more)
 
 ### Community 138 - "Подробный перечень задач этапа C"
-Cohesion: 0.12
-Nodes (17): IMPLEMENTATION_PLAN — детальный план реализации, Входные зависимости, Входные зависимости, Задача C1: Локализация ассетов и отказ от внешних CDN, Задача C2: Конфигурация стилей фасадов и архитектурных деталей, Задача C3: Освещение, тени и глубина сцены, Задача C4: Детерминированное благоустройство и растительность, Задача C5: Оптимизация производительности и профилирование (+9 more)
+Cohesion: 0.20
+Nodes (10): Входные зависимости, Задача C1: Локализация ассетов и отказ от внешних CDN, Задача C2: Конфигурация стилей фасадов и архитектурных деталей, Задача C3: Освещение, тени и глубина сцены, Задача C4: Детерминированное благоустройство и растительность, Задача C5: Оптимизация производительности и профилирование, Задача C6: Финальная приёмка качества, Подробный перечень задач этапа C (+2 more)
 
 ### Community 139 - "2. Детальный аудит по корпусам"
 Cohesion: 0.20
@@ -740,33 +765,41 @@ Nodes (9): 1. Общий состав листов, 2.1 Корпус A (Глав
 Cohesion: 0.17
 Nodes (11): _bump(), clear_demo_schedule(), _course_code(), DemoScheduleResult, _ensure_room_resources(), _ensure_section(), _load_rooms(), _range() (+3 more)
 
-### Community 141 - "TimetableRow"
-Cohesion: 0.14
-Nodes (3): TimetableRow, ImportDiff, TestRowIdentity
+### Community 142 - "loadCampus"
+Cohesion: 0.08
+Nodes (27): Decision, The seams, and how the front end switches, 1.1 Constraints this places on the backend, 1. Framework and build setup, 2.1 Geometry is **not** a backend concern, 2. How the front end gets its data today, 3.1 Campus tree — `src/domain/campus/types.ts`, 3.2 Schedule — `src/domain/schedule/types.ts` (+19 more)
 
-### Community 143 - "PROJECT_UNDERSTANDING"
-Cohesion: 0.18
-Nodes (11): 1. Files read, in the order required by §0.1 step 2, 2.1 The project's own staged roadmap (not the backend's), 2. What the product is, in my own words, 4.1 Spatial, 4.3 Process vocabulary, 4. Vocabulary (as the repository uses it), 5.1 The authoritative building ↔ block mapping (`PDF_INVENTORY.md` §3, Q3 resolved), 5. Decisions already made (so I do not re-decide them) (+3 more)
+### Community 143 - "SpaceKind"
+Cohesion: 0.40
+Nodes (4): SpaceKind, 4.1 Spatial, 4.3 Process vocabulary, 4. Vocabulary (as the repository uses it)
 
 ### Community 144 - "Role"
-Cohesion: 0.07
-Nodes (38): ChangePasswordRequest, dev_token(), DevTokenRequest, _login_tabs(), LoginTabDescriptor, me(), password_requirements(), PasswordRequirementsResponse (+30 more)
+Cohesion: 0.11
+Nodes (23): ChangePasswordRequest, dev_token(), DevTokenRequest, _login_tabs(), LoginTabDescriptor, me(), password_requirements(), PasswordRequirementsResponse (+15 more)
 
 ### Community 145 - "cinematic/presets.ts"
-Cohesion: 0.19
-Nodes (15): CameraPath, EasingId, Keyframe, add(), buildingFocus(), buildPreset(), CAMPUS_LOCK, kf() (+7 more)
+Cohesion: 0.29
+Nodes (11): add(), buildingFocus(), buildPreset(), CAMPUS_LOCK, kf(), pickBuilding(), PresetInfo, PresetResult (+3 more)
 
 ### Community 146 - "Подробный перечень задач этапа B"
-Cohesion: 0.15
-Nodes (13): Входные зависимости, Задача B1: Централизованный DocumentStore и Command Pattern, Задача B2: Интерактивный векторный 2D-вьюпорт (SVG), Задача B3: Редактирование корпусов и привязка к сетке (Snapping), Задача B4: Инструменты редактирования стен и проёмов, Задача B5: Редактирование пространств и метаданных помещений, Задача B6: Валидация в реальном времени и панель ошибок, Задача B7: Синхронизация 2D ↔ 3D и экспорт документа (+5 more)
+Cohesion: 0.17
+Nodes (12): Входные зависимости, Задача B1: Централизованный DocumentStore и Command Pattern, Задача B2: Интерактивный векторный 2D-вьюпорт (SVG), Задача B3: Редактирование корпусов и привязка к сетке (Snapping), Задача B4: Инструменты редактирования стен и проёмов, Задача B5: Редактирование пространств и метаданных помещений, Задача B6: Валидация в реальном времени и панель ошибок, Задача B8: Контрольная точка #3 и сдача этапа B (+4 more)
 
 ### Community 147 - "include_object"
-Cohesion: 0.22
-Nodes (7): include_object(), Fixed during development, ADR-0004: SQLAlchemy 2.1 async + asyncpg + Alembic, Alternatives rejected, Consequences, Context, Decision
+Cohesion: 0.15
+Nodes (11): include_object(), [0.1.0] — 2026-10-17 — Phase 1: Foundation, Added, Discovered, Fixed during development, Known limits, ADR-0004: SQLAlchemy 2.1 async + asyncpg + Alembic, Alternatives rejected (+3 more)
+
+### Community 149 - "notification_service.py"
+Cohesion: 0.16
+Nodes (10): NotificationStatus, acknowledge_notification(), broadcast_notification(), list_user_notifications(), register_push_subscription(), send_notification(), test_broadcast_and_audit_logging(), test_notifications_api_lifecycle() (+2 more)
+
+### Community 152 - "BlockCFacade.tsx"
+Cohesion: 0.15
+Nodes (18): AjouLogoMedallion(), AjouLogoMedallionProps, getMedallionTextTexture(), BlockCFacadeProps, BlockFFacadeProps, getAjouBannerTexture(), getAjouEnglishFriezeTexture(), getAjouKoreanFriezeTexture() (+10 more)
 
 ### Community 153 - "2. Before & After Visual Comparison"
-Cohesion: 0.25
-Nodes (7): 2. Before & After Visual Comparison, 3. Performance & Quality Preset Telemetry, Phase 2: Visual Reconstruction Report, View 1: Campus Overview (`/?cam=115,92,165,10,0,18`), View 2: Academic Building Facade, Glazing & Courtyard Trees (`[45, 2.2, 48], yaw: 2.85`), View 3: Ground Paving, Plaza Props & Approach (`[65, 2.2, 11.5], yaw: 1.85`), View 4: Grand Fountain, Pinnate Palms & Water Basin (`[26, 2.2, 31], yaw: 0.72`)
+Cohesion: 0.22
+Nodes (8): 1. Root-Cause Diagnosis, 2. Before & After Visual Comparison, 3. Performance & Quality Preset Telemetry, Phase 2: Visual Reconstruction Report, View 1: Campus Overview (`/?cam=115,92,165,10,0,18`), View 2: Academic Building Facade, Glazing & Courtyard Trees (`[45, 2.2, 48], yaw: 2.85`), View 3: Ground Paving, Plaza Props & Approach (`[65, 2.2, 11.5], yaw: 1.85`), View 4: Grand Fountain, Pinnate Palms & Water Basin (`[26, 2.2, 31], yaw: 0.72`)
 
 ### Community 155 - "ADR-0002: Python 3.13, with Docker as the canonical runtime"
 Cohesion: 0.33
@@ -781,7 +814,7 @@ Cohesion: 0.29
 Nodes (7): 0.1 Order of operations (do these first, in this order, before any feature work), 0.2 Repository safety rules ("do no harm"), 0.3 Where things go, 0.4 Database: PostgreSQL only, 0.5 Precedence when instructions conflict, 0.6 What the Phase 0 report contains, 0. Start here: early steps, repository safety, database rules
 
 ### Community 158 - "render_notification_template"
-Cohesion: 0.19
+Cohesion: 0.20
 Nodes (4): render_notification_template(), RenderedNotification, _SafeFormatDict, TestNotificationTemplates
 
 ### Community 159 - "20. Layer 10: AI and intelligence"
@@ -793,12 +826,12 @@ Cohesion: 0.29
 Nodes (6): P-1 — Vite dev proxy so the front end can reach the API over the same origin, P-2 — Refresh `docs/ARCHITECTURE.md`, which is stale in six places, P-3 — Untrack `node_modules/` and `dist/` (TD-14, only half fixed), P-4 — Fix the duplicate `legacyId` in `src/data/floor-plans/index.ts`, P-5 — A CI workflow for the backend, PROPOSED_ROOT_CHANGES
 
 ### Community 161 - "crowd_service.py"
-Cohesion: 0.10
-Nodes (25): MeetingRule, Section, PlaceKind, ReporterReliability, Signal, BusynessSnapshot, Place, WalkingTransitionIssue (+17 more)
+Cohesion: 0.07
+Nodes (34): Meeting, MeetingRule, Section, CrowdLevel, PlaceKind, CrowdReport, ReporterReliability, BusynessSnapshot (+26 more)
 
-### Community 162 - "check_walking_transitions"
-Cohesion: 0.26
-Nodes (5): check_walking_transitions(), required_walking_seconds(), ScheduledTransitionSlot, WalkingCheckConfig, TestWalkingTimeCheck
+### Community 162 - "compat_service.py"
+Cohesion: 0.13
+Nodes (9): CompatLesson, CompatMeta, CompatRoomScheduleState, RoomStatusCompat, interval_to_compat_lesson(), meta_for_campus(), meta_for_states(), room_state_to_compat() (+1 more)
 
 ### Community 163 - "21. Layer 11: Management analytics"
 Cohesion: 0.33
@@ -812,9 +845,9 @@ Nodes (5): Retention, Rules, Timetable data and teachers' names, What the source
 Cohesion: 0.33
 Nodes (5): 1. Параметры калибровки и привязки, 2. Экспликация помещений, 3. Вспомогательные зоны, 4. Результаты проверки, Отчёт об импорте: Корпус A (1-й этаж, `bld-h-f1`)
 
-### Community 166 - "ADR-0012: WebSocket topics over a broker, with an in-process fallback"
+### Community 166 - "v1/compat.py"
 Cohesion: 0.20
-Nodes (9): ADR-0012: WebSocket topics over a broker, with an in-process fallback, Alternatives rejected, Backpressure: drop the oldest, count the loss, Context, Decision, The token travels in the query string, Topic widening lives in the hub, Topics are parsed, not accepted as strings (+1 more)
+Nodes (9): compat_campus(), compat_campus_bare(), compat_catalog(), compat_lessons(), compat_live_counts(), compat_room_states(), _parse_compat_at(), _provenance_headers() (+1 more)
 
 ### Community 167 - "Campus Digital Twin — backend"
 Cohesion: 0.18
@@ -823,6 +856,10 @@ Nodes (10): After changing a model, After the front end's campus data changes, C
 ### Community 168 - "CampusNavRail.tsx"
 Cohesion: 0.39
 Nodes (7): CalendarIcon(), MapNavIcon(), PackageIcon(), UsersIcon(), CampusNavRail(), CampusNavRailProps, CampusNavSection
+
+### Community 169 - "RoomState"
+Cohesion: 0.10
+Nodes (10): RoomContext, RoomState, states_for_day(), summarise(), _details(), test_a_days_walk_handles_a_long_dst_day(), test_a_days_walk_handles_a_short_dst_day(), test_live_count_matches_the_number_of_is_live_rooms() (+2 more)
 
 ### Community 170 - "13. Layer 3: Academic operations"
 Cohesion: 0.40
@@ -864,21 +901,21 @@ Nodes (4): 1. Параметры калибровки, 2. Экспликация
 Cohesion: 0.40
 Nodes (4): 1. Параметры калибровки, 2. Экспликация помещений, 3. Особенности планировки, Отчёт об импорте: Корпус A (2-й этаж, `bld-h-f2`)
 
-### Community 181 - "[0.1.0] — 2026-10-17 — Phase 1: Foundation"
-Cohesion: 0.29
-Nodes (6): [0.1.0] — 2026-10-17 — Phase 1: Foundation, [0.4.0] — 2026-10-31 — Phase 4: Academic Operations, Facilities & Scenario Engine, Added, Changelog, Discovered, Known limits
+### Community 181 - "Building.tsx"
+Cohesion: 0.17
+Nodes (19): 4. 3D-сцена [факт], 5. Выбор, этажи, поиск, навигация [факт], Реестр архитектурных решений, @react-three/fiber, Building(), BuildingInterior(), BuildingMass(), BuildingMode (+11 more)
 
 ### Community 182 - "Privacy"
 Cohesion: 0.29
 Nodes (6): Configurable assumptions, Decisions already encoded in the schema, Open question for the owner, Privacy, Status after Phase 1, Still to document (later phases)
 
-### Community 183 - "ParticleKind"
-Cohesion: 0.25
-Nodes (8): ParticleKind, BasinRipple, CascadeCurtain, FanJet, FoamNozzle, GeyserCore, GeyserMist, SplashCrown
+### Community 183 - "FrontendInventory"
+Cohesion: 0.22
+Nodes (5): FrontendInventory, _validate(), build_snapshot(), main(), summarise()
 
-### Community 184 - "_guard"
-Cohesion: 0.17
-Nodes (6): _guard(), ADR-0011: APScheduler for scheduled work, with the transition scheduler on its own timer, Consequences, Context, Decision, Why not ARQ
+### Community 184 - "settle_due_rooms"
+Cohesion: 0.08
+Nodes (12): settle_due_rooms(), SettleResult, TransitionRunner, ADR-0011: APScheduler for scheduled work, with the transition scheduler on its own timer, Context, Decision, Verification, Why not ARQ (+4 more)
 
 ### Community 185 - "Отчёт об импорте: Корпус E (1-й этаж, `bld-b-f1`)"
 Cohesion: 0.50
@@ -888,13 +925,13 @@ Nodes (3): 1. Параметры калибровки, 2. Экспликация
 Cohesion: 0.67
 Nodes (3): 6.1 Shape, 6.2 Shared engines (build once, reuse everywhere), 6. Architecture
 
-### Community 187 - "fetch_active_edupage_payload"
-Cohesion: 0.33
-Nodes (3): _candidate_academic_years(), _edupage_post(), fetch_active_edupage_payload()
+### Community 187 - "Interval"
+Cohesion: 0.14
+Nodes (6): Interval, _without_overlay(), test_a_naive_interval_is_rejected(), test_a_reversed_interval_is_rejected_at_construction(), test_a_zero_length_interval_is_rejected_at_construction(), _timetable()
 
 ### Community 189 - "CampusFountain.tsx"
-Cohesion: 0.21
-Nodes (11): AUT_EMBLEM_POLY_0, AUT_EMBLEM_POLY_1, CampusFountainProps, createMergedPalmCrownGeometry(), createPalmFrondGeometry(), FOUNTAIN_MATERIALS, createDropletTexture(), FountainWaterAnimation() (+3 more)
+Cohesion: 0.12
+Nodes (18): AUT_EMBLEM_POLY_0, AUT_EMBLEM_POLY_1, CampusFountainProps, createMergedPalmCrownGeometry(), createPalmFrondGeometry(), createDropletTexture(), FountainWaterAnimation(), initializeParticleBuffers() (+10 more)
 
 ### Community 190 - "Decisions"
 Cohesion: 0.33
@@ -904,33 +941,73 @@ Nodes (5): 1. Two-Stage Exam Seat Planner (`app/engines/exam_seating.py`, §13.2
 Cohesion: 0.50
 Nodes (5): computeSemanticChanges(), numDiff(), photosDiff(), pickPrimaryCategory(), pointsDiff()
 
-### Community 192 - "test_academic.py"
-Cohesion: 0.06
-Nodes (6): _aware(), get_replay(), _feature_keys(), _free_minutes(), _has_features(), search_rooms()
+### Community 192 - "replay.py"
+Cohesion: 0.10
+Nodes (3): _aware(), get_replay(), get_session()
 
-### Community 193 - "ADR-0005: Modular monolith layout"
-Cohesion: 0.50
-Nodes (3): ADR-0005: Modular monolith layout, Alternatives rejected, Decision
+### Community 193 - "pathMath.ts"
+Cohesion: 0.21
+Nodes (13): CameraPathEditor(), Gizmo(), Marker(), EASING_LABELS, EasingId, EASINGS, evalSegment(), hermite() (+5 more)
+
+### Community 194 - "ImportBatch"
+Cohesion: 0.21
+Nodes (7): ImportBatch, ImportStatus, rollback_import(), test_a_dry_run_records_its_report_for_audit(), test_a_rollback_keeps_the_batch_row_as_an_audit_trail(), test_rolling_back_a_dry_run_is_refused(), test_rolling_back_an_unknown_batch_is_404()
 
 ### Community 196 - "v1/notifications.py"
-Cohesion: 0.16
-Nodes (8): ack_notification(), broadcast(), BroadcastIn, list_notifications(), PushSubscriptionIn, register_push(), _serialize_notification(), require_roles()
+Cohesion: 0.21
+Nodes (7): ack_notification(), broadcast(), BroadcastIn, list_notifications(), PushSubscriptionIn, register_push(), _serialize_notification()
+
+### Community 197 - "demo_schedule.py"
+Cohesion: 0.20
+Nodes (3): DemoLesson, _slot_instants(), _utf16_code_units()
 
 ### Community 199 - "Содержание решений"
-Cohesion: 0.08
-Nodes (25): ADR-001: Система единиц и мировых осей, ADR-002: Фиксация мирового начала координат кампуса (datum), ADR-004: Фиксированная последовательность этапов A → B → C, ADR-005: Отдельная authoring-модель `CampusDocument` в формате JSON, ADR-006: Локальные системы координат зданий и конвенция `yaw`, ADR-008: Стабильные идентификаторы и таблица алиасов `legacyIds`, ADR-009: Разделение оболочки (shell) и интерьера помещений, ADR-010: Запрет неявного масштабирования внутренней геометрии (+17 more)
+Cohesion: 0.07
+Nodes (29): 9. Архитектурное разделение слоёв и визуальная подсистема (Этап C) [факт], ADR-001: Система единиц и мировых осей, ADR-002: Фиксация мирового начала координат кампуса (datum), ADR-004: Фиксированная последовательность этапов A → B → C, ADR-005: Отдельная authoring-модель `CampusDocument` в формате JSON, ADR-006: Локальные системы координат зданий и конвенция `yaw`, ADR-008: Стабильные идентификаторы и таблица алиасов `legacyIds`, ADR-009: Разделение оболочки (shell) и интерьера помещений (+21 more)
+
+### Community 202 - "Подробный перечень задач этапа A"
+Cohesion: 0.20
+Nodes (10): Задача A0: Инфраструктурная стабилизация репозитория, Задача A1: Аудит предоставленных PDF и извлечение листов, Задача A2: Модуль геометрических трансформаций и конвенция yaw, Задача A3: Описание схемы данных `CampusDocument` и валидатор, Задача A4: Миграция v0 → v1 (демо-данные в формат JSON), Задача A5: Инструментарий калибровки и полуавтоматической трассировки, Задача A6: ПИЛОТНЫЙ ИМПОРТ одного этажа + Контрольная точка #1, Задача A7: Аддитивное расширение 3D-рендера для элементов плана (+2 more)
 
 ### Community 203 - "adr/README.md"
-Cohesion: 0.13
-Nodes (11): ADR-0007: Seed by re-deriving the front end's room inventory, read-only, Alternatives rejected, Consequences, Context, Decision, ADR-0009: UTC in the database, campus timezone in the API, no assumed default, Alternatives rejected, Consequences (+3 more)
+Cohesion: 0.09
+Nodes (17): ADR-0001: Backend scope, and how it relates to ADR-013 ("no separate backend"), Alternatives rejected, Consequences, Context, ADR-0003: PostgreSQL 18, the `campus` schema, two roles, and explicit grants, Alternatives rejected, Consequences, Context (+9 more)
+
+### Community 206 - "test_sync_edupage_purges_demo_schedule_and_switches_versions"
+Cohesion: 0.29
+Nodes (4): _lesson_id(), meeting_to_compat(), res1_monday(), test_sync_edupage_purges_demo_schedule_and_switches_versions()
+
+### Community 207 - "Performance: measured numbers for Layer 0"
+Cohesion: 0.25
+Nodes (7): How to reproduce, Other measured figures, Performance: measured numbers for Layer 0, Reading the target correctly, Results, The whole-campus number is a known limit, What the optimisation actually was
+
+### Community 208 - "IMPLEMENTATION_PLAN — детальный план реализации"
+Cohesion: 0.29
+Nodes (7): IMPLEMENTATION_PLAN — детальный план реализации, Входные зависимости, Общая дорожная карта, Открытые вопросы, блокирующие этапы, Условия перехода к Этапу B (Gate A → B), Цель этапа, ЭТАП A: Точные планировки помещений
+
+### Community 209 - "ExportReferenceScope"
+Cohesion: 0.43
+Nodes (6): EditorTopBarProps, CanvasViewport, EditorTool, ExportReferenceScope, ExportManifest, ExportOptions
 
 ### Community 210 - "Vegetation.tsx"
-Cohesion: 0.07
-Nodes (34): AJOU_ART_DIMENSIONS, BlockFLibraryInterior(), BOOK_PALETTE, getSharedLibraryMaterials(), LIBRARY_LAYOUT, LIBRARY_ROOM_ID, mergeLibraryGeometries(), Props (+26 more)
+Cohesion: 0.08
+Nodes (34): BlockFLibraryInterior(), BOOK_PALETTE, getSharedLibraryMaterials(), LIBRARY_LAYOUT, LIBRARY_ROOM_ID, mergeLibraryGeometries(), Props, sharedBookcaseFrameGeo (+26 more)
 
-### Community 211 - "CinematicRecorderEngine"
-Cohesion: 0.21
-Nodes (6): CinematicRecorderEngine, isRecordingSupported(), MIME_CANDIDATES, pickMimeType(), recorderEngine, RecorderOptions
+### Community 212 - "rematerialise"
+Cohesion: 0.40
+Nodes (3): rematerialise(), _term_window(), test_rematerialising_an_unknown_rule_is_404()
+
+### Community 213 - "ADR-0007: Seed by re-deriving the front end's room inventory, read-only"
+Cohesion: 0.33
+Nodes (5): ADR-0007: Seed by re-deriving the front end's room inventory, read-only, Alternatives rejected, Consequences, Context, Decision
+
+### Community 214 - "ADR-0008: The front end's identifiers are the contract; aliases are many-to-many"
+Cohesion: 0.33
+Nodes (5): ADR-0008: The front end's identifiers are the contract; aliases are many-to-many, Alternatives rejected, Consequences, Context, Decision
+
+### Community 216 - "3. Системы координат (proposed)"
+Cohesion: 0.33
+Nodes (6): 3.1 Иерархия, 3.2 Campus datum, 3.3 Конвенция поворота `yaw`, 3.4 Высоты, 3.5 Ориентация полигонов, 3. Системы координат (proposed)
 
 ### Community 219 - "ADR-0006: The compatibility layer is a contract, not a convenience"
 Cohesion: 0.33
@@ -939,22 +1016,22 @@ Nodes (5): ADR-0006: The compatibility layer is a contract, not a convenience, A
 ## Knowledge Gaps
 - **22 isolated node(s):** `campus-backend`, `ADR-0029`, `ADR-0020`, `ADR-0029`, `ADR-0029` (+17 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2078 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **33 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **35 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `now()` connect `Settings` to `test_academic.py`, `RoomStateKind`, `v1/state.py`, `test_import_service.py`, `GEOMETRY_SPEC — единая спецификация геометрии`, `base.py`, `fetch_active_edupage_payload`, `ValidationError`, `Role`, `test_booking.py`, `time.py`, `import_service.py`, `compat_service.py`, `dataclasses`, `fetch_edupage_timetable.py`, `Role`?**
-  _High betweenness centrality (0.314) - this node is a cross-community bridge._
+- **Why does `now()` connect `import_service.py` to `RoomStateKind`, `loadCampus`, `Role`, `test_booking.py`, `time.py`, `apply_import`, `dataclasses`, `maintenance.py`, `compat_service.py`, `base.py`, `v1/compat.py`, `parse_at`, `get_settings`, `settle_due_rooms`, `fetch_edupage_timetable.py`, `ImportBatch`, `AppUser`, `Role`, `history_service.py`?**
+  _High betweenness centrality (0.291) - this node is a cross-community bridge._
 - **Are the 63 inferred relationships involving `Role` (e.g. with `approve_lab_booking()` and `approve_scenario()`) actually correct?**
   _`Role` has 63 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `campus-backend`, `ADR-0029`, `ADR-0020` to the rest of the system?**
   _22 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `DetailedBuilding.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.08099969888587774 - nodes in this community are weakly interconnected._
-- **Why does `5. Live and Simulate time` connect `GEOMETRY_SPEC — единая спецификация геометрии` to `App.tsx`, `Settings`?**
-  _High betweenness centrality (0.308) - this node is a cross-community bridge._
+  _Cohesion score 0.11654135338345864 - nodes in this community are weakly interconnected._
+- **Why does `5. Live and Simulate time` connect `loadCampus` to `App.tsx`, `import_service.py`?**
+  _High betweenness centrality (0.285) - this node is a cross-community bridge._
 - **Are the 37 inferred relationships involving `Settings` (e.g. with `healthz()` and `readyz()`) actually correct?**
   _`Settings` has 37 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Hub` be split into smaller, more focused modules?**
-  _Cohesion score 0.12395929694727105 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07536231884057971 - nodes in this community are weakly interconnected._

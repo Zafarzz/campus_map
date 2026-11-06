@@ -75,6 +75,9 @@ function isCleanItem(item: LostFoundItem): boolean {
   if (item.id === '01a1af7a-853d-7f10-b89f-0643442c2492') return false;
   const title = (item.title || '').toLowerCase();
   if (title.includes('test keychain')) return false;
+  if (title === 'i found a wallet' && (item.description || '').toLowerCase().includes('malika nizamitdinova')) {
+    return false;
+  }
   return true;
 }
 
@@ -160,7 +163,7 @@ export async function listLostFoundItems(
         token,
       );
       if (Array.isArray(res?.items)) {
-        return res.items;
+        return res.items.filter(isCleanItem);
       }
     } catch {
       // fallback

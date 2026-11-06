@@ -75,6 +75,7 @@ services:
       - ./backend/scripts:/srv/scripts:ro
       - ./backend/locales:/srv/locales:ro
       - ./src:/srv/frontend-src:ro
+      - media_data:/var/lib/campus_map_storage
     command:
       - /bin/sh
       - -ec
@@ -146,6 +147,7 @@ services:
       - ./backend/tests:/srv/tests:ro
       - ./backend/locales:/srv/locales:ro
       - ./src:/srv/frontend-src:ro
+      - media_data:/var/lib/campus_map_storage
     command:
       - /bin/sh
       - -ec
@@ -198,3 +200,5 @@ services:
 volumes:
   pgdata:
     name: campus-backend-pgdata
+  media_data:
+    name: campus-backend-media
