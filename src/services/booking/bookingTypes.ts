@@ -19,6 +19,7 @@ export interface BookableResource {
 export interface Booking {
   id: string;
   resource_id: string;
+  room_id?: string | null;
   starts_at: string;
   ends_at: string;
   status: BookingStatus;
@@ -39,6 +40,7 @@ export interface BookingAlternative {
 
 export interface CreateBookingPayload {
   resource_id: string;
+  room_id?: string;
   starts_at: string; // ISO instant with timezone (e.g. Asia/Tashkent +05:00)
   ends_at: string;
   purpose?: string;

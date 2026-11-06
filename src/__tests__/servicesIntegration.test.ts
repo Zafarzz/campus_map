@@ -158,6 +158,54 @@ describe('Booking Service Seams', () => {
       })
     ).toBe(true);
 
+    // Canteen in Block C
+    expect(
+      isToiletOrDormResource({
+        id: 'r-canteen',
+        code: 'room:room-canteen',
+        name: 'Block C - Room Canteen',
+        kind: 'room',
+        room_id: 'room-canteen',
+        building_id: 'bld-i',
+        requires_approval: false,
+        min_duration_minutes: 15,
+        max_duration_minutes: 240,
+        max_days_ahead: 14,
+      }, { room: { number: 'Canteen', name: 'Canteen & Dining Hall' } })
+    ).toBe(true);
+
+    // University Library in Block F
+    expect(
+      isToiletOrDormResource({
+        id: 'r-f101-lib',
+        code: 'room:bld-d-f1-f101',
+        name: 'Block F - Campus Library & Reading Hall',
+        kind: 'hall',
+        room_id: 'bld-d-f1-f101',
+        building_id: 'bld-d',
+        requires_approval: false,
+        min_duration_minutes: 15,
+        max_duration_minutes: 240,
+        max_days_ahead: 14,
+      }, { room: { number: 'F-101', name: 'Campus Library & Reading Hall (F101)' } })
+    ).toBe(true);
+
+    // Open study spaces / lounges in Block A & B
+    expect(
+      isToiletOrDormResource({
+        id: 'r-a105',
+        code: 'room:bld-h-f1-a105',
+        name: 'Block A - Library Reading Hall',
+        kind: 'room',
+        room_id: 'bld-h-f1-a105',
+        building_id: 'bld-h',
+        requires_approval: false,
+        min_duration_minutes: 15,
+        max_duration_minutes: 240,
+        max_days_ahead: 14,
+      })
+    ).toBe(true);
+
     // Regular classroom should NOT be excluded
     expect(
       isToiletOrDormResource({
@@ -175,11 +223,15 @@ describe('Booking Service Seams', () => {
     ).toBe(false);
   });
 
-  it('includes Block E in bookable buildings list', () => {
+  it('includes Block E and excludes Block C from bookable buildings list', () => {
     const blockE = BOOKABLE_BUILDINGS.find((b) => b.id === 'bld-b');
     expect(blockE).toBeDefined();
     expect(blockE?.name).toBe('Block E');
     expect(blockE?.code).toBe('E');
+
+    // Block C (bld-i) consists of public canteen/spaces and must be excluded
+    const blockC = BOOKABLE_BUILDINGS.find((b) => b.id === 'bld-i');
+    expect(blockC).toBeUndefined();
   });
 
   it('accurately resolves lecture halls such as Block F second floor tiered lecture halls', () => {

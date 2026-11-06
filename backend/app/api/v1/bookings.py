@@ -51,6 +51,17 @@ class BookingCreate(BaseModel):
     attendee_count: int | None = Field(default=None, ge=0)
 
 
+class OccupiedSlotOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    resource_id: uuid.UUID
+    room_id: str | None = None
+    starts_at: datetime
+    ends_at: datetime
+    status: OccupancyStatus
+
+
 class BookingOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -219,6 +230,37 @@ async def list_resources(
         )
         for item in listings
     ]
+
+
+@router.get(
+    "/occupied-slots",
+    response_model=list[OccupiedSlotOut],
+    summary="List active room booking slots",
+    description=(
+        "Returns active booking slots (pending and confirmed) for rooms across campus "
+        "so that room availability stays synchronized across all student accounts without "
+        "exposing private user or booking details."
+    ),
+)
+async def list_occupied_slots(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+    resource_id: Annotated[uuid.UUID | None, Query()] = None,
+    room_id: Annotated[str | None, Query(description="Filter by the room's id.")] = None,
+    starts_after: Annotated[datetime | None, Query()] = None,
+    starts_before: Annotated[datetime | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 1000,
+) -> list[OccupiedSlotOut]:
+    del principal
+    slots = await booking_service.list_occupied_slots(
+        session,
+        resource_id=resource_id,
+        room_id=room_id,
+        starts_after=starts_after,
+        starts_before=starts_before,
+        limit=limit,
+    )
+    return [OccupiedSlotOut(**s) for s in slots]
 
 
 @router.get(

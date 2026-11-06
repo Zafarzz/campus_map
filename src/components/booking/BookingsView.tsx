@@ -14,6 +14,7 @@ import {
   createBooking,
   listBookableResources,
   listMyBookings,
+  listOccupiedSlots,
 } from '../../services/booking/bookingService';
 import type {
   BookableResource,
@@ -102,14 +103,6 @@ export const BOOKABLE_BUILDINGS: readonly BookableBuildingOption[] = [
     bgTint: 'rgba(124, 58, 237, 0.1)',
   },
   {
-    id: 'bld-i',
-    code: 'C',
-    name: 'Block C',
-    subtitle: 'Amphitheater & Cafeteria',
-    accent: '#d97706',
-    bgTint: 'rgba(217, 119, 6, 0.1)',
-  },
-  {
     id: 'bld-c',
     code: 'D',
     name: 'Block D',
@@ -189,8 +182,6 @@ export function resolveResourceKind(
   const knownHalls = new Set([
     'bld-d-f2-f201', // F-201 Tiered Lecture Hall (Amphitheatre West)
     'bld-d-f2-f202', // F-202 Tiered Lecture Hall (Amphitheatre East)
-    'bld-d-f1-f101', // F-101 Campus Library & Reading Hall
-    'room-c-conf',   // Conference Hall & Main Lobby
     'bld-b-f1-e101', // Block E Main Lecture Hall / Design Studio (166 seats)
   ]);
   if (res.room_id && knownHalls.has(res.room_id)) {
@@ -210,8 +201,8 @@ export function isToiletOrDormResource(
   roomLoc?: { room: { number?: string; name?: string; kind?: string } },
 ): boolean {
   if (res.kind === 'laundry' || res.kind === 'dorm') return true;
-  if (res.building_id === 'bld-j') return true;
-  if (res.room_id?.startsWith('bld-j')) return true;
+  if (res.building_id === 'bld-j' || res.building_id === 'bld-i') return true;
+  if (res.room_id?.startsWith('bld-j') || res.room_id?.startsWith('bld-i')) return true;
 
   const codeLower = (res.code || '').toLowerCase();
   const nameLower = (res.name || '').toLowerCase();
@@ -219,25 +210,41 @@ export function isToiletOrDormResource(
   const roomNumberLower = (roomLoc?.room.number || '').toLowerCase();
   const roomNameLower = (roomLoc?.room.name || '').toLowerCase();
 
-  const isToiletText = (s: string) =>
+  const isExcludedPublicOrRestroomText = (s: string) =>
     s.includes('toilet') ||
     s.includes('restroom') ||
     s.includes('wc') ||
     s.includes('washroom') ||
-    s.includes('lavatory');
+    s.includes('lavatory') ||
+    s.includes('canteen') ||
+    s.includes('cafeteria') ||
+    s.includes('dining') ||
+    s.includes('library') ||
+    s.includes('reading') ||
+    s.includes('lounge') ||
+    s.includes('open space') ||
+    s.includes('lobby') ||
+    s.includes('exhibition');
 
   if (
-    isToiletText(codeLower) ||
-    isToiletText(nameLower) ||
-    isToiletText(roomIdLower) ||
-    isToiletText(roomNumberLower) ||
-    isToiletText(roomNameLower)
+    isExcludedPublicOrRestroomText(codeLower) ||
+    isExcludedPublicOrRestroomText(nameLower) ||
+    isExcludedPublicOrRestroomText(roomIdLower) ||
+    isExcludedPublicOrRestroomText(roomNumberLower) ||
+    isExcludedPublicOrRestroomText(roomNameLower)
   ) {
     return true;
   }
 
-  // Known restroom room IDs in CAD blueprints
-  const knownToiletRoomIds = new Set([
+  // Known public amenities / restrooms / libraries / open lounges
+  const knownExcludedRoomIds = new Set([
+    'room-canteen',
+    'room-c-conf',
+    'bld-d-f1-f101',
+    'bld-h-f1-a105',
+    'bld-h-f1-a107',
+    'bld-g-f1-lobby',
+    'bld-g-f2-lobby',
     'bld-g-f1-wc-m',
     'bld-g-f1-wc-f',
     'bld-g-f2-wc-m',
@@ -247,11 +254,31 @@ export function isToiletOrDormResource(
     'bld-g-f4-r2',
     'bld-g-f4-r5',
   ]);
-  if (res.room_id && knownToiletRoomIds.has(res.room_id)) {
+  if (res.room_id && knownExcludedRoomIds.has(res.room_id)) {
     return true;
   }
 
   return false;
+}
+
+export function getBookingWeekday(isoStr: string): WeekdayIndex | -1 {
+  try {
+    const match = isoStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const y = Number(match[1]);
+      const m = Number(match[2]);
+      const d = Number(match[3]);
+      const date = new Date(Date.UTC(y, m - 1, d));
+      const day = date.getUTCDay(); // 0 = Sun, 1 = Mon ... 5 = Fri, 6 = Sat
+      const isoDay = (day + 6) % 7; // 0 = Mon, 1 = Tue, 2 = Wed, 3 = Thu, 4 = Fri, 5 = Sat, 6 = Sun
+      if (isoDay >= 0 && isoDay <= 4) {
+        return isoDay as WeekdayIndex;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return -1;
 }
 
 export interface FreeTimeWindow {
@@ -464,6 +491,7 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
   const [activeTab, setActiveTab] = useState<'available' | 'my_bookings'>('available');
   const [resources, setResources] = useState<BookableResource[]>([]);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  const [occupiedSlots, setOccupiedSlots] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -505,12 +533,14 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
     if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      const [resList, userBookings] = await Promise.all([
+      const [resList, userBookings, slots] = await Promise.all([
         listBookableResources(token),
         listMyBookings(token),
+        listOccupiedSlots(token),
       ]);
       setResources(resList);
       setMyBookings(userBookings);
+      setOccupiedSlots(slots);
     } catch (err: unknown) {
       console.warn('Failed to load bookings data:', err);
     } finally {
@@ -521,6 +551,17 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
   useEffect(() => {
     refreshData();
   }, [refreshData]);
+
+  const allActiveBookings = useMemo(() => {
+    const map = new Map<string, Booking>();
+    for (const b of occupiedSlots) {
+      map.set(b.id, b);
+    }
+    for (const b of myBookings) {
+      map.set(b.id, b);
+    }
+    return Array.from(map.values());
+  }, [occupiedSlots, myBookings]);
 
   const getLessonsForWeekday = useCallback(
     (wd: WeekdayIndex): Lesson[] => {
@@ -586,7 +627,15 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
         : bldShort;
 
       const roomLessons = res.room_id ? lessonsByRoom.get(res.room_id) ?? [] : [];
-      const resBookings = myBookings.filter((b) => b.resource_id === res.id);
+      const resBookings = allActiveBookings.filter((b) => {
+        if (b.status !== 'confirmed' && b.status !== 'pending') return false;
+        const matchesRes =
+          b.resource_id === res.id ||
+          (Boolean(b.room_id) && Boolean(res.room_id) && b.room_id === res.room_id);
+        if (!matchesRes) return false;
+        const bWd = getBookingWeekday(b.starts_at);
+        return bWd === activeWeekday;
+      });
       const freeWindows = computeRoomFreeWindows(roomLessons, resBookings);
 
       const minRequired = Math.max(15, Math.min(30, res.min_duration_minutes || 15));
@@ -622,7 +671,7 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
     inspectMins,
     getLessonsForWeekday,
     index.rooms,
-    myBookings,
+    allActiveBookings,
   ]);
 
   // Dynamic counts for each building option in the modern selector
@@ -702,9 +751,19 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
     const roomLessons = selectedResource.room_id
       ? dayLessons.filter((l) => l.roomId === selectedResource.room_id)
       : [];
-    const resBookings = myBookings.filter((b) => b.resource_id === selectedResource.id);
+    const resBookings = allActiveBookings.filter((b) => {
+      if (b.status !== 'confirmed' && b.status !== 'pending') return false;
+      const matchesRes =
+        b.resource_id === selectedResource.id ||
+        (Boolean(b.room_id) &&
+          Boolean(selectedResource.room_id) &&
+          b.room_id === selectedResource.room_id);
+      if (!matchesRes) return false;
+      const bWd = getBookingWeekday(b.starts_at);
+      return bWd === modalWeekday;
+    });
     return computeRoomFreeWindows(roomLessons, resBookings);
-  }, [selectedResource, modalWeekday, getLessonsForWeekday, myBookings]);
+  }, [selectedResource, modalWeekday, getLessonsForWeekday, allActiveBookings]);
 
   const validModalStartTimes = useMemo(() => {
     if (!selectedResource) return [];
@@ -866,6 +925,7 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
 
       const payload: CreateBookingPayload = {
         resource_id: selectedResource.id,
+        room_id: selectedResource.room_id || undefined,
         starts_at: startsAt,
         ends_at: endsAt,
         purpose: bookPurpose.trim() || undefined,

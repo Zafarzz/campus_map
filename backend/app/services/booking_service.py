@@ -30,10 +30,11 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from asyncpg.exceptions import ExclusionViolationError
-from sqlalchemy import func, not_, or_, select
+from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,6 +64,7 @@ __all__ = [
     "check_in",
     "create_booking",
     "list_bookings",
+    "list_occupied_slots",
     "list_resources",
     "reject_booking",
     "release_expired",
@@ -96,6 +98,46 @@ class BookingResult:
         return self.booking.status
 
 
+def is_public_or_unbookable_resource(resource: Resource) -> bool:
+    """True for public amenities and common spaces that serve all students and cannot be reserved."""
+    if not resource.is_bookable:
+        return True
+    if resource.kind in ("laundry", "dorm"):
+        return True
+    code_l = (resource.code or "").lower()
+    name_l = (resource.name or "").lower()
+    room_l = (resource.room_id or "").lower()
+    return bool(
+        "canteen" in code_l
+        or "canteen" in name_l
+        or "cafeteria" in name_l
+        or "dining" in name_l
+        or "library" in name_l
+        or "reading" in name_l
+        or "lounge" in name_l
+        or "open space" in name_l
+        or "lobby" in name_l
+        or "exhibition" in name_l
+        or "toilet" in name_l
+        or "toilet" in code_l
+        or "restroom" in name_l
+        or "wc" in code_l
+        or "wc" in room_l
+        or room_l.startswith("bld-j")
+        or room_l.startswith("bld-i")
+        or room_l
+        in (
+            "room-canteen",
+            "room-c-conf",
+            "bld-d-f1-f101",
+            "bld-h-f1-a105",
+            "bld-h-f1-a107",
+            "bld-g-f1-lobby",
+            "bld-g-f2-lobby",
+        )
+    )
+
+
 async def create_booking(
     session: AsyncSession,
     request: BookingRequest,
@@ -114,6 +156,13 @@ async def create_booking(
     resource = await session.get(Resource, request.resource_id)
     if resource is None:
         raise NotFoundError(f"Resource {request.resource_id} does not exist.", code="resource_not_found")
+
+    if is_public_or_unbookable_resource(resource):
+        raise ValidationError(
+            "Public campus spaces and amenities (canteens, libraries, open study lounges, "
+            "lobbies, and restrooms) serve all students equally and cannot be reserved.",
+            code="public_space_not_bookable",
+        )
 
     policy = _policy_for(resource)
     blackouts = await _load_blackouts(session, resource.id, request.slot, policy)
@@ -435,6 +484,53 @@ async def list_bookings(
     return list(result.scalars().all())
 
 
+async def list_occupied_slots(
+    session: AsyncSession,
+    *,
+    resource_id: uuid.UUID | None = None,
+    room_id: str | None = None,
+    starts_after: datetime | None = None,
+    starts_before: datetime | None = None,
+    limit: int = 1000,
+) -> list[dict[str, Any]]:
+    """Return active room reservation slots without exposing private user or booking details."""
+    stmt = (
+        select(
+            Booking.id,
+            Booking.resource_id,
+            Booking.starts_at,
+            Booking.ends_at,
+            Booking.status,
+            Resource.room_id,
+        )
+        .join(Resource, Resource.id == Booking.resource_id)
+        .where(Booking.status.in_((OccupancyStatus.pending, OccupancyStatus.confirmed)))
+        .order_by(Booking.starts_at, Booking.id)
+        .limit(limit)
+    )
+    if resource_id is not None:
+        stmt = stmt.where(Booking.resource_id == resource_id)
+    if room_id is not None:
+        stmt = stmt.where(Resource.room_id == room_id)
+    if starts_after is not None:
+        stmt = stmt.where(Booking.ends_at > starts_after)
+    if starts_before is not None:
+        stmt = stmt.where(Booking.starts_at < starts_before)
+
+    result = await session.execute(stmt)
+    return [
+        {
+            "id": row[0],
+            "resource_id": row[1],
+            "starts_at": row[2],
+            "ends_at": row[3],
+            "status": row[4],
+            "room_id": row[5],
+        }
+        for row in result.all()
+    ]
+
+
 @dataclass(frozen=True, slots=True)
 class ResourceListing:
     """A bookable resource together with the limits a client needs to build a form."""
@@ -473,12 +569,39 @@ async def list_resources(
         stmt = stmt.where(Resource.is_bookable.is_(True))
     stmt = stmt.where(
         Resource.kind.notin_(("laundry", "dorm")),
-        or_(Floor.building_id.is_(None), Floor.building_id != "bld-j"),
+        or_(Floor.building_id.is_(None), and_(Floor.building_id != "bld-j", Floor.building_id != "bld-i")),
         not_(Resource.code.ilike("%wc%")),
         not_(Resource.code.ilike("%toilet%")),
+        not_(Resource.code.ilike("%canteen%")),
+        not_(Resource.code.ilike("%library%")),
         not_(Resource.name.ilike("%toilet%")),
         not_(Resource.name.ilike("%restroom%")),
-        not_(Resource.room_id.in_(("bld-g-f3-r2", "bld-g-f3-r5", "bld-g-f4-r2", "bld-g-f4-r5"))),
+        not_(Resource.name.ilike("%canteen%")),
+        not_(Resource.name.ilike("%cafeteria%")),
+        not_(Resource.name.ilike("%dining%")),
+        not_(Resource.name.ilike("%library%")),
+        not_(Resource.name.ilike("%reading%")),
+        not_(Resource.name.ilike("%lounge%")),
+        not_(Resource.name.ilike("%open space%")),
+        not_(Resource.name.ilike("%lobby%")),
+        not_(Resource.name.ilike("%exhibition%")),
+        not_(
+            Resource.room_id.in_(
+                (
+                    "room-canteen",
+                    "room-c-conf",
+                    "bld-d-f1-f101",
+                    "bld-h-f1-a105",
+                    "bld-h-f1-a107",
+                    "bld-g-f1-lobby",
+                    "bld-g-f2-lobby",
+                    "bld-g-f3-r2",
+                    "bld-g-f3-r5",
+                    "bld-g-f4-r2",
+                    "bld-g-f4-r5",
+                )
+            )
+        ),
     )
     if kind is not None:
         stmt = stmt.where(Resource.kind == kind)

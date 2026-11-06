@@ -97,19 +97,6 @@ const DEMO_BOOKABLE_RESOURCES: BookableResource[] = [
     max_days_ahead: 14,
   },
   {
-    id: '01a154d5-79c7-70de-bcdc-c90004d34ff2',
-    code: 'room:bld-d-f1-f101',
-    name: 'Block F - Campus Library & Reading Hall',
-    kind: 'hall',
-    room_id: 'bld-d-f1-f101',
-    building_id: 'bld-d',
-    capacity: 120,
-    requires_approval: false,
-    min_duration_minutes: 15,
-    max_duration_minutes: 240,
-    max_days_ahead: 14,
-  },
-  {
     id: '01a18e72-5ab6-775e-b505-77c34b00f057',
     code: 'room:bld-e-f1-r1',
     name: 'Sports Complex Main Gymnasium SC101',
@@ -152,21 +139,40 @@ function saveStoredOfflineBookings(bookings: Booking[]): void {
 
 function isExcludedFromBooking(r: BookableResource): boolean {
   if (r.kind === 'laundry' || r.kind === 'dorm') return true;
-  if (r.building_id === 'bld-j') return true;
+  if (r.building_id === 'bld-j' || r.building_id === 'bld-i') return true;
   const lowerName = (r.name || '').toLowerCase();
   const lowerCode = (r.code || '').toLowerCase();
   const lowerRoomId = (r.room_id || '').toLowerCase();
   if (
     lowerName.includes('toilet') ||
     lowerName.includes('restroom') ||
+    lowerName.includes('canteen') ||
+    lowerName.includes('cafeteria') ||
+    lowerName.includes('dining') ||
+    lowerName.includes('library') ||
+    lowerName.includes('reading') ||
+    lowerName.includes('lounge') ||
+    lowerName.includes('open space') ||
+    lowerName.includes('lobby') ||
+    lowerName.includes('exhibition') ||
     lowerCode.includes('toilet') ||
     lowerCode.includes('wc') ||
+    lowerCode.includes('canteen') ||
+    lowerCode.includes('library') ||
     lowerRoomId.includes('wc') ||
-    lowerRoomId.startsWith('bld-j')
+    lowerRoomId.startsWith('bld-j') ||
+    lowerRoomId.startsWith('bld-i')
   ) {
     return true;
   }
-  const knownRestroomRoomIds = new Set([
+  const knownExcludedRoomIds = new Set([
+    'room-canteen',
+    'room-c-conf',
+    'bld-d-f1-f101',
+    'bld-h-f1-a105',
+    'bld-h-f1-a107',
+    'bld-g-f1-lobby',
+    'bld-g-f2-lobby',
     'bld-g-f3-r2',
     'bld-g-f3-r5',
     'bld-g-f4-r2',
@@ -176,7 +182,7 @@ function isExcludedFromBooking(r: BookableResource): boolean {
     'bld-g-f2-wc-m',
     'bld-g-f2-wc-f',
   ]);
-  if (r.room_id && knownRestroomRoomIds.has(r.room_id)) return true;
+  if (r.room_id && knownExcludedRoomIds.has(r.room_id)) return true;
   return false;
 }
 
@@ -207,6 +213,20 @@ export async function listBookableResources(
     list = list.filter((r) => r.building_id === buildingId);
   }
   return list;
+}
+
+export async function listOccupiedSlots(token?: string | null): Promise<Booking[]> {
+  if (isBackendEnabled) {
+    try {
+      const res = await apiGet<Booking[]>('/bookings/occupied-slots', undefined, undefined, token);
+      if (Array.isArray(res)) {
+        return res;
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return getStoredOfflineBookings();
 }
 
 export async function listMyBookings(token?: string | null): Promise<Booking[]> {
@@ -246,6 +266,7 @@ export async function createBooking(
   const mockBooking: Booking = {
     id: `book-local-${Date.now()}`,
     resource_id: payload.resource_id,
+    room_id: payload.room_id,
     starts_at: payload.starts_at,
     ends_at: payload.ends_at,
     status: 'confirmed',
