@@ -46,6 +46,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('login');
   const [activeTab, setActiveTab] = useState<AccountType>('student');
 
+  // Listen for silent background token refreshes from apiClient
+  useEffect(() => {
+    const onRefreshed = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) {
+        setToken(custom.detail);
+      }
+    };
+    window.addEventListener('campus:token-refreshed', onRefreshed);
+    return () => {
+      window.removeEventListener('campus:token-refreshed', onRefreshed);
+    };
+  }, []);
+
   // Verify and refresh session on mount
   useEffect(() => {
     let isMounted = true;
@@ -60,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profile = await fetchCurrentUser(storedToken);
         if (isMounted && profile) {
           setUser(profile);
-          setToken(storedToken);
+          setToken(getStoredToken() ?? storedToken);
           // If required to change password, open modal in set_new_password mode
           if (profile.must_change_password) {
             setAuthModalMode('set_new_password');

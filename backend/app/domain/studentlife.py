@@ -162,6 +162,7 @@ class LostFoundItem(Base, UuidPkMixin, TimestampMixin, IsDemoMixin):
     category: Mapped[ShortText] = mapped_column(nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
+    contact_info: Mapped[str | None] = mapped_column(String(200))
     photo_storage_key: Mapped[str | None] = mapped_column(String(256))
     building_id: Mapped[SlugId | None] = mapped_column(
         ForeignKey("building.id", ondelete="SET NULL"),

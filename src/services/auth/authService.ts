@@ -319,7 +319,7 @@ export async function fetchCurrentUser(token?: string | null): Promise<UserProfi
 
   try {
     const res = await apiGet<UserProfile>('/auth/me', undefined, undefined, currentToken);
-    storeSession(currentToken, res);
+    storeSession(getStoredToken() || currentToken, res);
     return res;
   } catch {
     return getStoredUser();

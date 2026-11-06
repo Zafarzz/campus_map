@@ -152,6 +152,8 @@ STAFF_BY_ALIAS: dict[str, StaffRosterEntry] = {
 
 # Official student roster from "New students Group List (2025.9.7)" (Pages 1-3).
 _RAW_STUDENT_ROSTER: tuple[tuple[str, str, str, str, str, str, str], ...] = (
+    # Safe demo student account requested for demonstration and safe testing
+    ("IT-Business", "DEMO", "STUDENT", "", "I25D", "251610999", "202590123"),
     # Page 1
     ("IT-Business", "BAHODIROVA", "MUSLIMAXON", "SHAVKAT QIZI", "I25A", "253650675", "202590143"),
     ("IT-Business", "ABDILXAKOVA", "SADIA", "ABDUKAXXOROVA", "I25C", "252610163", "202590144"),

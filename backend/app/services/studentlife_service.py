@@ -91,6 +91,8 @@ __all__ = [
     "get_teacher_status_for_student",
     "grant_or_revoke_consent",
     "has_active_consent",
+    "list_claims_by_claimant",
+    "list_claims_for_item",
     "list_dorm_notices",
     "list_lost_found_items",
     "list_study_group_requests",
@@ -716,6 +718,7 @@ async def report_lost_found_item(
     occurred_at: datetime | None = None,
     verification_question: str | None = None,
     handover_point: str | None = None,
+    contact_info: str | None = None,
     photo_bytes: bytes | None = None,
     storage: StorageAdapter | None = None,
     expiry_days: int = 30,
@@ -745,6 +748,7 @@ async def report_lost_found_item(
         title=clean_title,
         description=clean_desc,
         photo_storage_key=photo_key,
+        contact_info=contact_info.strip() if contact_info else None,
         building_id=building_id,
         floor_id=floor_id,
         room_id=room_id,
@@ -993,6 +997,53 @@ async def list_lost_found_items(
         stmt = stmt.where(LostFoundItem.building_id == building_id)
     stmt = stmt.order_by(LostFoundItem.created_at.desc()).limit(limit)
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def list_claims_for_item(
+    session: AsyncSession,
+    *,
+    item_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+) -> list[LostFoundClaim]:
+    """Claims on an item, newest first - visible only to the finder who reported it.
+
+    ``resolve_claim`` is finder-only, and the finder cannot decide without seeing
+    the verification answers, so this is the read side of that same permission.
+    Claimants are never shown to each other.
+    """
+    item = await session.get(LostFoundItem, item_id)
+    if item is None:
+        raise NotFoundError(
+            f"Lost/found item {item_id} does not exist.",
+            code="lost_found_not_found",
+        )
+    if item.reporter_user_id != actor_user_id:
+        raise ForbiddenError(
+            "Only the finder who reported this item may see its claims.",
+            code="not_item_finder",
+        )
+    rows = await session.execute(
+        select(LostFoundClaim)
+        .where(LostFoundClaim.item_id == item_id)
+        .order_by(LostFoundClaim.created_at.desc())
+    )
+    return list(rows.scalars().all())
+
+
+async def list_claims_by_claimant(
+    session: AsyncSession,
+    *,
+    claimant_user_id: uuid.UUID,
+    limit: int = 100,
+) -> list[LostFoundClaim]:
+    """The caller's own claims, newest first, so they can follow a decision."""
+    rows = await session.execute(
+        select(LostFoundClaim)
+        .where(LostFoundClaim.claimant_user_id == claimant_user_id)
+        .order_by(LostFoundClaim.created_at.desc())
+        .limit(limit)
+    )
+    return list(rows.scalars().all())
 
 
 # ---------------------------------------------------------------------------

@@ -543,3 +543,79 @@ async def dev_token(
         expires_in=settings.jwt_access_ttl_seconds,
         roles=sorted(r.value for r in roles),
     )
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Silently refresh an access token whose signature is valid",
+    description=(
+        "Verifies the HMAC signature of the provided Bearer token (allowing expired ``exp``) "
+        "and issues a fresh access token if the user account is still active."
+    ),
+)
+async def refresh_token(
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> TokenResponse:
+    from datetime import timedelta
+
+    import jwt
+
+    auth_header = request.headers.get("authorization") or ""
+    raw_token = ""
+    if auth_header.lower().startswith("bearer "):
+        raw_token = auth_header[7:].strip()
+
+    user: AppUser | None = None
+
+    if raw_token and not raw_token.startswith("mock-token-"):
+        try:
+            claims = jwt.decode(
+                raw_token,
+                settings.jwt_secret.get_secret_value(),
+                algorithms=[settings.jwt_algorithm],
+                options={"verify_exp": False, "require": ["sub"]},
+            )
+            subject = str(claims.get("sub", "")).strip()
+            if subject:
+                user = await session.get(AppUser, uuid.UUID(subject))
+        except Exception:
+            user = None
+
+    # In local development, also allow recovering session from X-Session-User-Id or X-Session-Student-Id
+    if user is None and settings.app_env is AppEnv.development:
+        dev_uid = (request.headers.get("x-session-user-id") or "").strip()
+        dev_sid = (request.headers.get("x-session-student-id") or "").strip()
+        if dev_uid:
+            try:
+                user = await session.get(AppUser, uuid.UUID(dev_uid))
+            except ValueError:
+                user = None
+        if user is None and dev_sid:
+            from app.services.student_auth_service import _ensure_student_user
+            user = await _ensure_student_user(session, dev_sid)
+            if user is not None:
+                await session.commit()
+
+    if not user or not user.is_active:
+        raise AuthenticationError(
+            "Session could not be refreshed. Please sign in again.",
+            code="token_expired",
+        )
+
+    roles = user.role_set or frozenset({Role.student})
+    ttl_seconds = max(settings.jwt_access_ttl_seconds, 86400)
+    new_token = create_access_token(
+        str(user.id),
+        roles,
+        settings=settings,
+        ttl=timedelta(seconds=ttl_seconds),
+    )
+    return TokenResponse(
+        access_token=new_token,
+        expires_in=ttl_seconds,
+        roles=sorted(r.value for r in roles),
+    )

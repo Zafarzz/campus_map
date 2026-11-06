@@ -35,6 +35,46 @@ export class ApiError extends Error {
   }
 }
 
+/** Attempt to silently refresh an expired access token using `/api/v1/auth/refresh`. */
+async function tryRefreshAccessToken(expiredToken?: string | null): Promise<string | null> {
+  try {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (expiredToken) {
+      headers.Authorization = `Bearer ${expiredToken}`;
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const rawUser = window.localStorage.getItem('campus_auth_user');
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser) as { user_id?: string; student_id?: string | null };
+        if (parsed.user_id) headers['X-Session-User-Id'] = parsed.user_id;
+        if (parsed.student_id) headers['X-Session-Student-Id'] = parsed.student_id;
+      }
+    }
+    const res = await fetch(`${explicitBase}${API_PREFIX}/auth/refresh`, {
+      method: 'POST',
+      headers,
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { access_token?: string };
+    if (data?.access_token) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage?.setItem('campus_auth_token', data.access_token);
+          window.dispatchEvent(
+            new CustomEvent('campus:token-refreshed', { detail: data.access_token }),
+          );
+        }
+      } catch {
+        // ignore storage errors
+      }
+      return data.access_token;
+    }
+  } catch {
+    // ignore refresh failures
+  }
+  return null;
+}
+
 /** GET `${base}/api/v1${path}` and parse JSON. Throws `ApiError` on network or HTTP failure. */
 export async function apiGet<T>(
   path: string,
@@ -51,12 +91,24 @@ export async function apiGet<T>(
     : '';
   const url = `${explicitBase}${API_PREFIX}${path}${query ? `?${query}` : ''}`;
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const effectiveToken =
+    token ||
+    (typeof window !== 'undefined' && window.localStorage
+      ? window.localStorage.getItem('campus_auth_token')
+      : null);
+  if (effectiveToken) {
+    headers.Authorization = `Bearer ${effectiveToken}`;
   }
   let res: Response;
   try {
     res = await fetch(url, { headers, signal });
+    if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
+      const refreshed = await tryRefreshAccessToken(effectiveToken);
+      if (refreshed) {
+        headers.Authorization = `Bearer ${refreshed}`;
+        res = await fetch(url, { headers, signal });
+      }
+    }
   } catch (err) {
     throw new ApiError(err instanceof Error ? err.message : 'Network error');
   }
@@ -77,18 +129,36 @@ export async function apiPost<T>(
     Accept: 'application/json',
     'Content-Type': 'application/json',
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const effectiveToken =
+    token ||
+    (typeof window !== 'undefined' && window.localStorage
+      ? window.localStorage.getItem('campus_auth_token')
+      : null);
+  if (effectiveToken) {
+    headers.Authorization = `Bearer ${effectiveToken}`;
   }
 
+  const serializedBody = body !== undefined ? JSON.stringify(body) : undefined;
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: serializedBody,
       signal,
     });
+    if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
+      const refreshed = await tryRefreshAccessToken(effectiveToken);
+      if (refreshed) {
+        headers.Authorization = `Bearer ${refreshed}`;
+        res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: serializedBody,
+          signal,
+        });
+      }
+    }
   } catch (err) {
     throw new ApiError(err instanceof Error ? err.message : 'Network error');
   }
@@ -97,10 +167,23 @@ export async function apiPost<T>(
     let errorMsg = `HTTP ${res.status} for ${path}`;
     try {
       const errJson = (await res.json()) as {
-        error?: { message?: string };
+        error?: {
+          message?: string;
+          details?: {
+            errors?: Array<{ msg?: string; message?: string }>;
+            violations?: Array<{ message?: string; rule?: string }>;
+          };
+        };
         detail?: string | Array<{ msg?: string }>;
       };
-      if (errJson?.error?.message) {
+      const pydanticMsg =
+        errJson?.error?.details?.errors?.[0]?.msg || errJson?.error?.details?.errors?.[0]?.message;
+      const policyMsg = errJson?.error?.details?.violations?.[0]?.message;
+      if (pydanticMsg) {
+        errorMsg = pydanticMsg;
+      } else if (policyMsg) {
+        errorMsg = policyMsg;
+      } else if (errJson?.error?.message) {
         errorMsg = errJson.error.message;
       } else if (typeof errJson?.detail === 'string') {
         errorMsg = errJson.detail;
@@ -117,7 +200,9 @@ export async function apiPost<T>(
 }
 
 /** Liveness probe (`/healthz` lives at the root, not under the API prefix). */
-export async function pingBackend(signal?: AbortSignal): Promise<{ ok: boolean; version?: string; latencyMs: number }> {
+export async function pingBackend(
+  signal?: AbortSignal,
+): Promise<{ ok: boolean; version?: string; latencyMs: number }> {
   const started = performance.now();
   try {
     const res = await fetch(`${explicitBase}/healthz`, { signal });

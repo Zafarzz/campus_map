@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     # ----------------------------------------------------------------- auth
     jwt_secret: SecretStr = Field(description="HMAC signing key for access tokens")
     jwt_algorithm: str = "HS256"
-    jwt_access_ttl_seconds: int = Field(default=1800, ge=60, le=86_400)
+    jwt_access_ttl_seconds: int = Field(default=86400, ge=60, le=86_400)
     auth_allow_local_accounts: bool = True
 
     oidc_issuer: str = ""

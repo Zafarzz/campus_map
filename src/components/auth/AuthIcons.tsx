@@ -133,3 +133,78 @@ export const ArrowLeftIcon = (p: IconProps) => (
     <path d="M19 12H5.5M11 6.5 5.5 12l5.5 5.5" />
   </Icon>
 );
+
+export const MapNavIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 6.5 9 4l6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5Z" />
+    <path d="M9 4v13.5M15 6.5V20" />
+  </Icon>
+);
+
+export const CalendarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15.5" rx="2.5" />
+    <path d="M16 2.5v4M8 2.5v4M3.5 9.5h17" />
+  </Icon>
+);
+
+export const PackageIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m12 3.5 8 4.5-8 4.5-8-4.5Z" />
+    <path d="m4 8 8 4.5v8.5L4 16.5Z" />
+    <path d="m20 8-8 4.5v8.5l8-4.5Z" />
+  </Icon>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </Icon>
+);
+
+export const PlusIcon = (p: IconProps) => (
+  <Icon {...p} strokeWidth={2.2}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const SparklesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m12 3 2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5Z" />
+  </Icon>
+);
+
+export const UsersIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+  </Icon>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Icon {...p} strokeWidth={2}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+);
+
+export const PhoneIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" />
+  </Icon>
+);
+
+export const TelegramIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m21.5 2.5-19 9 7.5 3 2.5 7 3.5-4.5 5.5 4.5Z" />
+    <path d="m10 14.5 11.5-12" />
+  </Icon>
+);
+
+export const CameraIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
+    <circle cx="12" cy="13" r="4" />
+  </Icon>
+);

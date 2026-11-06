@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from asyncpg.exceptions import ExclusionViolationError
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, not_, or_, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +44,7 @@ from app.core.time import now as utc_now
 from app.domain.base import OccupancyKind, OccupancyStatus, new_uuid
 from app.domain.booking import Blackout, Booking, Resource, ResourceOccupancy
 from app.domain.people import UserCapability
+from app.domain.spatial import Floor, Room
 from app.engines.booking import (
     BookingPolicy,
     PolicyViolation,
@@ -56,11 +57,13 @@ log = get_logger(__name__)
 __all__ = [
     "BookingRequest",
     "BookingResult",
+    "ResourceListing",
     "approve_booking",
     "cancel_booking",
     "check_in",
     "create_booking",
     "list_bookings",
+    "list_resources",
     "reject_booking",
     "release_expired",
 ]
@@ -430,6 +433,67 @@ async def list_bookings(
 
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceListing:
+    """A bookable resource together with the limits a client needs to build a form."""
+
+    resource: Resource
+    building_id: str | None
+    policy: BookingPolicy
+
+
+async def list_resources(
+    session: AsyncSession,
+    *,
+    kind: str | None = None,
+    building_id: str | None = None,
+    bookable_only: bool = True,
+    limit: int = 500,
+) -> list[ResourceListing]:
+    """Resources a user may book, with the building each room-backed one sits in.
+
+    ``POST /bookings`` takes a resource UUID, which a client has no other way to
+    discover - room ids are not resource ids. Reading is all this does.
+
+    A resource whose stored policy is malformed is **left out** rather than
+    failing the whole listing: it cannot be booked anyway (``create_booking``
+    refuses it with ``invalid_resource_policy``), and one bad row should not hide
+    every other bookable room.
+    """
+    stmt = (
+        select(Resource, Floor.building_id)
+        .outerjoin(Room, Room.id == Resource.room_id)
+        .outerjoin(Floor, Floor.id == Room.floor_id)
+        .order_by(Resource.kind, Resource.name, Resource.id)
+        .limit(limit)
+    )
+    if bookable_only:
+        stmt = stmt.where(Resource.is_bookable.is_(True))
+    stmt = stmt.where(
+        Resource.kind.notin_(("laundry", "dorm")),
+        or_(Floor.building_id.is_(None), Floor.building_id != "bld-j"),
+        not_(Resource.code.ilike("%wc%")),
+        not_(Resource.code.ilike("%toilet%")),
+        not_(Resource.name.ilike("%toilet%")),
+        not_(Resource.name.ilike("%restroom%")),
+        not_(Resource.room_id.in_(("bld-g-f3-r2", "bld-g-f3-r5", "bld-g-f4-r2", "bld-g-f4-r5"))),
+    )
+    if kind is not None:
+        stmt = stmt.where(Resource.kind == kind)
+    if building_id is not None:
+        stmt = stmt.where(Floor.building_id == building_id)
+
+    listings: list[ResourceListing] = []
+    for resource, resource_building in (await session.execute(stmt)).all():
+        try:
+            policy = _policy_for(resource)
+        except ValidationError:
+            log.warning("resource_policy_invalid", resource_id=str(resource.id), code=resource.code)
+            continue
+        listings.append(ResourceListing(resource=resource, building_id=resource_building, policy=policy))
+    return listings
 
 
 # --------------------------------------------------------------------- helpers

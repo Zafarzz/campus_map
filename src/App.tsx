@@ -20,6 +20,10 @@ import { CinematicButton, CinematicOverlay, useCinematicClean } from './cinemati
 import { isGameRoute, navigateToGame } from './game/config/gameConfig';
 import { AuthHeaderButton } from './components/auth/AuthHeaderButton';
 import { AuthModal } from './components/auth/AuthModal';
+import { CampusNavRail, type CampusNavSection } from './components/ui/CampusNavRail';
+import { BookingsView } from './components/booking/BookingsView';
+import { LostFoundView } from './components/lostfound/LostFoundView';
+import { CrowdedPlacesView } from './components/crowds/CrowdedPlacesView';
 import { AuthProvider } from './state/AuthContext';
 import { MapProvider, useMap } from './state/MapProvider';
 import './components/ui/panelMinimal.css';
@@ -43,14 +47,34 @@ function isEditorRoute(): boolean {
 
 type MobileSheetSnap = 'collapsed' | 'half' | 'expanded';
 
+const SECTION_HEADERS: Record<CampusNavSection, { title: string; desc: string }> = {
+  map: {
+    title: 'Campus Map & Schedule',
+    desc: 'Explore 3D buildings, lecture halls, and live timetable',
+  },
+  crowds: {
+    title: 'Busyness & Crowded Places',
+    desc: 'Real-time library occupancy, study hubs, and cafeteria rush',
+  },
+  bookings: {
+    title: 'Space & Facility Booking',
+    desc: 'Reserve classrooms, computer labs, and dorm facilities',
+  },
+  lostfound: {
+    title: 'Campus Lost & Found',
+    desc: 'Community recovery registry and verified ownership claims',
+  },
+};
+
 function AppLayout() {
-  const { selection, clearSelection } = useMap();
+  const { index, selection, clearSelection } = useMap();
   const isDev = isDevOrDebugMode();
   const cinematicClean = useCinematicClean();
-  const [showTuning, setShowTuning] = useState(isDev);
+  const [showTuning, setShowTuning] = useState(false);
   const [mobileSnap, setMobileSnap] = useState<MobileSheetSnap>('half');
   const [footerExpanded, setFooterExpanded] = useState(false);
   const [isLaunchingWalk, setIsLaunchingWalk] = useState(false);
+  const [activeSection, setActiveSection] = useState<CampusNavSection>('map');
 
   // Auto-open sheet to at least half when user selects a building or room on mobile
   useEffect(() => {
@@ -150,92 +174,140 @@ function AppLayout() {
           </div>
         </div>
 
-        <header className="header">
-          <div className="header__top">
-            <div className="header__brand">
-              <img src="/assets/aut-seal.png" alt="Ajou University in Tashkent" className="header__logo" width="38" height="38" />
-              <div>
-                <h1 className="header__title">Campus Map</h1>
-                <Breadcrumbs />
+        <div className="layout__panel-container">
+          {/* Main Panel Content on the Left */}
+          <div className="layout__panel-content">
+            <header className="header">
+              {/* Row 1: Logo on the left, User profile/login button on the right */}
+              <div className="header__top-row">
+                <img
+                  src="/assets/aut-seal.png"
+                  alt="Ajou University in Tashkent"
+                  className="header__logo"
+                  width="38"
+                  height="38"
+                />
+                <AuthHeaderButton />
               </div>
-            </div>
-            <AuthHeaderButton />
-          </div>
 
-          <div className="header__actions" role="toolbar" aria-label="Platform modes">
-            {isDev && (
-              <button
-                type="button"
-                className={`mode-btn mode-btn--secondary${showTuning ? ' is-active' : ''}`}
-                onClick={() => setShowTuning((prev) => !prev)}
-                title="Show/hide visual tuning panel (Ctrl+Alt+T)"
-              >
-                🎛️ {showTuning ? 'Hide Tuning' : 'Tuning'}
-              </button>
-            )}
-            <CinematicButton />
-            <button
-              type="button"
-              className="mode-btn mode-btn--walk"
-              onClick={handleSelect3DWalk}
-              disabled={isLaunchingWalk}
-              aria-busy={isLaunchingWalk}
-              title="First-person 3D walkthrough mode (/game)"
-            >
-              {isLaunchingWalk ? (
-                <>
-                  <span
-                    className="scene-loader-pill__spinner"
-                    style={{ width: 12, height: 12, borderWidth: 2 }}
-                    aria-hidden="true"
-                  />
-                  <span>Loading Walk…</span>
-                </>
-              ) : (
-                '🎮 3D Walk'
+              {/* Row 2: Title (one line) and Row 3: Description (one line right below) */}
+              <div className="header__title-block">
+                <h1 className="header__title-line">
+                  {activeSection === 'map' && selection.buildingId
+                    ? (index.buildings.get(selection.buildingId)?.name ?? SECTION_HEADERS.map.title)
+                    : SECTION_HEADERS[activeSection].title}
+                </h1>
+                {activeSection === 'map' && selection.buildingId ? (
+                  <Breadcrumbs />
+                ) : (
+                  <p className="header__desc-line">{SECTION_HEADERS[activeSection].desc}</p>
+                )}
+              </div>
+
+              {activeSection === 'map' && (
+                <div className="header__actions" role="toolbar" aria-label="Platform modes">
+                  {isDev && (
+                    <button
+                      type="button"
+                      className={`mode-btn mode-btn--secondary${showTuning ? ' is-active' : ''}`}
+                      onClick={() => setShowTuning((prev) => !prev)}
+                      title="Show/hide visual tuning panel (Ctrl+Alt+T)"
+                    >
+                      🎛️ {showTuning ? 'Hide Tuning' : 'Tuning'}
+                    </button>
+                  )}
+                  <CinematicButton />
+                  <button
+                    type="button"
+                    className="mode-btn mode-btn--walk"
+                    onClick={handleSelect3DWalk}
+                    disabled={isLaunchingWalk}
+                    aria-busy={isLaunchingWalk}
+                    title="First-person 3D walkthrough mode (/game)"
+                  >
+                    {isLaunchingWalk ? (
+                      <>
+                        <span
+                          className="scene-loader-pill__spinner"
+                          style={{ width: 12, height: 12, borderWidth: 2 }}
+                          aria-hidden="true"
+                        />
+                        <span>Loading Walk…</span>
+                      </>
+                    ) : (
+                      '🎮 3D Walk'
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="mode-btn mode-btn--editor"
+                    onClick={() => {
+                      window.location.hash = '#/editor';
+                      window.dispatchEvent(new HashChangeEvent('hashchange'));
+                    }}
+                    title="Open 2D Campus Floorplan & Map Editor (/editor)"
+                  >
+                    ✏️ 2D Editor
+                  </button>
+                </div>
               )}
-            </button>
-            <button
-              type="button"
-              className="mode-btn mode-btn--editor"
-              onClick={() => {
-                window.location.hash = '#/editor';
-                window.dispatchEvent(new HashChangeEvent('hashchange'));
+            </header>
+
+            <div
+              className="scrollable"
+              onFocusCapture={() => {
+                if (mobileSnap === 'collapsed') setMobileSnap('half');
               }}
-              title="Open 2D Campus Floorplan & Map Editor (/editor)"
             >
-              ✏️ 2D Editor
-            </button>
-          </div>
-        </header>
+              {activeSection === 'map' && (
+                <>
+                  <SearchBox />
+                  {!selection.buildingId && <BuildingList />}
+                  {selection.floorId && !selection.roomId && <FloorRoomList />}
+                  {selection.roomId && <RoomDetails />}
+                </>
+              )}
+              {activeSection === 'crowds' && (
+                <CrowdedPlacesView onNavigateToMap={() => setActiveSection('map')} />
+              )}
+              {activeSection === 'bookings' && (
+                <BookingsView onBackToMap={() => setActiveSection('map')} />
+              )}
+              {activeSection === 'lostfound' && (
+                <LostFoundView onBackToMap={() => setActiveSection('map')} />
+              )}
+            </div>
 
-        <div className="scrollable" onFocusCapture={() => {
-          if (mobileSnap === 'collapsed') setMobileSnap('half');
-        }}>
-          <SearchBox />
-          {!selection.buildingId && <BuildingList />}
-          {selection.floorId && !selection.roomId && <FloorRoomList />}
-          {selection.roomId && <RoomDetails />}
+            {activeSection === 'map' && (
+              <footer className={`footer${footerExpanded ? ' footer--expanded' : ''}`}>
+                <div className="footer__mobile-toggle-row">
+                  <TimeControl />
+                  <button
+                    type="button"
+                    className="footer__more-btn"
+                    onClick={() => setFooterExpanded((prev) => !prev)}
+                    aria-expanded={footerExpanded}
+                  >
+                    {footerExpanded ? 'Hide Legend & Info ▾' : 'Legend & Map Info ▴'}
+                  </button>
+                </div>
+                <div className="footer__collapsible">
+                  <Legend />
+                  <DataNotice />
+                </div>
+              </footer>
+            )}
+          </div>
+
+          {/* Menu placed in the right side bar as requested */}
+          <CampusNavRail
+            activeSection={activeSection}
+            onSelectSection={(sec) => {
+              setActiveSection(sec);
+              if (mobileSnap === 'collapsed') setMobileSnap('half');
+            }}
+          />
         </div>
-
-        <footer className={`footer${footerExpanded ? ' footer--expanded' : ''}`}>
-          <div className="footer__mobile-toggle-row">
-            <TimeControl />
-            <button
-              type="button"
-              className="footer__more-btn"
-              onClick={() => setFooterExpanded((prev) => !prev)}
-              aria-expanded={footerExpanded}
-            >
-              {footerExpanded ? 'Hide Legend & Info ▾' : 'Legend & Map Info ▴'}
-            </button>
-          </div>
-          <div className="footer__collapsible">
-            <BackendLivePanel />
-            <Legend />
-            <DataNotice />
-          </div>
-        </footer>
       </aside>
       <AuthModal />
     </div>

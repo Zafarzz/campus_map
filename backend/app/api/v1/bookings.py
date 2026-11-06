@@ -69,6 +69,29 @@ class BookingOut(BaseModel):
     checkin_closes_at: datetime | None = None
 
 
+class ResourceOut(BaseModel):
+    """A bookable resource, with the limits a client needs to build a booking form.
+
+    The limits come from the resource's own policy (data, not code), so the form
+    can warn about a too-long request *before* the server refuses it. The server
+    still enforces them: this is a convenience, never the rule.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    code: str
+    name: str
+    kind: str
+    room_id: str | None = None
+    building_id: str | None = None
+    capacity: int | None = None
+    requires_approval: bool = False
+    min_duration_minutes: int
+    max_duration_minutes: int
+    max_days_ahead: int
+
+
 def _out(booking: Booking, *, policy: Any = None) -> BookingOut:
     opens = closes = None
     if policy is not None:
@@ -124,6 +147,23 @@ async def create_booking(
     if body.ends_at <= body.starts_at:
         raise ValidationError("ends_at must be after starts_at.", code="empty_period")
 
+    # University booking duration policy:
+    # Students may book for at most 75 minutes (one academic class period).
+    # Professors, teachers, and staff are allowed to book without the 75-minute limit
+    # for makeup classes or multi-period sessions.
+    duration_mins = int((body.ends_at - body.starts_at).total_seconds() // 60)
+    is_staff = any(
+        r in principal.roles
+        for r in (Role.teacher, Role.admin, Role.facilities, Role.safety_officer, Role.analyst)
+    )
+    if not is_staff and duration_mins > 75:
+        raise ValidationError(
+            f"Students may book a room for at most 75 minutes (1 class period). "
+            f"Requested {duration_mins} minutes.",
+            code="student_duration_exceeded",
+            details={"requested_minutes": duration_mins, "max_allowed_minutes": 75},
+        )
+
     campus = await campus_service.get_default_campus(session)
     result = await booking_service.create_booking(
         session,
@@ -137,6 +177,48 @@ async def create_booking(
         timezone=ZoneInfo(campus.timezone),
     )
     return _out(result.booking, policy=result.policy)
+
+
+@router.get(
+    "/resources",
+    response_model=list[ResourceOut],
+    summary="List bookable resources",
+    description=(
+        "Rooms, courts, laundry slots and other things a signed-in user may book, with the "
+        "UUID that `POST /bookings` needs and each resource's duration and look-ahead limits. "
+        "Resources a blocking policy error has made unbookable are omitted rather than failing "
+        "the listing.\n\n"
+        "Requires a signed-in user: bookable inventory is for students and staff, not for "
+        "anonymous callers."
+    ),
+)
+async def list_resources(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+    kind: Annotated[str | None, Query(description="e.g. `room`, `laundry`.")] = None,
+    building_id: Annotated[str | None, Query(description="Limit to resources in one building.")] = None,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 500,
+) -> list[ResourceOut]:
+    del principal  # Authentication is the requirement; the listing is the same for every caller.
+    listings = await booking_service.list_resources(
+        session, kind=kind, building_id=building_id, limit=limit
+    )
+    return [
+        ResourceOut(
+            id=item.resource.id,
+            code=item.resource.code,
+            name=item.resource.name,
+            kind=item.resource.kind,
+            room_id=item.resource.room_id,
+            building_id=item.building_id,
+            capacity=item.resource.capacity,
+            requires_approval=item.resource.requires_approval or item.policy.requires_approval,
+            min_duration_minutes=item.policy.min_duration_minutes,
+            max_duration_minutes=item.policy.max_duration_minutes,
+            max_days_ahead=item.policy.max_days_ahead,
+        )
+        for item in listings
+    ]
 
 
 @router.get(

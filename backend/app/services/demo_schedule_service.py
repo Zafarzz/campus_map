@@ -317,10 +317,14 @@ async def _ensure_room_resources(
             campus_id=campus_id,
             code=f"room:{room_id}",
             name=room.name or room.number,
-            kind="room",
+            kind="hall" if room.room_kind.value == "hall" else "room",
             room_id=room_id,
             capacity=room.capacity,
-            is_bookable=room.room_kind.value != "office",
+            is_bookable=(
+                room.room_kind.value not in ("office", "other")
+                and not room_id.startswith("bld-j")
+                and "wc" not in room_id.lower()
+            ),
             is_demo=room.is_demo,
         )
         session.add(resource)

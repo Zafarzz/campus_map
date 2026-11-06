@@ -36,7 +36,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,15 +44,15 @@ from app.adapters.storage import LocalDiskStorageAdapter
 from app.api.v1.busyness import ensure_principal_user
 from app.api.v1.state import parse_at
 from app.core.db import get_session
-from app.core.errors import ValidationError
-from app.core.security import CurrentPrincipal, Role, require_roles
+from app.core.errors import NotFoundError, ValidationError
+from app.core.security import CurrentPrincipal, Role, current_principal, require_roles
 from app.domain.base import (
     LostFoundKind,
     LostFoundStatus,
     TeacherVisibilityMode,
     TicketPriority,
 )
-from app.domain.studentlife import LostFoundItem
+from app.domain.studentlife import LostFoundClaim, LostFoundItem
 from app.engines.studentlife import TeacherStatusView
 from app.services import studentlife_service
 
@@ -252,6 +252,7 @@ class LostFoundCreateIn(BaseModel):
     category: str = Field(min_length=1, max_length=64)
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=4000)
+    contact_info: str | None = Field(default=None, max_length=200)
     building_id: str | None = None
     floor_id: str | None = None
     room_id: str | None = None
@@ -277,16 +278,26 @@ class LostFoundClaimResolveIn(BaseModel):
     mark_returned: bool = False
 
 
-def _serialize_lost_found(item: LostFoundItem) -> dict[str, Any]:
+def _serialize_lost_found(item: LostFoundItem, *, viewer_id: uuid.UUID | None = None) -> dict[str, Any]:
+    photo_url: str | None = None
+    if item.photo_storage_key:
+        if item.photo_storage_key.startswith("data:"):
+            photo_url = item.photo_storage_key
+        else:
+            photo_url = f"/api/v1/lost-found/items/{item.id}/photo"
+
     return {
         "id": str(item.id),
         "reporter_user_id": str(item.reporter_user_id),
+        "is_mine": viewer_id is not None and item.reporter_user_id == viewer_id,
         "kind": item.kind.value,
         "status": item.status.value,
         "category": item.category,
         "title": item.title,
         "description": item.description,
+        "contact_info": item.contact_info,
         "photo_storage_key": item.photo_storage_key,
+        "photo_url": photo_url,
         "building_id": item.building_id,
         "floor_id": item.floor_id,
         "room_id": item.room_id,
@@ -311,8 +322,11 @@ async def create_lost_found(
 ) -> dict[str, Any]:
     photo_bytes: bytes | None = None
     if body.photo_base64:
+        raw_b64 = body.photo_base64.strip()
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
         try:
-            photo_bytes = base64.b64decode(body.photo_base64, validate=True)
+            photo_bytes = base64.b64decode(raw_b64, validate=True)
         except Exception as exc:
             raise ValidationError("Invalid base64 photo payload.", code="invalid_photo_base64") from exc
 
@@ -332,12 +346,13 @@ async def create_lost_found(
         occurred_at=body.occurred_at,
         verification_question=body.verification_question,
         handover_point=body.handover_point,
+        contact_info=body.contact_info,
         photo_bytes=photo_bytes,
         storage=_DEFAULT_STORAGE,
     )
     await session.commit()
     return {
-        "item": _serialize_lost_found(item),
+        "item": _serialize_lost_found(item, viewer_id=user_id),
         "matches": [
             {
                 "candidate_id": str(m.candidate_id),
@@ -353,17 +368,40 @@ async def create_lost_found(
 
 
 @router.get(
+    "/lost-found/items/{item_id}/photo",
+    summary="Fetch photo image for a lost or found item",
+)
+async def get_lost_found_photo(
+    item_id: uuid.UUID,
+    session: SessionDep,
+) -> Response:
+    item = await session.get(LostFoundItem, item_id)
+    if item is None or not item.photo_storage_key:
+        raise NotFoundError("Photo not found for this item.", code="photo_not_found")
+    try:
+        photo_bytes = _DEFAULT_STORAGE.get_bytes(item.photo_storage_key)
+    except Exception as exc:
+        raise NotFoundError(
+            "Photo data could not be retrieved from storage.",
+            code="photo_storage_missing",
+        ) from exc
+    return Response(content=photo_bytes, media_type="image/jpeg")
+
+
+@router.get(
     "/lost-found/items",
-    summary="List lost and found items",
+    summary="List lost and found items (signed-in students and staff only)",
 )
 async def list_lost_found(
     session: SessionDep,
+    principal: CurrentPrincipal,
     kind: Annotated[LostFoundKind | None, Query()] = None,
     status_filter: Annotated[LostFoundStatus | None, Query(alias="status")] = None,
     category: Annotated[str | None, Query()] = None,
     building_id: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> dict[str, Any]:
+    user_id = await ensure_principal_user(session, principal)
     rows = await studentlife_service.list_lost_found_items(
         session,
         kind=kind,
@@ -374,13 +412,14 @@ async def list_lost_found(
     )
     return {
         "count": len(rows),
-        "items": [_serialize_lost_found(r) for r in rows],
+        "items": [_serialize_lost_found(r, viewer_id=user_id) for r in rows],
     }
 
 
 @router.get(
     "/lost-found/items/{item_id}/matches",
     summary="Get ranked potential matches for a lost or found item",
+    dependencies=[Depends(current_principal)],
 )
 async def get_lost_found_matches(
     item_id: uuid.UUID,
@@ -401,6 +440,55 @@ async def get_lost_found_matches(
             }
             for m in matches
         ],
+    }
+
+
+def _serialize_claim(claim: LostFoundClaim, *, with_answer: bool) -> dict[str, Any]:
+    """A claim. The verification answer is shown to the finder only, never to the claimant's peers."""
+    out: dict[str, Any] = {
+        "id": str(claim.id),
+        "item_id": str(claim.item_id),
+        "status": claim.status,
+        "handover_point": claim.handover_point,
+        "created_at": claim.created_at.isoformat() if claim.created_at else None,
+        "resolved_at": claim.resolved_at.isoformat() if claim.resolved_at else None,
+    }
+    if with_answer:
+        out["verification_answer"] = claim.verification_answer
+    return out
+
+
+@router.get(
+    "/lost-found/items/{item_id}/claims",
+    summary="List claims on a found item you reported (finder only)",
+)
+async def list_lost_found_claims(
+    item_id: uuid.UUID,
+    session: SessionDep,
+    principal: CurrentPrincipal,
+) -> dict[str, Any]:
+    user_id = await ensure_principal_user(session, principal)
+    rows = await studentlife_service.list_claims_for_item(session, item_id=item_id, actor_user_id=user_id)
+    return {
+        "item_id": str(item_id),
+        "count": len(rows),
+        "claims": [_serialize_claim(c, with_answer=True) for c in rows],
+    }
+
+
+@router.get(
+    "/lost-found/my-claims",
+    summary="List the claims you submitted and any decision on them",
+)
+async def list_my_lost_found_claims(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+) -> dict[str, Any]:
+    user_id = await ensure_principal_user(session, principal)
+    rows = await studentlife_service.list_claims_by_claimant(session, claimant_user_id=user_id)
+    return {
+        "count": len(rows),
+        "claims": [_serialize_claim(c, with_answer=False) for c in rows],
     }
 
 
