@@ -126,8 +126,8 @@
     "semantic_hash": ""
   },
   "backend/app/api/v1/bookings.py": {
-    "mtime": 1793979470.6086764,
-    "seen": 1793985943.9083385,
+    "mtime": 1793986723.664778,
+    "seen": 1793987532.3188627,
     "ast_hash": "f8c824dd6d79a67db09a369624655675",
     "semantic_hash": ""
   },
@@ -468,9 +468,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/booking_service.py": {
-    "mtime": 1793979608.7481544,
-    "seen": 1793985943.9380834,
-    "ast_hash": "c4c0e6ddf4c15abe65aca16c3dfd7e5f",
+    "mtime": 1793987316.4750357,
+    "seen": 1793987532.3286066,
+    "ast_hash": "76282ddec7c68143241988abd8a525e3",
     "semantic_hash": ""
   },
   "backend/app/services/campus_service.py": {
@@ -492,9 +492,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/demo_schedule_service.py": {
-    "mtime": 1793979498.179049,
-    "seen": 1793985943.9397967,
-    "ast_hash": "18356d549b71f99b6fee6cd05f84588d",
+    "mtime": 1793987303.3641498,
+    "seen": 1793987532.3290768,
+    "ast_hash": "2d53b5051aa6523bc17d6a87a3daadd9",
     "semantic_hash": ""
   },
   "backend/app/services/history_service.py": {
@@ -2034,9 +2034,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/edupage_sync_service.py": {
-    "mtime": 1793979498.1812215,
-    "seen": 1793985943.9398043,
-    "ast_hash": "0ec44dd0a7be93f015fbf4e52b7d5a69",
+    "mtime": 1793987303.3764946,
+    "seen": 1793987532.3290796,
+    "ast_hash": "2e3b30826157fbeae7a66e675949cdc6",
     "semantic_hash": ""
   },
   "backend/scripts/sync_edupage_timetable.py": {
@@ -2304,15 +2304,15 @@
     "semantic_hash": ""
   },
   "src/__tests__/servicesIntegration.test.ts": {
-    "mtime": 1793985856.3692088,
-    "seen": 1793985943.9769387,
-    "ast_hash": "564a75c929a28999e8d55b67f7483193",
+    "mtime": 1793987397.4274654,
+    "seen": 1793987532.3414557,
+    "ast_hash": "1a10733c5c2fa61c774c9adbb14c1dbc",
     "semantic_hash": ""
   },
   "src/components/booking/BookingsView.tsx": {
-    "mtime": 1793985818.4717345,
-    "seen": 1793985944.006969,
-    "ast_hash": "d5444e8b77aca9b789791f4687d67b23",
+    "mtime": 1793987364.674445,
+    "seen": 1793987532.3535821,
+    "ast_hash": "15c713c8281a52f8dba9664c4553705e",
     "semantic_hash": ""
   },
   "src/components/lostfound/LostFoundView.tsx": {
@@ -2334,14 +2334,14 @@
     "semantic_hash": ""
   },
   "src/services/booking/bookingService.ts": {
-    "mtime": 1793985771.2481015,
-    "seen": 1793985944.038367,
-    "ast_hash": "240949013905a75cb63e527e62573b2a",
+    "mtime": 1793987364.6306155,
+    "seen": 1793987532.3663197,
+    "ast_hash": "72f67f80cc5a9b119bdfdd617b4118cd",
     "semantic_hash": ""
   },
   "src/services/booking/bookingTypes.ts": {
-    "mtime": 1793985771.2481015,
-    "seen": 1793985944.0383737,
+    "mtime": 1793986723.7141294,
+    "seen": 1793987532.3663232,
     "ast_hash": "207c73cd8dac40f3335862ad683cf217",
     "semantic_hash": ""
   },
@@ -2370,9 +2370,15 @@
     "semantic_hash": ""
   },
   "backend/alembic/versions/d4e2f1a8b902_remove_public_spaces_from_bookings.py": {
-    "mtime": 1793978947.2105968,
-    "seen": 1793985943.9011955,
-    "ast_hash": "915786ddeabb039b9922504bee127000",
+    "mtime": 1793986723.6637037,
+    "seen": 1793987532.3169868,
+    "ast_hash": "8852d8fd2f7ef5daf2994313cf1f0ad0",
+    "semantic_hash": ""
+  },
+  "backend/alembic/versions/e5f3a9b1c804_restore_block_c_conference_hall.py": {
+    "mtime": 1793987247.634449,
+    "seen": 1793987532.3169906,
+    "ast_hash": "2c58ec324e1e16af6f1da5e43a2f259b",
     "semantic_hash": ""
   },
   "package-lock.json": {

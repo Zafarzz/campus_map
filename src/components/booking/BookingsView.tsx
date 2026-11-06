@@ -103,6 +103,14 @@ export const BOOKABLE_BUILDINGS: readonly BookableBuildingOption[] = [
     bgTint: 'rgba(124, 58, 237, 0.1)',
   },
   {
+    id: 'bld-i',
+    code: 'C',
+    name: 'Block C',
+    subtitle: 'Conference Hall & Studios',
+    accent: '#d97706',
+    bgTint: 'rgba(217, 119, 6, 0.1)',
+  },
+  {
     id: 'bld-c',
     code: 'D',
     name: 'Block D',
@@ -182,6 +190,7 @@ export function resolveResourceKind(
   const knownHalls = new Set([
     'bld-d-f2-f201', // F-201 Tiered Lecture Hall (Amphitheatre West)
     'bld-d-f2-f202', // F-202 Tiered Lecture Hall (Amphitheatre East)
+    'room-c-conf',   // Block C Conference Hall (C-201)
     'bld-b-f1-e101', // Block E Main Lecture Hall / Design Studio (166 seats)
   ]);
   if (res.room_id && knownHalls.has(res.room_id)) {
@@ -200,9 +209,10 @@ export function isToiletOrDormResource(
   res: BookableResource,
   roomLoc?: { room: { number?: string; name?: string; kind?: string } },
 ): boolean {
+  if (res.room_id === 'room-c-conf' || res.room_id === 'bld-i-f2-r1') return false;
   if (res.kind === 'laundry' || res.kind === 'dorm') return true;
-  if (res.building_id === 'bld-j' || res.building_id === 'bld-i') return true;
-  if (res.room_id?.startsWith('bld-j') || res.room_id?.startsWith('bld-i')) return true;
+  if (res.building_id === 'bld-j') return true;
+  if (res.room_id?.startsWith('bld-j')) return true;
 
   const codeLower = (res.code || '').toLowerCase();
   const nameLower = (res.name || '').toLowerCase();
@@ -220,11 +230,7 @@ export function isToiletOrDormResource(
     s.includes('cafeteria') ||
     s.includes('dining') ||
     s.includes('library') ||
-    s.includes('reading') ||
-    s.includes('lounge') ||
-    s.includes('open space') ||
-    s.includes('lobby') ||
-    s.includes('exhibition');
+    s.includes('reading');
 
   if (
     isExcludedPublicOrRestroomText(codeLower) ||
@@ -239,7 +245,6 @@ export function isToiletOrDormResource(
   // Known public amenities / restrooms / libraries / open lounges
   const knownExcludedRoomIds = new Set([
     'room-canteen',
-    'room-c-conf',
     'bld-d-f1-f101',
     'bld-h-f1-a105',
     'bld-h-f1-a107',
@@ -614,7 +619,9 @@ export function BookingsView({ onBackToMap }: BookingsViewProps) {
         : 'Campus';
 
       let displayTitle = res.name;
-      if (roomNumber) {
+      if (res.room_id === 'room-c-conf') {
+        displayTitle = 'Block C - C-201 Conference Hall';
+      } else if (roomNumber) {
         if (rawName && !rawName.toLowerCase().includes(roomNumber.toLowerCase())) {
           displayTitle = `${bldShort} - ${roomNumber} ${rawName}`;
         } else {

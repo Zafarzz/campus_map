@@ -223,15 +223,51 @@ describe('Booking Service Seams', () => {
     ).toBe(false);
   });
 
-  it('includes Block E and excludes Block C from bookable buildings list', () => {
+  it('includes Block E and Block C in bookable buildings list', () => {
     const blockE = BOOKABLE_BUILDINGS.find((b) => b.id === 'bld-b');
     expect(blockE).toBeDefined();
     expect(blockE?.name).toBe('Block E');
     expect(blockE?.code).toBe('E');
 
-    // Block C (bld-i) consists of public canteen/spaces and must be excluded
+    // Block C (bld-i) is included for Conference Hall C-201
     const blockC = BOOKABLE_BUILDINGS.find((b) => b.id === 'bld-i');
-    expect(blockC).toBeUndefined();
+    expect(blockC).toBeDefined();
+    expect(blockC?.name).toBe('Block C');
+    expect(blockC?.code).toBe('C');
+  });
+
+  it('keeps Block C Conference Hall (C-201) bookable as a hall while canteen is excluded', () => {
+    // Conference Hall C-201 should NOT be excluded
+    expect(
+      isToiletOrDormResource({
+        id: 'r-c-conf',
+        code: 'room:room-c-conf',
+        name: 'Block C - C-201 Conference Hall',
+        kind: 'hall',
+        room_id: 'room-c-conf',
+        building_id: 'bld-i',
+        requires_approval: false,
+        min_duration_minutes: 15,
+        max_duration_minutes: 240,
+        max_days_ahead: 30,
+      }, { room: { number: 'C-conF', name: 'Conference Hall' } })
+    ).toBe(false);
+
+    // Resolves as 'hall'
+    expect(
+      resolveResourceKind({
+        id: 'r-c-conf',
+        code: 'room:room-c-conf',
+        name: 'Block C - C-201 Conference Hall',
+        kind: 'room',
+        room_id: 'room-c-conf',
+        building_id: 'bld-i',
+        requires_approval: false,
+        min_duration_minutes: 15,
+        max_duration_minutes: 240,
+        max_days_ahead: 30,
+      }, { room: { number: 'C-conF', name: 'Conference Hall' } })
+    ).toBe('hall');
   });
 
   it('accurately resolves lecture halls such as Block F second floor tiered lecture halls', () => {

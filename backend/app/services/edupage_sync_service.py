@@ -204,11 +204,9 @@ async def ensure_campus_room_resources(session: AsyncSession, campus_id: str) ->
                 is_bookable=(
                     room.room_kind.value != "office"
                     and not room.id.startswith("bld-j")
-                    and not room.id.startswith("bld-i")
                     and room.id
                     not in (
                         "room-canteen",
-                        "room-c-conf",
                         "bld-d-f1-f101",
                         "bld-h-f1-a105",
                         "bld-h-f1-a107",
@@ -221,7 +219,6 @@ async def ensure_campus_room_resources(session: AsyncSession, campus_id: str) ->
                     and "cafeteria" not in (room.name or "").lower()
                     and "library" not in (room.name or "").lower()
                     and "reading" not in (room.name or "").lower()
-                    and "lounge" not in (room.name or "").lower()
                 ),
                 is_demo=room.is_demo,
             )

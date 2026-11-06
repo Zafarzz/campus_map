@@ -323,11 +323,9 @@ async def _ensure_room_resources(
             is_bookable=(
                 room.room_kind.value not in ("office", "other")
                 and not room_id.startswith("bld-j")
-                and not room_id.startswith("bld-i")
                 and room_id
                 not in (
                     "room-canteen",
-                    "room-c-conf",
                     "bld-d-f1-f101",
                     "bld-h-f1-a105",
                     "bld-h-f1-a107",
@@ -340,7 +338,6 @@ async def _ensure_room_resources(
                 and "cafeteria" not in (room.name or "").lower()
                 and "library" not in (room.name or "").lower()
                 and "reading" not in (room.name or "").lower()
-                and "lounge" not in (room.name or "").lower()
             ),
             is_demo=room.is_demo,
         )

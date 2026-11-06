@@ -34,7 +34,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from asyncpg.exceptions import ExclusionViolationError
-from sqlalchemy import and_, func, not_, or_, select
+from sqlalchemy import func, not_, or_, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,13 +100,15 @@ class BookingResult:
 
 def is_public_or_unbookable_resource(resource: Resource) -> bool:
     """True for public amenities and common spaces that serve all students and cannot be reserved."""
+    room_l = (resource.room_id or "").lower()
+    if room_l in ("room-c-conf", "bld-i-f2-r1"):
+        return False
     if not resource.is_bookable:
         return True
     if resource.kind in ("laundry", "dorm"):
         return True
     code_l = (resource.code or "").lower()
     name_l = (resource.name or "").lower()
-    room_l = (resource.room_id or "").lower()
     return bool(
         "canteen" in code_l
         or "canteen" in name_l
@@ -114,21 +116,15 @@ def is_public_or_unbookable_resource(resource: Resource) -> bool:
         or "dining" in name_l
         or "library" in name_l
         or "reading" in name_l
-        or "lounge" in name_l
-        or "open space" in name_l
-        or "lobby" in name_l
-        or "exhibition" in name_l
         or "toilet" in name_l
         or "toilet" in code_l
         or "restroom" in name_l
         or "wc" in code_l
         or "wc" in room_l
         or room_l.startswith("bld-j")
-        or room_l.startswith("bld-i")
         or room_l
         in (
             "room-canteen",
-            "room-c-conf",
             "bld-d-f1-f101",
             "bld-h-f1-a105",
             "bld-h-f1-a107",
@@ -569,7 +565,7 @@ async def list_resources(
         stmt = stmt.where(Resource.is_bookable.is_(True))
     stmt = stmt.where(
         Resource.kind.notin_(("laundry", "dorm")),
-        or_(Floor.building_id.is_(None), and_(Floor.building_id != "bld-j", Floor.building_id != "bld-i")),
+        or_(Floor.building_id.is_(None), Floor.building_id != "bld-j"),
         not_(Resource.code.ilike("%wc%")),
         not_(Resource.code.ilike("%toilet%")),
         not_(Resource.code.ilike("%canteen%")),
@@ -581,15 +577,10 @@ async def list_resources(
         not_(Resource.name.ilike("%dining%")),
         not_(Resource.name.ilike("%library%")),
         not_(Resource.name.ilike("%reading%")),
-        not_(Resource.name.ilike("%lounge%")),
-        not_(Resource.name.ilike("%open space%")),
-        not_(Resource.name.ilike("%lobby%")),
-        not_(Resource.name.ilike("%exhibition%")),
         not_(
             Resource.room_id.in_(
                 (
                     "room-canteen",
-                    "room-c-conf",
                     "bld-d-f1-f101",
                     "bld-h-f1-a105",
                     "bld-h-f1-a107",

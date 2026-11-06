@@ -138,8 +138,9 @@ function saveStoredOfflineBookings(bookings: Booking[]): void {
 }
 
 function isExcludedFromBooking(r: BookableResource): boolean {
+  if (r.room_id === 'room-c-conf' || r.room_id === 'bld-i-f2-r1') return false;
   if (r.kind === 'laundry' || r.kind === 'dorm') return true;
-  if (r.building_id === 'bld-j' || r.building_id === 'bld-i') return true;
+  if (r.building_id === 'bld-j') return true;
   const lowerName = (r.name || '').toLowerCase();
   const lowerCode = (r.code || '').toLowerCase();
   const lowerRoomId = (r.room_id || '').toLowerCase();
@@ -151,23 +152,17 @@ function isExcludedFromBooking(r: BookableResource): boolean {
     lowerName.includes('dining') ||
     lowerName.includes('library') ||
     lowerName.includes('reading') ||
-    lowerName.includes('lounge') ||
-    lowerName.includes('open space') ||
-    lowerName.includes('lobby') ||
-    lowerName.includes('exhibition') ||
     lowerCode.includes('toilet') ||
     lowerCode.includes('wc') ||
     lowerCode.includes('canteen') ||
     lowerCode.includes('library') ||
     lowerRoomId.includes('wc') ||
-    lowerRoomId.startsWith('bld-j') ||
-    lowerRoomId.startsWith('bld-i')
+    lowerRoomId.startsWith('bld-j')
   ) {
     return true;
   }
   const knownExcludedRoomIds = new Set([
     'room-canteen',
-    'room-c-conf',
     'bld-d-f1-f101',
     'bld-h-f1-a105',
     'bld-h-f1-a107',
