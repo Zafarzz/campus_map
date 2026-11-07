@@ -423,25 +423,7 @@ export function CampusFountain({
         }
       }
 
-      // Золотые арочные порталы
-      for (const az of [-2.4, 2.4]) {
-        batcher.addCylinder(
-          'gold',
-          [0.045, 0.045, 2.2, 12],
-          [bx - d.bridgePlatformWidth / 2 + 0.15, d.bridgeDeckHeight + 1.1, az],
-        );
-        batcher.addCylinder(
-          'gold',
-          [0.045, 0.045, 2.2, 12],
-          [bx + d.bridgePlatformWidth / 2 - 0.15, d.bridgeDeckHeight + 1.1, az],
-        );
-        batcher.addTorus(
-          'gold',
-          [d.bridgePlatformWidth / 2 - 0.15, 0.045, 10, 24, Math.PI],
-          [bx, d.bridgeDeckHeight + 2.2, az],
-          [Math.PI / 2, 0, 0],
-        );
-      }
+
     }
 
     // 4. Центральный ступенчатый каскад со скульптурой AUT

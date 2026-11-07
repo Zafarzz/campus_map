@@ -53,7 +53,7 @@ const BUILDINGS: Record<string, string> = {
   'bld-b': 'Block E (Architecture & Design)',
   'bld-d': 'Block F (Library & Lecture Halls)',
   'bld-f': 'Block F (Library & Lecture Halls)',
-  'bld-e': 'Sports Complex & Gymnasium',
+  'bld-e': 'Halls (Events & Tennis)',
   'bld-j': 'Dormitory Housing',
   'bld-a': 'North Building',
   'campus-grounds': 'Campus Grounds / Outdoor',
@@ -66,7 +66,7 @@ const REPORT_BUILDING_OPTIONS: readonly { id: string; label: string }[] = [
   { id: 'bld-c', label: 'Block D (Civil Eng Labs)' },
   { id: 'bld-b', label: 'Block E (Architecture & Design)' },
   { id: 'bld-d', label: 'Block F (Library & Lecture Halls)' },
-  { id: 'bld-e', label: 'Sports Complex & Gymnasium' },
+  { id: 'bld-e', label: 'Halls (Events & Tennis)' },
   { id: 'bld-j', label: 'Dormitory Housing' },
   { id: 'campus-grounds', label: 'Campus Grounds / Outdoor' },
 ];

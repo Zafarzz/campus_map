@@ -236,6 +236,10 @@ export function SportsComplexFrontFacade({
       {merged.frame && <mesh geometry={merged.frame} material={materials.frameMat} castShadow receiveShadow raycast={NO_RAYCAST} />}
       {merged.glass && <mesh geometry={merged.glass} material={materials.glassMat} raycast={NO_RAYCAST} />}
       {merged.steel && <mesh geometry={merged.steel} material={materials.steelMat} raycast={NO_RAYCAST} />}
+
+      {/* Commemorative Monuments / Steles in front niches per user markup (rotated 30 degrees: Math.PI / 6) */}
+      <CommemorativeStela position={[-9.5, 0, -0.7]} rotationY={Math.PI / 6} />
+      <CommemorativeStela position={[9.5, 0, -0.7]} rotationY={-Math.PI / 6} />
     </group>
   );
 }

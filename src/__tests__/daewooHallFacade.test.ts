@@ -80,4 +80,15 @@ describe('Daewoo Hall Entrance Pavilion & Facade (Drawing 2)', () => {
     expect(el.props.opacity).toBe(0.35);
     expect(el.props.transparent).toBe(true);
   });
+
+  it('places DaewooHallFacade on Corridor B <-> C (conn-bld-g-bld-i) East facade while Corridor A <-> C has mirrored glass', () => {
+    const campusGeom = geometryProvider.build(demoCampus);
+    const connBToC = campusGeom.connectors.find((c) => c.id === 'conn-bld-g-bld-i');
+    expect(connBToC).toBeDefined();
+    expect(connBToC?.buildingIds).toEqual(['bld-g', 'bld-i']);
+
+    const connAToC = campusGeom.connectors.find((c) => c.id === 'conn-bld-h-bld-i');
+    expect(connAToC).toBeDefined();
+    expect(connAToC?.buildingIds).toEqual(['bld-h', 'bld-i']);
+  });
 });

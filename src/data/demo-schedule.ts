@@ -37,14 +37,23 @@ export function createDemoSchedule(campus: Campus, date: string, slots: [string,
   for (const building of campus.buildings) {
     for (const floor of building.floors) {
       for (const room of floor.rooms) {
-        if (room.kind === 'office') continue;
+        if (room.kind === 'office' || room.id.startsWith('room-open-study')) continue;
         slots.forEach(([start, end], slotIndex) => {
           const seed = `${date}|${room.id}|${slotIndex}`;
           if (rand(seed) > 0.58) return;
           lessons.push({
             id: `demo-${room.id}-${date}-${slotIndex}`,
             roomId: room.id,
-            subject: room.kind === 'hall' ? 'Physical Education' : pick(subjects, `${seed}|s`),
+            subject:
+              room.id === 'bld-e-f1-tennis'
+                ? 'Indoor Tennis Practice & Coaching'
+                : room.id.startsWith('bld-e-f1-hall')
+                ? pick(['University Conference & Symposium', 'Academic Assembly & Exhibition', 'Guest Lecture & Forum'], `${seed}|hall`)
+                : room.id === 'bld-i-f2-gym'
+                ? pick(['Volleyball Training & League', 'Basketball Team Practice', 'Physical Education / Multi-Sport'], `${seed}|pe`)
+                : room.kind === 'hall'
+                ? 'Physical Education'
+                : pick(subjects, `${seed}|s`),
             teacher: pick(professors, `${seed}|t`),
             group: pick(groups, `${seed}|g`),
             // Local time (no timezone suffix) — parsed as campus-local time.

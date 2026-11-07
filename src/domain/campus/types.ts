@@ -11,7 +11,7 @@ export type DataProvenance =
   /** Placeholder generated for the prototype. Must be replaced. */
   | 'demo';
 
-export type RoomKind = 'classroom' | 'lab' | 'office' | 'hall' | 'other';
+export type RoomKind = 'classroom' | 'lab' | 'office' | 'hall' | 'library' | 'other';
 
 export type Room = {
   id: string;
@@ -19,6 +19,7 @@ export type Room = {
   name?: string;
   kind: RoomKind;
   capacity?: number;
+  description?: string;
   provenance: DataProvenance;
 };
 

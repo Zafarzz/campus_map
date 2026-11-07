@@ -99,7 +99,7 @@ const DEMO_BOOKABLE_RESOURCES: BookableResource[] = [
   {
     id: '01a18e72-5ab6-775e-b505-77c34b00f057',
     code: 'room:bld-e-f1-r1',
-    name: 'Sports Complex Main Gymnasium SC101',
+    name: 'Halls - Event Hall H101',
     kind: 'room',
     room_id: 'bld-e-f1-r1',
     building_id: 'bld-e',
@@ -137,8 +137,8 @@ function saveStoredOfflineBookings(bookings: Booking[]): void {
   memoryStore.set(OFFLINE_BOOKINGS_KEY, json);
 }
 
-function isExcludedFromBooking(r: BookableResource): boolean {
-  if (r.room_id === 'room-c-conf' || r.room_id === 'bld-i-f2-r1') return false;
+export function isExcludedFromBooking(r: Partial<BookableResource>): boolean {
+  if (r.room_id === 'bld-i-f2-c201' || r.room_id === 'bld-i-f2-c202' || r.room_id === 'room-c-conf' || r.room_id === 'bld-i-f2-r1' || r.room_id === 'bld-i-f2-r2') return false;
   if (r.kind === 'laundry' || r.kind === 'dorm') return true;
   if (r.building_id === 'bld-j') return true;
   const lowerName = (r.name || '').toLowerCase();
@@ -168,6 +168,10 @@ function isExcludedFromBooking(r: BookableResource): boolean {
     'bld-h-f1-a107',
     'bld-g-f1-lobby',
     'bld-g-f2-lobby',
+    'bld-b-f1-lobby',
+    'bld-b-f2-lobby',
+    'bld-b-f1-e105',
+    'bld-b-f2-e205',
     'bld-g-f3-r2',
     'bld-g-f3-r5',
     'bld-g-f4-r2',

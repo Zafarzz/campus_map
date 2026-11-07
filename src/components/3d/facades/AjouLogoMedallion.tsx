@@ -137,6 +137,11 @@ export function AjouLogoMedallion({
         <ringGeometry args={[radius * 0.76, radius * 0.82, 32]} />
       </mesh>
 
+      {/* 3b. Central White Background Disc */}
+      <mesh position={[0, 0, 0.028]} material={materials.whiteMat} raycast={NO_RAYCAST}>
+        <circleGeometry args={[radius * 0.76, 32]} />
+      </mesh>
+
       {/* 4. Central Circular Logo Face */}
       <mesh position={[0, 0, 0.03]} material={materials.logoMat} raycast={NO_RAYCAST}>
         <circleGeometry args={[radius * 0.76, 32]} />

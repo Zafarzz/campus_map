@@ -6,7 +6,6 @@ import {
   NO_RAYCAST,
 } from './geometry/staticGeometryMerger';
 import { getSportsMeshTexture } from './facades/facadeTextures';
-import { CommemorativeStela } from './facades/SportsComplexFacade';
 
 /**
  * Complete Real-World Sports Facilities Ensembles:
@@ -382,8 +381,6 @@ export function SportsFacilities() {
       {merged.rim && <mesh geometry={merged.rim} material={materials.rimMat} castShadow raycast={NO_RAYCAST} />}
       {merged.flag && <mesh geometry={merged.flag} material={materials.flagMat} raycast={NO_RAYCAST} />}
 
-      {/* Commemorative Monument / Stela placed outside near tennis courts */}
-      <CommemorativeStela position={[courtX - apronW / 2 - 1.8, 0, courtZ]} rotationY={Math.PI / 2} />
     </group>
   );
 }

@@ -40,7 +40,9 @@ describe('CAD Floor Plans and Geometry Integration', () => {
       expect(geom.type).toBe('box');
       if (geom.type === 'box') {
         expect(geom.size[0]).toBeGreaterThan(0.5);
-        expect(geom.size[1]).toBe(2.6); // Room clear height
+        const expectedHeight =
+          id === 'bld-i-f2-gym' || id === 'bld-i-f2-r3' || id === 'bld-i-f2-c201' || id === 'bld-i-f2-c202' || id === 'bld-i-f2-r1' || id === 'bld-i-f2-r2' ? 5.0 : id.startsWith('bld-e-f1') ? 6.0 : 2.6;
+        expect(geom.size[1]).toBe(expectedHeight);
         expect(geom.size[2]).toBeGreaterThan(0.5);
         expect(Number.isFinite(geom.position[0])).toBe(true);
         expect(Number.isFinite(geom.position[1])).toBe(true);

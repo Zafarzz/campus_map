@@ -6,8 +6,8 @@ import {
   NO_RAYCAST,
   StaticGeometryBatcher,
 } from '../geometry/staticGeometryMerger';
+import { AjouLogoMedallion } from '../facades/AjouLogoMedallion';
 import {
-  getAmphitheaterFloorLogoTexture,
   getAmphitheaterScreenTexture,
   getBookshelfTexture,
   getGrilyatoTexture,
@@ -131,7 +131,6 @@ export function AmphitheaterHall({
   const spec = AMPHITHEATER_HALL;
   const [worldCenterX, worldCenterZ] = spec.center;
 
-  const floorLogoTex = useMemo(() => getAmphitheaterFloorLogoTexture(), []);
   const parquetTex = useMemo(() => getParquetFloorTexture(), []);
   const screenTex = useMemo(() => getAmphitheaterScreenTexture(), []);
   const bookshelfTex = useMemo(() => getBookshelfTexture(), []);
@@ -209,12 +208,6 @@ export function AmphitheaterHall({
         color: bookshelfTex ? '#ffffff' : '#3d2010',
         roughness: 0.7,
       }),
-      floorLogo: new THREE.MeshStandardMaterial({
-        map: floorLogoTex ?? undefined,
-        color: floorLogoTex ? '#ffffff' : '#1d4ed8',
-        roughness: 0.4,
-        metalness: 0.2,
-      }),
       parquet: new THREE.MeshStandardMaterial({
         map: parquetTex ?? undefined,
         color: parquetTex ? '#ffffff' : '#d7cbb5',
@@ -251,7 +244,7 @@ export function AmphitheaterHall({
         emissiveIntensity: 1.2,
       }),
     };
-  }, [screenTex, bookshelfTex, floorLogoTex, parquetTex, grilyatoTex, slateRoofTex]);
+  }, [screenTex, bookshelfTex, parquetTex, grilyatoTex, slateRoofTex]);
 
   const merged = useMemo(() => {
     const batcher = new StaticGeometryBatcher();
@@ -280,13 +273,11 @@ export function AmphitheaterHall({
     );
     const floorBowlGeo = new THREE.ShapeGeometry(floorBowlShape);
     floorBowlGeo.rotateX(Math.PI / 2);
-    batcher.addGeometry('parquet', floorBowlGeo, [0, 0.002, 0]);
+    // Concrete subfloor plinth slab to completely shield parquet from outdoor terrain & exterior shadows
+    batcher.addGeometry('plinth', floorBowlGeo, [0, 0.02, 0]);
+    // Sunken amphitheater parquet floor raised cleanly above subfloor
+    batcher.addGeometry('parquet', floorBowlGeo, [0, 0.035, 0]);
     floorBowlGeo.dispose();
-
-    const logoGeo = new THREE.CircleGeometry(spec.floor.logoDiameter / 2, 48);
-    logoGeo.rotateX(-Math.PI / 2);
-    batcher.addGeometry('floorLogo', logoGeo, [0, 0.006, 0]);
-    logoGeo.dispose();
 
     // 2. Amphitheater Tiers (3 steps)
     for (const t of spec.tiers) {
@@ -369,29 +360,36 @@ export function AmphitheaterHall({
     }
     batcher.addBox('bookshelf', [6.4, 0.9, 0.35], [0, (6.2 + 7.1) / 2, -8.2]);
 
-    // 6. East Wall (Entrance, 4 Columns & 2nd Floor Balcony)
+    // 6. East Wall (Open Colonnade connected seamlessly to Corridor B-C Open Study Place at Y = 3.6m floor level)
     for (const y of spec.east.columns.at) {
-      batcher.addBox('whiteCol', [0.6, 3.15, 0.6], [9.7, (1.35 + 4.5) / 2, -y]);
-      batcher.addBox('metalFrame', [0.15, 3.15, 0.6], [9.9, (1.35 + 4.5) / 2, -y - 0.4]);
-      batcher.addBox('darkWood', [0.5, 2.35, 0.5], [9.75, (4.85 + 7.2) / 2, -y]);
+      // Lower column: from tier base (1.35m) flush up to 2F floor level (3.6m)
+      batcher.addBox('whiteCol', [0.6, 2.25, 0.6], [9.7, (1.35 + 3.6) / 2, -y]);
+      // Upper pillar: starts flush from 2F floor level (3.6m) up to ceiling (7.2m)
+      batcher.addBox('darkWood', [0.5, 3.6, 0.5], [9.7, (3.6 + 7.2) / 2, -y]);
     }
-    batcher.addBox('wood', [0.5, 0.35, 12.0], [9.75, (4.5 + 4.85) / 2, 0]);
-    batcher.addBox('glass', [0.04, 1.0, 12.0], [9.65, (4.85 + 5.85) / 2, 0]);
-    batcher.addBox('metalFrame', [0.08, 0.05, 12.0], [9.65, 5.85, 0]);
-    for (const by of [-7.2, 7.2]) {
-      batcher.addBox('bookshelf', [0.4, 5.85, 2.5], [9.7, (1.35 + 7.2) / 2, -by]);
-    }
-    batcher.addBox('plinth', [1.15, 1.35, 12.0], [10.575, 1.35 / 2, 0]);
-    batcher.addBox('wood', [1.15, 0.25, 12.0], [10.575, 4.65, 0]);
-    batcher.addBox('darkWood', [1.15, 0.3, 12.0], [10.575, 7.2, 0]);
-    batcher.addBox('darkGlaze', [0.08, 5.85, 12.0], [10.575 + 1.15 / 2, (1.35 + 7.2) / 2, 0]);
-    batcher.addBox('glass', [0.1, 2.85, 2.6], [10.575 + 1.15 / 2 + 0.02, (1.35 + 4.2) / 2, 0]);
-    batcher.addBox('metalFrame', [0.12, 2.95, 2.75], [10.575 + 1.15 / 2 + 0.04, (1.35 + 4.2) / 2, 0]);
 
-    // 7. West Wall (Exterior Cladding, Panoramic Windows & Entrance)
-    batcher.addBox('wall', [0.26, 8.9 - 1.35, 2.5], [-10.02, (1.35 + 8.9) / 2, -7.25]);
-    batcher.addBox('wall', [0.26, 8.9 - 1.35, 2.5], [-10.02, (1.35 + 8.9) / 2, 7.25]);
-    batcher.addBox('wall', [0.26, 8.9 - 7.2, 12.0], [-10.02, (7.2 + 8.9) / 2, 0]);
+    // Horizontal floor fascia beam aligned exactly with 2F Open Study Place floor at Y = 3.6m
+    batcher.addBox('wood', [0.6, 0.28, 12.0], [9.7, 3.6 - 0.14, 0]);
+
+    // Safety balustrade on 2F mezzanine edge at Y = 3.6m overlooking amphitheater
+    batcher.addBox('glass', [0.04, 0.95, 12.0], [9.65, 3.6 + 0.475, 0]);
+    batcher.addBox('handrailSteel', [0.06, 0.05, 12.0], [9.65, 3.6 + 0.975, 0]);
+
+    // Side brown walls/bookshelves extended continuously to meet Corridor C-B Open Study Place without separation
+    for (const by of [-7.2, 7.2]) {
+      batcher.addBox('bookshelf', [1.45, 5.85, 2.5], [10.425, (1.35 + 7.2) / 2, -by]);
+      batcher.addBox('darkWood', [1.45, 5.85, 0.15], [10.425, (1.35 + 7.2) / 2, -by - 1.25]);
+      batcher.addBox('darkWood', [1.45, 5.85, 0.15], [10.425, (1.35 + 7.2) / 2, -by + 1.25]);
+    }
+
+    // Floor slabs bridging to Corridor C-B at ground (1F) and 2F level (3.6m) — dark glass wall removed per user instruction
+    batcher.addBox('plinth', [1.45, 0.3, 12.0], [10.425, 0.15, 0]);
+    batcher.addBox('plinth', [1.45, 0.28, 12.0], [10.425, 3.6 - 0.14, 0]);
+    batcher.addBox('darkWood', [1.45, 0.3, 12.0], [10.425, 7.2 - 0.15, 0]);
+
+    // 7. West Wall (Exterior Cladding, Panoramic Windows & Entrance flush at wallH = 7.2m)
+    batcher.addBox('wall', [0.26, 7.2 - 1.35, 2.5], [-10.02, (1.35 + 7.2) / 2, -7.25]);
+    batcher.addBox('wall', [0.26, 7.2 - 1.35, 2.5], [-10.02, (1.35 + 7.2) / 2, 7.25]);
     batcher.addBox('plinth', [0.26, 1.35, 7.2], [-10.02, 1.35 / 2, -4.9]);
     batcher.addBox('plinth', [0.26, 1.35, 7.2], [-10.02, 1.35 / 2, 4.9]);
 
@@ -478,50 +476,65 @@ export function AmphitheaterHall({
       const tx = -6.65 + i * 0.7;
       batcher.addBox('metalFrame', [0.65, 0.04, 0.04], [tx, 4.675, 8.35], [0, 0, Math.PI / 4]);
     }
-    for (const dx of spec.south.drapes) {
-      batcher.addBox('metalFrame', [0.8, 3.05, 0.15], [dx, (1.35 + 4.4) / 2, 8.15]);
-    }
+    // Removed obstructing drapes to keep seamless open view into Corridor A-C 2F Open Study Place
     batcher.addBox('glass', [14.0, 0.9, 0.04], [0, (1.35 + 2.25) / 2, 8.1]);
     for (const bx of [-8.5, 8.5]) {
       batcher.addBox('bookshelf', [3.0, 5.85, 0.4], [bx, (1.35 + 7.2) / 2, 8.2]);
     }
 
-    // 9. Ceiling & Lighting
-    const soffitAngle = Math.atan2(1.3, 2.0);
-    batcher.addBox('darkWood', [20.0, 0.15, 2.38], [0, 7.85, -7.5], [soffitAngle, 0, 0]);
-    batcher.addBox('darkWood', [20.0, 0.15, 2.38], [0, 7.85, 7.5], [-soffitAngle, 0, 0]);
-    batcher.addBox('darkWood', [2.38, 0.15, 17.0], [-9.0, 7.85, 0], [0, 0, -soffitAngle]);
-    batcher.addBox('darkWood', [2.38, 0.15, 17.0], [9.0, 7.85, 0], [0, 0, soffitAngle]);
+    // 9. Ceiling & Lighting (Lowered to fit cleanly inside 7.2m exterior wall height under hip roof)
+    const soffitAngle = Math.atan2(0.55, 2.0);
+    const soffitY = 6.55;
+    const grilyatoY = 6.85;
+
+    batcher.addBox('darkWood', [20.0, 0.15, 2.07], [0, soffitY, -7.5], [soffitAngle, 0, 0]);
+    batcher.addBox('darkWood', [20.0, 0.15, 2.07], [0, soffitY, 7.5], [-soffitAngle, 0, 0]);
+    batcher.addBox('darkWood', [2.07, 0.15, 17.0], [-9.0, soffitY, 0], [0, 0, -soffitAngle]);
+    batcher.addBox('darkWood', [2.07, 0.15, 17.0], [9.0, soffitY, 0], [0, 0, soffitAngle]);
 
     for (const c of spec.ceiling.linearLedCenters) {
-      batcher.addBox('warmLed', [spec.ceiling.linearLedLength, 0.04, 0.08], [c, 7.85, -7.5]);
-      batcher.addBox('warmLed', [spec.ceiling.linearLedLength, 0.04, 0.08], [c, 7.85, 7.5]);
-      batcher.addBox('warmLed', [0.08, 0.04, spec.ceiling.linearLedLength * 0.75], [-9.0, 7.85, c * 0.75]);
-      batcher.addBox('warmLed', [0.08, 0.04, spec.ceiling.linearLedLength * 0.75], [9.0, 7.85, c * 0.75]);
+      batcher.addBox('warmLed', [spec.ceiling.linearLedLength, 0.04, 0.08], [c, soffitY, -7.5]);
+      batcher.addBox('warmLed', [spec.ceiling.linearLedLength, 0.04, 0.08], [c, soffitY, 7.5]);
+      batcher.addBox('warmLed', [0.08, 0.04, spec.ceiling.linearLedLength * 0.75], [-9.0, soffitY, c * 0.75]);
+      batcher.addBox('warmLed', [0.08, 0.04, spec.ceiling.linearLedLength * 0.75], [9.0, soffitY, c * 0.75]);
     }
 
-    batcher.addPlane('grilyato', [16.0, 13.0], [0, 8.5, 0], [-Math.PI / 2, 0, 0]);
+    batcher.addPlane('grilyato', [16.0, 13.0], [0, grilyatoY, 0], [-Math.PI / 2, 0, 0]);
 
     for (const lx of spec.ceiling.ledCoordsX) {
       for (const ly of spec.ceiling.ledCoordsY) {
-        batcher.addBox('cyanFrame', [0.7, 0.02, 0.7], [lx, 8.51, -ly]);
-        batcher.addBox('whiteLed', [0.6, 0.02, 0.6], [lx, 8.5, -ly]);
+        batcher.addBox('cyanFrame', [0.7, 0.02, 0.7], [lx, grilyatoY + 0.01, -ly]);
+        batcher.addBox('whiteLed', [0.6, 0.02, 0.6], [lx, grilyatoY, -ly]);
       }
     }
 
-    // 10. Exterior Parapets
-    batcher.addBox('wall', [20.5, 0.8, 0.25], [0, (8.9 + 9.7) / 2, -8.375]);
-    batcher.addBox('wall', [20.5, 0.8, 0.35], [0, (8.9 + 9.7) / 2, 8.55]);
-    batcher.addBox('wall', [0.35, 0.8, 17.5], [-10.05, (8.9 + 9.7) / 2, 0]);
-    batcher.addBox('wall', [0.35, 0.8, 12.4], [11.2, (8.9 + 9.7) / 2, 0]);
+    // 10. Exterior Roof & Eaves (Unified with corridor B↔C into one single 4-pitched hip roof per CAD drawing)
+    const wallH = 7.2;
+    const roofPitchH = 2.4;
+    const overhang = 0.4;
+
+    // Unified roof spans continuously from amphitheater west edge (X = 40.5) to connector B-C east edge (X = 69.15).
+    // Total building footprint width = 28.65m; total depth = 17.0m.
+    const rw = 28.65 + overhang * 2; // ~29.45m
+    const rd = 17.0 + overhang * 2;  // ~17.8m
+
+    // Offset relative to AmphitheaterHall origin [50.5, 0, 76.5]:
+    // World center: [(40.5 + 69.15) / 2, 76.5] = [54.825, 76.5] -> offset = [+4.325, 0]
+    const relX = 4.325;
+    const relZ = 0.0;
 
     // Roof geometries (rendered when !selected)
-    const hipRoofGeo = createAmphitheaterHipRoofGeometry(20.4, 17.0, 3.4);
-    batcher.addGeometry('roof', hipRoofGeo, [0, 9.2, 0]);
+    // Molded white eaves cornice & fascia at wall height (7.2m)
+    batcher.addBox('fascia', [rw + 0.2, 0.28, rd + 0.2], [relX, wallH + 0.14, relZ]);
+
+    // True red 4-pitched hip roof geometry matching Image 1 & CAD blueprint (Image 2)
+    const hipRoofGeo = createAmphitheaterHipRoofGeometry(rw, rd, roofPitchH);
+    batcher.addGeometry('roof', hipRoofGeo, [relX, wallH + 0.28, relZ]);
     hipRoofGeo.dispose();
-    batcher.addBox('roof', [1.25, 0.25, 12.2], [10.6, 8.9 - 1.55, 0]);
-    batcher.addBox('fascia', [20.5, 0.3, 17.3], [0, 9.05, 0.15]);
-    batcher.addBox('roofRidge', [8.4, 0.08, 0.25], [0, 8.9 + 3.72, 0]);
+
+    // Ridge cap tile beam along East-West main axis
+    const ridgeLen = Math.max(0, rw - rd * 0.7);
+    batcher.addBox('roofRidge', [ridgeLen, 0.14, 0.24], [relX, wallH + 0.28 + roofPitchH + 0.07, relZ]);
 
     return batcher.buildAll();
   }, [spec]);
@@ -551,9 +564,13 @@ export function AmphitheaterHall({
       {merged.parquet && (
         <mesh geometry={merged.parquet} material={materials.parquet} receiveShadow raycast={NO_RAYCAST} />
       )}
-      {merged.floorLogo && (
-        <mesh geometry={merged.floorLogo} material={materials.floorLogo} receiveShadow raycast={NO_RAYCAST} />
-      )}
+      {/* Floor Medallion: Official Ajou University Medallion (matching Block C & Block F facades) */}
+      <AjouLogoMedallion
+        position={[0, 0.038, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        radius={spec.floor.logoDiameter / 2}
+        showText={false}
+      />
       {merged.tier && (
         <mesh geometry={merged.tier} material={materials.tier} castShadow receiveShadow raycast={NO_RAYCAST} />
       )}

@@ -37,6 +37,7 @@ export type VisualTuningParams = {
 
   // Shadows
   shadowsEnabled: boolean;
+  softShadowsEnabled: boolean;
   softShadowSize: number;
   softShadowSamples: number;
   shadowBias: number;
@@ -108,10 +109,11 @@ export const DEFAULT_TUNING_VALUES: VisualTuningParams = {
 
   // Shadows
   shadowsEnabled: true,
-  softShadowSize: 22,
+  softShadowsEnabled: false,
+  softShadowSize: 12,
   softShadowSamples: 16,
-  shadowBias: -0.00015,
-  shadowNormalBias: 0.02,
+  shadowBias: -0.00003,
+  shadowNormalBias: 0.045,
   shadowMapSize: 2048,
   bakeShadows: false,
 
@@ -189,10 +191,11 @@ export function useVisualTuning(): VisualTuningParams {
       }),
       Shadows: folder({
         shadowsEnabled: { value: true, label: 'Enable Shadows' },
-        softShadowSize: { value: 22, min: 1, max: 40, step: 1, label: 'Soft Radius' },
+        softShadowsEnabled: { value: false, label: 'Drei PCSS Filter' },
+        softShadowSize: { value: 12, min: 1, max: 40, step: 1, label: 'Soft Radius' },
         softShadowSamples: { value: 16, min: 4, max: 32, step: 1, label: 'Samples' },
-        shadowBias: { value: -0.00015, min: -0.001, max: 0.001, step: 0.00005, label: 'Bias' },
-        shadowNormalBias: { value: 0.02, min: 0, max: 0.1, step: 0.005, label: 'Normal Bias' },
+        shadowBias: { value: -0.00003, min: -0.001, max: 0.001, step: 0.00001, label: 'Bias' },
+        shadowNormalBias: { value: 0.045, min: 0, max: 0.1, step: 0.005, label: 'Normal Bias' },
         shadowMapSize: { value: 2048, options: [1024, 2048, 4096], label: 'Resolution' },
         contactShadowsEnabled: { value: true, label: 'Contact AO Shadows' },
         contactShadowOpacity: { value: 0.36, min: 0, max: 0.85, step: 0.04, label: 'Contact Opacity' },

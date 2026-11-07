@@ -55,6 +55,12 @@ export function RoomDetails() {
         </span>
       </header>
 
+      {room.description && (
+        <p className="room-card__description" style={{ margin: '8px 0 12px', fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>
+          {room.description}
+        </p>
+      )}
+
       {(room.capacity || room.kind) && (
         <div className="room-card__specs">
           {room.kind && (

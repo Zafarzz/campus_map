@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import * as THREE from 'three';
 import React from 'react';
+import { describe, expect, it } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
-import { getBuildingAppearance, SPORTS_COMPLEX } from '../domain/appearance';
 import { geometryProvider } from '../services/geometry';
+import { getBuildingAppearance, SPORTS_COMPLEX } from '../domain/appearance';
 import {
   SportsComplexRoof,
   SportsComplexFrontFacade,
+  CommemorativeStela,
 } from '../components/3d/facades/SportsComplexFacade';
 
 describe('Sports Complex Architectural Facade & 3-Gable Roof (Drawing 1)', () => {
@@ -14,10 +14,9 @@ describe('Sports Complex Architectural Facade & 3-Gable Roof (Drawing 1)', () =>
     const appearance = getBuildingAppearance('bld-e');
     expect(appearance.preset).toBe('sports-complex');
     expect(appearance.customFacade).toBe('sports-complex');
-    expect(appearance.plinthHeight).toBe(2.2);
-    expect(appearance.plinthColor).toBe('#dcd5c9'); // Warm travertine/stone base
-    expect(appearance.roofColor).toBe('#22252a'); // Dark graphite standing seam metal
-    expect(appearance.roofHeight).toBe(6.9); // +10.500m ridge height - 3.6m wall
+    expect(appearance.roofType).toBe('barrel');
+    expect(appearance.roofColor).toBe('#22252a');
+    expect(appearance.wallColor).toBe('#f1f5f9');
   });
 
   it('preserves SPORTS_COMPLEX preset constants in registry', () => {
@@ -47,9 +46,10 @@ describe('Sports Complex Architectural Facade & 3-Gable Roof (Drawing 1)', () =>
     }
   });
 
-  it('exports SportsComplexRoof and SportsComplexFrontFacade React components', () => {
+  it('exports SportsComplexRoof, SportsComplexFrontFacade, and CommemorativeStela React components', () => {
     expect(typeof SportsComplexRoof).toBe('function');
     expect(typeof SportsComplexFrontFacade).toBe('function');
+    expect(typeof CommemorativeStela).toBe('function');
   });
 
   it('creates valid React element for SportsComplexRoof with 3 sharp triangular gables', () => {
@@ -65,7 +65,7 @@ describe('Sports Complex Architectural Facade & 3-Gable Roof (Drawing 1)', () =>
     expect(el.props.color).toBe('#22252a');
   });
 
-  it('creates valid React element for SportsComplexFrontFacade with 3 duplicated entrance vestibules', () => {
+  it('creates valid React element for SportsComplexFrontFacade with 3 entrance vestibules and commemorative steles', () => {
     const el = React.createElement(SportsComplexFrontFacade, {
       width: 57.0,
       depth: 37.5,
@@ -74,5 +74,14 @@ describe('Sports Complex Architectural Facade & 3-Gable Roof (Drawing 1)', () =>
     expect(React.isValidElement(el)).toBe(true);
     expect(el.props.width).toBe(57.0);
     expect(el.props.wallHeight).toBe(3.6);
+  });
+
+  it('creates valid React element for CommemorativeStela with 30-degree rotation', () => {
+    const el = React.createElement(CommemorativeStela, {
+      position: [-9.5, 0, -0.7],
+      rotationY: Math.PI / 6,
+    });
+    expect(React.isValidElement(el)).toBe(true);
+    expect(el.props.rotationY).toBeCloseTo(Math.PI / 6, 4);
   });
 });

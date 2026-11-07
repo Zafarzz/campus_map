@@ -12,12 +12,128 @@ const knownRooms: Record<string, string[]> = {
   E: ['E-101', 'E-201', 'E-202', 'E-203', 'E-204', 'E-205', 'E-206', 'E-301', 'E-306'],
 };
 
-/** Rooms with specific known names based on the "C Block" description */
-const specialRooms: Record<string, { id: string; number: string; name: string; kind: RoomKind }[]> = {
-  'bld-i': [
-    { id: 'room-c-conf', number: 'C-conF', name: 'Conference Hall', kind: 'hall' },
-    { id: 'room-canteen', number: 'Canteen', name: 'Canteen', kind: 'other' },
-  ],
+/** Rooms with specific known names per floor (e.g. Block C, Open Study Places, administration) */
+const specialFloorRooms: Record<
+  string,
+  Record<
+    number,
+    { id: string; number: string; name: string; kind: RoomKind; capacity?: number; description?: string }[]
+  >
+> = {
+  'bld-e': {
+    1: [
+      {
+        id: 'bld-e-f1-hall-1',
+        number: 'H-101',
+        name: 'Event Hall 1 (West)',
+        kind: 'hall',
+        capacity: 250,
+        description: 'Multi-purpose university event hall for conferences, ceremonial gatherings, banquets, and exhibitions.',
+      },
+      {
+        id: 'bld-e-f1-hall-2',
+        number: 'H-102',
+        name: 'Event Hall 2 (Center)',
+        kind: 'hall',
+        capacity: 200,
+        description: 'Multi-purpose event and convention hall equipped with presentation stage, audio/video systems, and flexible seating.',
+      },
+      {
+        id: 'bld-e-f1-tennis',
+        number: 'H-103',
+        name: 'Indoor Tennis Hall (East)',
+        kind: 'hall',
+        capacity: 60,
+        description: 'Indoor regulation tennis court hall with tournament blue acrylic hard court, tournament tennis net, and spectator seating.',
+      },
+    ],
+  },
+  'bld-i': {
+    1: [
+      {
+        id: 'bld-i-f1-stairs',
+        number: 'Stairs',
+        name: 'Northwest Staircase',
+        kind: 'other',
+        capacity: 15,
+        description: 'Enclosed northwest stairwell providing vertical circulation between ground floor and floor 2.',
+      },
+      {
+        id: 'bld-i-f1-foyer',
+        number: 'C-Foyer',
+        name: 'West Corridor & Entrance Foyer',
+        kind: 'other',
+        capacity: 30,
+        description: 'Main west entrance foyer and circulation corridor with dual exterior access doors, information kiosk, and open connection to Room 5.',
+      },
+      {
+        id: 'bld-i-f1-wc',
+        number: 'C-WC',
+        name: 'Restrooms & Sanitary Facilities',
+        kind: 'other',
+        capacity: 12,
+        description: 'Male and female restrooms with vanity sinks, private cubicles, and sanitary amenities.',
+      },
+      {
+        id: 'room-canteen',
+        number: 'Canteen',
+        name: 'Canteen & Dining Hall',
+        kind: 'other',
+        capacity: 150,
+        description: 'Main campus cafeteria, student dining hall, servery buffet lines, and coffee bar.',
+      },
+    ],
+    2: [
+      {
+        id: 'room-open-study-bc',
+        number: 'OSP-BC',
+        name: 'Open Study Place (Gallery B–C)',
+        kind: 'library',
+        capacity: 40,
+        description: 'Designer open study lounge with dark Nero Marquina marble tables, ergonomic textile chairs, and acoustic wood slatted ceiling overlooking amphitheater.',
+      },
+      {
+        id: 'room-open-study-ac',
+        number: 'OSP-AC',
+        name: 'Open Study Place (Gallery A–C)',
+        kind: 'library',
+        capacity: 35,
+        description: 'Double mezzanine open study area with circular collaborative marble tables, linear LED luminaires, and glass balustrades overlooking the central atrium.',
+      },
+      {
+        id: 'bld-i-f2-c201',
+        number: 'C-201',
+        name: 'Lecture Hall C-201 (5m High)',
+        kind: 'hall',
+        capacity: 80,
+        description: 'Large tiered university lecture hall (5m clear height) with raked seating, acoustic oak wood paneling, and ultra-wide digital presentation video wall.',
+      },
+      {
+        id: 'bld-i-f2-c202',
+        number: 'C-202',
+        name: 'Lecture Hall C-202 (5m High)',
+        kind: 'hall',
+        capacity: 75,
+        description: 'Large tiered university lecture hall (5m clear height) with raked seating, acoustic oak wood paneling, and dual presentation displays.',
+      },
+      {
+        id: 'bld-i-f2-gym',
+        number: 'C-GYM',
+        name: 'Volleyball Arena',
+        kind: 'hall',
+        capacity: 60,
+        description: 'Dedicated indoor volleyball hall (5m clear height) equipped with two-tone sprung Taraflex sports flooring, official competition volleyball court lines, tournament volleyball net with antennas, umpire stand, and digital scoreboard.',
+      },
+      {
+        id: 'bld-i-f2-locker',
+        number: 'C-Locker',
+        name: 'Locker & Changing Room',
+        kind: 'other',
+        capacity: 25,
+        description: 'Athletic team changing and locker room with lockers, benches, and grooming amenities.',
+      },
+    ],
+  },
 };
 
 import { confirmedFloorPlans } from './floor-plans';
@@ -34,13 +150,18 @@ function buildRoomsForFloor(structure: BuildingStructure, level: number): Room[]
       name: r.name,
       kind: r.kind,
       capacity: r.capacity ?? 30,
+      description: r.description,
       provenance: r.provenance ?? 'confirmed',
     }));
   }
 
-  // 2. If we have explicitly known special rooms for this building, place them on the first floor.
-  if (level === 1 && specialRooms[structure.id]) {
-    return specialRooms[structure.id].map((r) => ({ ...r, provenance: 'confirmed' }));
+  // 2. If we have explicitly known special rooms for this building & floor, return them.
+  if (specialFloorRooms[structure.id]?.[level]) {
+    return specialFloorRooms[structure.id][level].map((r) => ({
+      ...r,
+      capacity: r.capacity ?? 30,
+      provenance: 'confirmed',
+    }));
   }
 
   // 3. For upper levels of buildings with confirmed 2F plans (levels 3 and 4), replicate the 2F room layout

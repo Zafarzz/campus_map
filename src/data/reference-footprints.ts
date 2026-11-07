@@ -70,7 +70,7 @@ export const connectorsPx: ConnectorPx[] = [
   // Block B (bld-g) ↔ Block C Hall (bld-i). Two storeys.
   { id: 'conn-bld-g-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-g', 'bld-i'], rect: [557, 738.67, 582, 795], floorCount: 2 },
   // Block A (bld-h) ↔ Block C Hall (bld-i). Two storeys.
-  { id: 'conn-bld-h-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-h', 'bld-i'], rect: [505, 805, 555, 855], floorCount: 2 },
+  { id: 'conn-bld-h-bld-i', kind: 'enclosed-corridor', buildingIds: ['bld-h', 'bld-i'], rect: [505, 795, 555, 855], floorCount: 2 },
   // F–E hall: 1-storey connector hall between Block F (bld-d) and Block E (bld-b), 12m free span (40px).
   { id: 'conn-bld-d-bld-b', kind: 'enclosed-corridor', buildingIds: ['bld-d', 'bld-b'], rect: [525, 148, 591.67, 188], floorCount: 1 },
 ];

@@ -3,7 +3,7 @@ import type { RoomGeometry } from '../../domain/geometry/types';
 import type { ContextFeaturePx, PxRect } from '../../data/reference-footprints';
 import { demoCampus } from '../../data/demo-campus';
 import { loadDraft } from '../../editor/storage/storageService';
-import { editorDocToCampusAndGeom } from '../../editor/domain/adapter';
+import { createInitialDocument, editorDocToCampusAndGeom } from '../../editor/domain/adapter';
 import { apiGet, isBackendEnabled } from '../api/apiClient';
 
 export type ActiveEditorOverrides = {
@@ -43,6 +43,40 @@ export async function loadCampus(): Promise<Campus> {
         if (connG) {
           connG.center = [65.25, 76.25];
           connG.size = [7.5, 16.5];
+        }
+
+        // Ensure Block C (bld-i) Floor 2 contains C-201, C-202 & Volleyball Arena (bld-i-f2-gym),
+        // and does NOT contain the removed Conference Hall (room-c-conf),
+        // and Floor 1 contains Canteen (room-canteen) spanning the floor.
+        const bldI = draft.buildings.find((b) => b.id === 'bld-i');
+        const bldIFloor1 = bldI?.floors.find((f) => f.level === 1);
+        const bldIFloor2 = bldI?.floors.find((f) => f.level === 2);
+        if (
+          (bldIFloor2 && (!bldIFloor2.rooms.some((r) => r.id === 'bld-i-f2-c201') || bldIFloor2.rooms.some((r) => r.id === 'room-c-conf'))) ||
+          (bldIFloor1 && (bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-room5') || bldIFloor1.rooms.some((r) => r.id === 'room-c-conf') || !bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-foyer')))
+        ) {
+          const initialDoc = createInitialDocument();
+          const initBldI = initialDoc.buildings.find((b) => b.id === 'bld-i');
+          const initFloor1 = initBldI?.floors.find((f) => f.level === 1);
+          const initFloor2 = initBldI?.floors.find((f) => f.level === 2);
+          if (initFloor1 && bldIFloor1) {
+            bldIFloor1.rooms = initFloor1.rooms;
+          }
+          if (initFloor2 && bldIFloor2) {
+            bldIFloor2.rooms = initFloor2.rooms;
+          }
+        }
+
+        // Ensure Halls (bld-e) Floor 1 contains the 3 halls (bld-e-f1-tennis, hall-1, hall-2)
+        const bldE = draft.buildings.find((b) => b.id === 'bld-e');
+        const bldEFloor1 = bldE?.floors.find((f) => f.level === 1);
+        if (bldE && bldEFloor1 && !bldEFloor1.rooms.some((r) => r.id === 'bld-e-f1-tennis')) {
+          const initialDoc = createInitialDocument();
+          const initBldE = initialDoc.buildings.find((b) => b.id === 'bld-e');
+          const initFloor1 = initBldE?.floors.find((f) => f.level === 1);
+          if (initFloor1) {
+            bldEFloor1.rooms = initFloor1.rooms;
+          }
         }
         const { campus, buildingFootprintsPx, roomOverrides, contextFeaturesPx } =
           editorDocToCampusAndGeom(draft);

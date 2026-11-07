@@ -564,10 +564,15 @@ export function GameScene() {
             gameConfig.player.spawnPosition[2],
           ],
           fov: gameConfig.camera.fov,
-          near: gameConfig.camera.near,
-          far: gameConfig.camera.far,
+          near: 0.15,
+          far: 1500,
         }}
         dpr={quality.dpr}
+        gl={{
+          powerPreference: 'high-performance',
+          logarithmicDepthBuffer: true,
+          antialias: true,
+        }}
       >
         <RendererToneMapping exposure={effectiveExposure} />
 
@@ -587,7 +592,7 @@ export function GameScene() {
         {tuning.adaptiveDpr && <AdaptiveDpr pixelated={false} />}
         {tuning.bakeShadows && <BakeShadows />}
         {tuning.showStats && <Stats />}
-        {tuning.shadowsEnabled && effectiveSoftSamples > 0 && (
+        {tuning.shadowsEnabled && tuning.softShadowsEnabled && effectiveSoftSamples > 0 && (
           <SoftShadows
             size={tuning.softShadowSize}
             samples={effectiveSoftSamples}
@@ -626,12 +631,12 @@ export function GameScene() {
           intensity={atmosphere.sunIntensity}
           color={atmosphere.sunColor}
           shadow-mapSize={[effectiveShadowMapSize, effectiveShadowMapSize]}
-          shadow-camera-left={-195}
-          shadow-camera-right={195}
-          shadow-camera-top={195}
-          shadow-camera-bottom={-195}
-          shadow-camera-near={10}
-          shadow-camera-far={700}
+          shadow-camera-left={-165}
+          shadow-camera-right={165}
+          shadow-camera-top={165}
+          shadow-camera-bottom={-165}
+          shadow-camera-near={30}
+          shadow-camera-far={480}
           shadow-bias={tuning.shadowBias}
           shadow-normalBias={tuning.shadowNormalBias}
         />

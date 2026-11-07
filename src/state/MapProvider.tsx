@@ -169,6 +169,10 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
 
   const selectBuilding = useCallback(
     (buildingId: string) => {
+      if (buildingId === 'amph-hall' || buildingId === 'conn-bld-h-bld-i') {
+        setSelection({ buildingId, floorId: undefined });
+        return;
+      }
       const building = loaded?.index.buildings.get(buildingId);
       if (!building) return;
       setSelection({ buildingId, floorId: defaultFloor(building)?.id });

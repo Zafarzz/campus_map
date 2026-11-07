@@ -8,7 +8,17 @@ import type { RoomStatus } from '../../domain/schedule/types';
 import { EXTRUDE_ROTATION, roomCenter, roomTop, useExtrudedGeometry } from './geometryUtils';
 import { isClick } from './pointer';
 import { BlockFLibraryInterior, LIBRARY_ROOM_ID } from './BlockFLibraryInterior';
+import { BlockCSportsHallInterior, SPORTS_HALL_ROOM_ID } from './BlockCSportsHallInterior';
+import { BlockCCanteenInterior3D, CANTEEN_ROOM_ID } from './BlockCCanteenInterior3D';
+import { TennisHallInterior3D, EventHallInterior3D, TENNIS_HALL_ID, EVENT_HALL_1_ID, EVENT_HALL_2_ID } from './HallsBuildingInteriors';
 import { ClassroomInterior3D } from './ClassroomInterior3D';
+import { BlockCLectureHall3D } from './BlockCLectureHall3D';
+import { LobbyInterior3D } from './LobbyInterior3D';
+import {
+  BlockCFoyerInterior3D,
+  BlockCWCInterior3D,
+  BlockCStairsInterior3D,
+} from './BlockCFloor1Interiors';
 
 type Props = {
   room: RoomData;
@@ -41,8 +51,48 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
 
   const center = roomCenter(geometry);
   const labelY = roomTop(geometry) + 0.6;
+  const isTennisHall =
+    (room.id === TENNIS_HALL_ID || room.number === 'H-103' || room.name?.toLowerCase().includes('tennis')) &&
+    geometry.type === 'box';
+  const isEventHall =
+    (room.id === EVENT_HALL_1_ID || room.id === EVENT_HALL_2_ID || room.id.startsWith('bld-e-f1-hall')) &&
+    geometry.type === 'box';
+  const isCFoyer =
+    (room.id === 'bld-i-f1-foyer' || room.number === 'C-Foyer') &&
+    geometry.type === 'box';
+  const isCWC =
+    (room.id === 'bld-i-f1-wc' || room.number === 'C-WC') &&
+    geometry.type === 'box';
+  const isCStairs =
+    (room.id === 'bld-i-f1-stairs' || (room.number === 'Stairs' && room.id.startsWith('bld-i'))) &&
+    geometry.type === 'box';
+  const isSportsHall =
+    (room.id === SPORTS_HALL_ROOM_ID || room.number === 'C-GYM' || room.id.includes('gym')) &&
+    geometry.type === 'box';
+  const isC201OrC202 =
+    (room.id === 'bld-i-f2-c201' ||
+      room.id === 'bld-i-f2-c202' ||
+      room.number === 'C-201' ||
+      room.number === 'C-202' ||
+      room.id === 'bld-i-f2-r1' ||
+      room.id === 'bld-i-f2-r2') &&
+    geometry.type === 'box';
   const isLibraryRoom =
     (room.id === LIBRARY_ROOM_ID || room.number === 'F-101') && geometry.type === 'box';
+  const isCanteen =
+    (room.id === CANTEEN_ROOM_ID || room.number === 'Canteen' || room.name?.toLowerCase().includes('canteen')) &&
+    geometry.type === 'box';
+  const isLobby =
+    (room.id.includes('lobby') ||
+      room.number.toLowerCase().includes('lobby') ||
+      room.name?.toLowerCase().includes('lobby') ||
+      room.id === 'bld-g-f1-lobby' ||
+      room.id === 'bld-g-f2-lobby' ||
+      room.id === 'bld-b-f1-lobby' ||
+      room.id === 'bld-b-f2-lobby' ||
+      room.id === 'bld-b-f1-e105' ||
+      room.id === 'bld-b-f2-e205') &&
+    geometry.type === 'box';
 
   return (
     <group>
@@ -52,6 +102,79 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
             position={geometry.position}
             size={geometry.size}
             selected={selected}
+          />
+        </group>      ) : isCFoyer ? (
+        <group {...events}>
+          <BlockCFoyerInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isCWC ? (
+        <group {...events}>
+          <BlockCWCInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isCStairs ? (
+        <group {...events}>
+          <BlockCStairsInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isCanteen ? (
+        <group {...events}>
+          <BlockCCanteenInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isSportsHall ? (
+        <group {...events}>
+          <BlockCSportsHallInterior
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isC201OrC202 ? (
+        <group {...events}>
+          <BlockCLectureHall3D
+            position={geometry.position}
+            size={geometry.size}
+            roomNumber={room.number}
+            selected={selected}
+          />
+        </group>
+      ) : isTennisHall ? (
+        <group {...events}>
+          <TennisHallInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isEventHall ? (
+        <group {...events}>
+          <EventHallInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+          />
+        </group>
+      ) : isLobby ? (
+        <group {...events}>
+          <LobbyInterior3D
+            position={geometry.position}
+            size={geometry.size}
+            selected={selected}
+            label={room.number}
           />
         </group>
       ) : geometry.type === 'box' ? (
@@ -64,16 +187,6 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
             isBigLecture={(room.capacity ?? 30) >= 60 || room.kind === 'hall'}
             selected={selected}
           />
-          {/* Subtle perimeter border and floor outline */}
-          <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]}>
-            <boxGeometry args={[geometry.size[0] + 0.04, 0.05, geometry.size[2] + 0.04]} />
-            <meshStandardMaterial
-              color={selected ? '#38bdf8' : hovered ? '#94a3b8' : color}
-              roughness={0.7}
-              emissive={selected ? '#0284c7' : '#000000'}
-              emissiveIntensity={selected ? 0.6 : 0}
-            />
-          </mesh>
           {/* Selection highlight frame when selected */}
           {selected && (
             <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]}>
@@ -95,7 +208,21 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
           className={`room-label${selected ? ' room-label--selected' : ''}`}
           onClick={() => onSelect(room.id)}
         >
-          {isLibraryRoom ? '📚 F-101 · Library' : room.number}
+          {isLibraryRoom
+            ? '📚 F-101 · Library'
+            : isC201OrC202
+              ? `🎓 ${room.number} · Lecture Hall`
+              : isSportsHall
+                ? '🏐 C-GYM · Volleyball'
+                  : isCanteen
+                    ? '🍽️ Canteen · Dining Hall'
+                    : isCFoyer
+                      ? '🚪 C-Foyer · Corridor'
+                      : isCWC
+                        ? '🚻 C-WC · Restrooms'
+                        : isCStairs
+                          ? '🪜 Stairs · NW Staircase'
+                          : room.number}
         </button>
       </Html>
     </group>

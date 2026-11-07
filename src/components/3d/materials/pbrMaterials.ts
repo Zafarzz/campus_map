@@ -672,6 +672,91 @@ export function getPolishedTileTextures(
   return set;
 }
 
+/**
+ * Procedural dark marble (Nero Marquina / Graphite) texture set with white/silver veins.
+ * Conforms to reference furniture drawing (Image 1: МДФ з імітацією мармуру).
+ */
+export function getDarkMarbleTextures(
+  repeatX = 1,
+  repeatY = 1,
+): ProceduralPBRTextureSet | null {
+  if (!isBrowserCanvasAvailable()) return null;
+  const cacheKey = `dark_marble_${repeatX}_${repeatY}`;
+  const existing = textureCache.get(cacheKey);
+  if (existing) return existing;
+
+  const size = 512;
+  const { canvas: diffC, ctx: diffCtx } = createCanvas(size);
+  const { canvas: normC, ctx: normCtx } = createCanvas(size);
+  const { canvas: roughC, ctx: roughCtx } = createCanvas(size);
+  if (!diffCtx || !normCtx || !roughCtx) return null;
+
+  // Dark graphite/charcoal stone base
+  diffCtx.fillStyle = '#18181b';
+  diffCtx.fillRect(0, 0, size, size);
+  normCtx.fillStyle = 'rgb(128, 128, 255)';
+  normCtx.fillRect(0, 0, size, size);
+  roughCtx.fillStyle = 'rgb(45, 45, 45)'; // High gloss polished stone (~0.18 roughness)
+  roughCtx.fillRect(0, 0, size, size);
+
+  // Subtle dark stone mottling
+  let seed = 91823;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+
+  for (let i = 0; i < 300; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const r = 10 + rand() * 35;
+    diffCtx.fillStyle = rand() > 0.5 ? 'rgba(30, 41, 59, 0.18)' : 'rgba(9, 9, 11, 0.22)';
+    diffCtx.beginPath();
+    diffCtx.arc(x, y, r, 0, Math.PI * 2);
+    diffCtx.fill();
+  }
+
+  // Organic marble veins using bezier curves
+  const drawVein = (
+    sx: number, sy: number, ex: number, ey: number,
+    c1x: number, c1y: number, c2x: number, c2y: number,
+    w: number, a: number,
+  ) => {
+    diffCtx.strokeStyle = `rgba(248, 250, 252, ${a})`;
+    diffCtx.lineWidth = w;
+    diffCtx.beginPath();
+    diffCtx.moveTo(sx, sy);
+    diffCtx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
+    diffCtx.stroke();
+
+    normCtx.strokeStyle = `rgba(138, 120, 255, ${a * 0.35})`;
+    normCtx.lineWidth = w * 1.4;
+    normCtx.beginPath();
+    normCtx.moveTo(sx, sy);
+    normCtx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
+    normCtx.stroke();
+  };
+
+  // Primary diagonal sweeping veins
+  drawVein(0, 80, 512, 420, 160, 260, 320, 240, 2.5, 0.65);
+  drawVein(0, 60, 512, 390, 140, 240, 310, 220, 1.2, 0.45);
+  drawVein(60, 0, 480, 512, 220, 160, 340, 380, 2.0, 0.55);
+  drawVein(120, 512, 512, 120, 280, 380, 410, 220, 1.8, 0.5);
+
+  // Secondary fine branches
+  drawVein(180, 210, 280, 120, 220, 170, 260, 140, 0.9, 0.4);
+  drawVein(320, 280, 440, 350, 360, 320, 400, 330, 0.8, 0.35);
+  drawVein(140, 300, 80, 420, 120, 350, 90, 390, 0.9, 0.35);
+
+  const set: ProceduralPBRTextureSet = {
+    map: configureRepeatingTexture(diffC, repeatX, repeatY, true),
+    normalMap: configureRepeatingTexture(normC, repeatX, repeatY, false),
+    roughnessMap: configureRepeatingTexture(roughC, repeatX, repeatY, false),
+  };
+  textureCache.set(cacheKey, set);
+  return set;
+}
+
 let cachedWindowGlassTexture: THREE.CanvasTexture | null = null;
 
 /**

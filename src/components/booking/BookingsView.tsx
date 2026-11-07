@@ -136,9 +136,9 @@ export const BOOKABLE_BUILDINGS: readonly BookableBuildingOption[] = [
   },
   {
     id: 'bld-e',
-    code: 'SC',
-    name: 'Sports Complex',
-    subtitle: 'Gymnasium & Athletic Court',
+    code: 'H',
+    name: 'Halls',
+    subtitle: 'Event Halls & Tennis',
     accent: '#059669',
     bgTint: 'rgba(5, 150, 105, 0.1)',
   },
@@ -151,7 +151,7 @@ const BUILDING_NAMES: Record<string, string> = {
   'bld-c': 'Block D (Civil Engineering Labs)',
   'bld-b': 'Block E (Architecture & Design)',
   'bld-d': 'Block F (Library & Lecture Halls)',
-  'bld-e': 'Sports Complex & Gymnasium',
+  'bld-e': 'Halls (Events & Tennis)',
 };
 
 /**
@@ -190,7 +190,9 @@ export function resolveResourceKind(
   const knownHalls = new Set([
     'bld-d-f2-f201', // F-201 Tiered Lecture Hall (Amphitheatre West)
     'bld-d-f2-f202', // F-202 Tiered Lecture Hall (Amphitheatre East)
-    'room-c-conf',   // Block C Conference Hall (C-201)
+    'bld-i-f2-c201', // Block C Large Lecture Hall C-201
+    'bld-i-f2-c202', // Block C Large Lecture Hall C-202
+    'room-c-conf',   // Block C Conference Hall (legacy)
     'bld-b-f1-e101', // Block E Main Lecture Hall / Design Studio (166 seats)
   ]);
   if (res.room_id && knownHalls.has(res.room_id)) {
@@ -245,11 +247,18 @@ export function isToiletOrDormResource(
   // Known public amenities / restrooms / libraries / open lounges
   const knownExcludedRoomIds = new Set([
     'room-canteen',
+    'bld-i-f1-wc',
+    'bld-i-f1-stairs',
+    'bld-i-f1-foyer',
     'bld-d-f1-f101',
     'bld-h-f1-a105',
     'bld-h-f1-a107',
     'bld-g-f1-lobby',
     'bld-g-f2-lobby',
+    'bld-b-f1-lobby',
+    'bld-b-f2-lobby',
+    'bld-b-f1-e105',
+    'bld-b-f2-e205',
     'bld-g-f1-wc-m',
     'bld-g-f1-wc-f',
     'bld-g-f2-wc-m',

@@ -247,6 +247,12 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
     yaw: Math.PI,
   },
   {
+    id: 'bld-e',
+    label: '🏛️ Halls (Events & Tennis)',
+    position: [-20.5, 2.2, -12.0],
+    yaw: 0,
+  },
+  {
     id: 'bld-a',
     label: '🏢 North Building (Block N)',
     position: [-14.0, 2.2, -104.0],

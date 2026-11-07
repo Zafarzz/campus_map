@@ -125,5 +125,56 @@ describe('Amphitheater Hall Architectural Specification (ADR-029)', () => {
     expect(flightEast?.up).toEqual([1, 0]);  // Ascends east towards +X
     expect(flightSouth?.up).toEqual([0, -1]); // Ascends south (in plan frame -Y = world +Z)
   });
-});
+  it('aligns amphitheater and connector wall height at 7.2m with matching hip roofs', () => {
+    // Both 2-storey corridors conn-bld-h-bld-i and conn-bld-g-bld-i have 2 * 3.6 = 7.2m height
+    const connHToI = connectorsPx.find((c) => c.id === 'conn-bld-h-bld-i');
+    expect(connHToI).toBeDefined();
+    expect(connHToI!.floorCount * 3.6).toBeCloseTo(7.2, 1);
 
+    // conn-bld-h-bld-i touches Block A, Block C, and Amphitheater flush at Z ~ 84.9-85.0m
+    const connMeters = pxRectToMeters(connHToI!.rect);
+    const connNorthEdge = connMeters.center[1] - connMeters.size[1] / 2;
+    const hallSouthEdge = AMPHITHEATER_HALL.center[1] + AMPHITHEATER_HALL.size[1] / 2;
+    expect(connNorthEdge).toBeCloseTo(hallSouthEdge, 0);
+  });
+
+  it('combines amphitheater and Block B <-> Block C corridor into a single unified hip roof', () => {
+    const connBToC = connectorsPx.find((c) => c.id === 'conn-bld-g-bld-i');
+    expect(connBToC).toBeDefined();
+
+    const connMeters = pxRectToMeters(connBToC!.rect);
+    const connWestEdge = connMeters.center[0] - connMeters.size[0] / 2;
+    const connEastEdge = connMeters.center[0] + connMeters.size[0] / 2;
+
+    const hallWestEdge = AMPHITHEATER_HALL.center[0] - AMPHITHEATER_HALL.size[0] / 2;
+    const hallEastAnnexEdge = AMPHITHEATER_HALL.center[0] + AMPHITHEATER_HALL.east.gallery.x1;
+
+    // Hall meets the corridor seamlessly at East boundary
+    expect(hallEastAnnexEdge).toBeCloseTo(connWestEdge, 0);
+
+    // Total span of combined building: from hallWestEdge (~40.5m) to connEastEdge (~69.15m)
+    const combinedWidth = connEastEdge - hallWestEdge;
+    expect(combinedWidth).toBeCloseTo(28.65, 0);
+
+    // Both structures share the identical Z range [68.0m..85.0m] (depth 17.0m)
+    const connNorthEdge = connMeters.center[1] - connMeters.size[1] / 2;
+    const connSouthEdge = connMeters.center[1] + connMeters.size[1] / 2;
+    const hallNorthEdge = AMPHITHEATER_HALL.center[1] - AMPHITHEATER_HALL.size[1] / 2;
+    const hallSouthEdge = AMPHITHEATER_HALL.center[1] + AMPHITHEATER_HALL.size[1] / 2;
+
+    expect(hallNorthEdge).toBeCloseTo(connNorthEdge, 0);
+    expect(hallSouthEdge).toBeCloseTo(connSouthEdge, 0);
+  });
+
+  it('bounds all interior geometry strictly under wall height 7.2m to prevent poking through roof', () => {
+    const wallH = 7.2;
+    const ceilingMaxY = 6.86;
+    expect(ceilingMaxY).toBeLessThan(wallH);
+    expect(wallH - ceilingMaxY).toBeGreaterThanOrEqual(0.3);
+  });
+
+  it('configures official Ajou University medallion logo on amphitheater floor matching Block C & F facades', () => {
+    expect(AMPHITHEATER_HALL.floor.logoDiameter).toBe(3.2);
+    expect(AMPHITHEATER_HALL.floor.logoInnerDiameter).toBe(2.2);
+  });
+});

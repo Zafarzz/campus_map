@@ -235,7 +235,7 @@ export function createInitialDocument(): EditorDocument {
 
         const elementType: IndoorElementType =
           rm.kind === 'hall'
-            ? rm.name?.toLowerCase().includes('lobby')
+            ? rm.name?.toLowerCase().includes('lobby') || rm.number?.toLowerCase().includes('lobby')
               ? 'lobby'
               : 'hall'
             : 'room';

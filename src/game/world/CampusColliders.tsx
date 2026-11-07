@@ -2,6 +2,7 @@ import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier
 import { useMemo } from 'react';
 import { AJOU_ART_DIMENSIONS } from '../../components/3d/AjouArtObject';
 import { LIBRARY_LAYOUT, LIBRARY_ROOM_ID } from '../../components/3d/BlockFLibraryInterior';
+import { SPORTS_HALL_LAYOUT, SPORTS_HALL_ROOM_ID } from '../../components/3d/BlockCSportsHallInterior';
 import { FOUNTAIN_DIMENSIONS } from '../../components/3d/CampusFountain';
 import { MAIN_ENTRANCE_WIDTH } from '../../components/3d/MainEntranceGate';
 import { computeTreePlacements } from '../../components/3d/Vegetation';
@@ -58,6 +59,69 @@ function footprintToBox(
     position: [(minX + maxX) / 2, centerY, (minZ + maxZ) / 2],
     halfExtents: [Math.max(0.1, (maxX - minX) / 2), halfH, Math.max(0.1, (maxZ - minZ) / 2)],
   };
+}
+
+export function buildSportsHallInteriorColliderSpecs(geometry: CampusGeometry): BoxColliderSpec[] {
+  const roomGeo = geometry.rooms[SPORTS_HALL_ROOM_ID];
+  if (!roomGeo || roomGeo.type !== 'box') return [];
+
+  const [cx, cy, cz] = roomGeo.position;
+  const [w, h, d] = roomGeo.size;
+  const floorY = cy - h / 2;
+  const hw = w / 2;
+  const hd = d / 2;
+
+  const list: BoxColliderSpec[] = [];
+
+  // 1. Sprung floor slab
+  list.push({
+    id: 'gym-floor-slab',
+    position: [cx, floorY + 0.04, cz],
+    halfExtents: [hw, 0.04, hd],
+    friction: 0.35,
+  });
+
+  // 2. Perimeter walls (leaving 2.0m West door portal at Z = +3.2m open)
+  list.push({
+    id: 'gym-wall-south',
+    position: [cx, floorY + 2.5, cz + hd - 0.05],
+    halfExtents: [hw, 2.5, 0.08],
+  });
+  list.push({
+    id: 'gym-wall-north',
+    position: [cx, floorY + 2.5, cz - hd + 0.05],
+    halfExtents: [hw, 2.5, 0.08],
+  });
+  list.push({
+    id: 'gym-wall-east',
+    position: [cx + hw - 0.05, floorY + 2.5, cz],
+    halfExtents: [0.08, 2.5, hd],
+  });
+  // West wall split around double door portal (portal at Z = 3.2m, width 2.0m)
+  list.push({
+    id: 'gym-wall-west-north',
+    position: [cx - hw + 0.05, floorY + 2.5, cz - 2.8],
+    halfExtents: [0.08, 2.5, (hd - 2.8) / 2],
+  });
+  list.push({
+    id: 'gym-wall-west-south',
+    position: [cx - hw + 0.05, floorY + 2.5, cz + 5.5],
+    halfExtents: [0.08, 2.5, 1.2],
+  });
+
+  // 3. Volleyball upright posts
+  list.push({
+    id: 'gym-volley-post-w',
+    position: [cx - 3.9, floorY + 1.28, cz],
+    halfExtents: [0.15, 1.28, 0.15],
+  });
+  list.push({
+    id: 'gym-volley-post-e',
+    position: [cx + 3.9, floorY + 1.28, cz],
+    halfExtents: [0.15, 1.28, 0.15],
+  });
+
+  return list;
 }
 
 export function buildLibraryInteriorColliderSpecs(geometry: CampusGeometry): BoxColliderSpec[] {
@@ -185,6 +249,9 @@ export function buildCampusColliderSpecs(
   // Add detailed interior furniture & partition colliders when inside Block F (bld-d)
   if (enteredBuildingId === 'bld-d') {
     list.push(...buildLibraryInteriorColliderSpecs(geometry));
+  }
+  if (enteredBuildingId === 'bld-i') {
+    list.push(...buildSportsHallInteriorColliderSpecs(geometry));
   }
 
   // 3. Inter-building glazed connectors

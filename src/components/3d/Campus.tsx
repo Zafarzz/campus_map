@@ -22,8 +22,32 @@ export function Campus({ tuning }: { tuning?: TuningMaterialOverrides }) {
 
   return (
     <group>
-      <CampusConnectors connectors={geometry.connectors} selectedBuildingId={selection.buildingId} />
-      <AmphitheaterHall selected={selection.buildingId === 'amph-hall'} />
+      <CampusConnectors
+        connectors={geometry.connectors}
+        selectedBuildingId={selection.buildingId}
+        selectedRoomId={selection.roomId}
+        onSelectConnector={(connId) => {
+          if (connId === 'conn-bld-g-bld-i') {
+            selectRoom('room-open-study-bc');
+          } else if (connId === 'conn-bld-h-bld-i') {
+            selectRoom('room-open-study-ac');
+          } else {
+            selectBuilding(connId);
+          }
+        }}
+        onSelectRoom={selectRoom}
+      />
+      <AmphitheaterHall
+        selected={
+          selection.buildingId === 'amph-hall' ||
+          selection.buildingId === 'conn-bld-h-bld-i' ||
+          selection.buildingId === 'conn-bld-g-bld-i' ||
+          selection.buildingId === 'bld-i' ||
+          selection.roomId === 'room-open-study-bc' ||
+          selection.roomId === 'room-open-study-ac'
+        }
+        onSelect={() => selectBuilding('amph-hall')}
+      />
       {campus.buildings.map((building) => {
         const g = geometry.buildings[building.id];
         if (!g) return null; // No geometry yet → building only appears in the UI list.

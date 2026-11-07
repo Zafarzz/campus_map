@@ -9,6 +9,7 @@ export type PlanRoomDef = {
   name?: string;
   kind: RoomKind;
   capacity?: number;
+  description?: string;
   /** Normalized long-axis span [u0, u1] within [0, 1] */
   uSpan: [number, number];
   /** Normalized short-axis span [v0, v1] within [0, 1] */
@@ -172,7 +173,7 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
       { id: 'bld-b-f1-e103', number: 'E-103', name: 'Design Studio 1-D', kind: 'classroom', capacity: 50, uSpan: [0.80, 0.98], vSpan: [0.07, 0.47], legacyId: 'bld-b-f1-r3' },
       // South wing (vSpan: [0.62, 0.95])
       { id: 'bld-b-f1-e104', number: 'E-104', name: 'Plotter Room', kind: 'lab', capacity: 20, uSpan: [0.02, 0.26], vSpan: [0.62, 0.95], legacyId: 'bld-b-f1-r4' },
-      { id: 'bld-b-f1-e105', number: 'E-105', name: 'Digital Design Room', kind: 'lab', capacity: 40, uSpan: [0.35, 0.65], vSpan: [0.62, 0.95], legacyId: 'bld-b-f1-r5' },
+      { id: 'bld-b-f1-lobby', number: 'E-Lobby', name: 'Lobby & Exhibition Hall', kind: 'hall', capacity: 100, uSpan: [0.28, 0.72], vSpan: [0.55, 0.95], legacyId: 'bld-b-f1-e105' },
       { id: 'bld-b-f1-e106', number: 'E-106', name: 'Model Room', kind: 'lab', capacity: 25, uSpan: [0.74, 0.98], vSpan: [0.62, 0.95], legacyId: 'bld-b-f1-r6' },
     ],
   },
@@ -186,7 +187,7 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
       { id: 'bld-b-f2-e203', number: 'E-203', name: 'Design Studio 2-B', kind: 'classroom', capacity: 40, uSpan: [0.72, 0.98], vSpan: [0.07, 0.47], legacyId: 'bld-b-f2-r3' },
       // South wing
       { id: 'bld-b-f2-e204', number: 'E-204', name: 'Computer Lab 2-A', kind: 'lab', capacity: 35, uSpan: [0.02, 0.30], vSpan: [0.62, 0.95], legacyId: 'bld-b-f2-r4' },
-      { id: 'bld-b-f2-e205', number: 'E-205', name: 'Classroom', kind: 'classroom', capacity: 35, uSpan: [0.35, 0.65], vSpan: [0.62, 0.95], legacyId: 'bld-b-f2-r5' },
+      { id: 'bld-b-f2-lobby', number: 'E-Lobby', name: 'Lobby & Exhibition Hall', kind: 'hall', capacity: 100, uSpan: [0.28, 0.72], vSpan: [0.55, 0.95], legacyId: 'bld-b-f2-e205' },
       { id: 'bld-b-f2-e206', number: 'E-206', name: 'Classroom', kind: 'classroom', capacity: 30, uSpan: [0.70, 0.98], vSpan: [0.62, 0.95], legacyId: 'bld-b-f2-r6' },
     ],
   },
@@ -230,10 +231,30 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
     buildingId: 'bld-i',
     level: 1,
     rooms: [
-      // North entrance hall (aligned directly with the 8.4m entrance pavilion on the east facade: uSpan [0.03, 0.28])
-      { id: 'room-c-conf', number: 'C-conF', name: 'Conference Hall & Main Lobby', kind: 'hall', capacity: 100, uSpan: [0.03, 0.28], vSpan: [0.05, 0.95] },
-      // South section (Canteen & Dining Hall)
-      { id: 'room-canteen', number: 'Canteen', name: 'Canteen & Dining Hall', kind: 'other', capacity: 120, uSpan: [0.32, 0.97], vSpan: [0.05, 0.95] },
+      // CAD Blueprint Ground Floor Plan (media_1794086099836_2b4970fa.png)
+      // Northwest Staircase (5.53m x 3.44m)
+      { id: 'bld-i-f1-stairs', number: 'Stairs', name: 'Northwest Staircase', kind: 'other', capacity: 15, uSpan: [0.01, 0.08], vSpan: [0.02, 0.28] },
+      // West Corridor & Entrance Foyer with Passages "B" (5.53m x 10.76m)
+      { id: 'bld-i-f1-foyer', number: 'C-Foyer', name: 'West Corridor & Entrance Foyer', kind: 'other', capacity: 30, description: 'Main west entrance foyer and circulation corridor with dual exterior access doors, information kiosk, and open connection to Room 5.', uSpan: [0.08, 0.29], vSpan: [0.02, 0.28] },
+      // Restrooms & WC (5.53m x 6.31m)
+      { id: 'bld-i-f1-wc', number: 'C-WC', name: 'Restrooms & Sanitary Facilities', kind: 'other', capacity: 12, description: 'Male and female restrooms with vanity sinks, private cubicles, and sanitary amenities.', uSpan: [0.29, 0.42], vSpan: [0.02, 0.28] },
+      // South Wing: Canteen & Dining Hall (20.1m x 27.65m)
+      { id: 'room-canteen', number: 'Canteen', name: 'Canteen & Dining Hall', kind: 'other', capacity: 150, description: 'Main campus cafeteria, student dining hall, servery buffet lines, and coffee bar.', uSpan: [0.43, 0.98], vSpan: [0.02, 0.98] },
+    ],
+  },
+  {
+    buildingId: 'bld-i',
+    level: 2,
+    rooms: [
+      // Open Study Places in Connecting Galleries (ADR-020, ADR-029)
+      { id: 'room-open-study-bc', number: 'OSP-BC', name: 'Open Study Place (Gallery B–C)', kind: 'library', capacity: 40, description: 'Designer open study lounge with dark Nero Marquina marble tables, ergonomic textile chairs, and acoustic wood slatted ceiling overlooking amphitheater.', uSpan: [0.03, 0.28], vSpan: [0.05, 0.95] },
+      { id: 'room-open-study-ac', number: 'OSP-AC', name: 'Open Study Place (Gallery A–C)', kind: 'library', capacity: 35, description: 'Double mezzanine open study area with circular collaborative marble tables, linear LED luminaires, and glass balustrades overlooking the central atrium.', uSpan: [0.03, 0.28], vSpan: [0.05, 0.95] },
+      // East Wing: Large Tiered Lecture Halls & Volleyball Arena (5m clear height, CAD Sheet media_1794086015357_8ef747bc.png)
+      { id: 'bld-i-f2-c201', number: 'C-201', name: 'Lecture Hall C-201 (5m High)', kind: 'hall', capacity: 80, description: 'Large tiered university lecture hall (5m clear height) with raked seating, acoustic oak wood paneling, and ultra-wide digital presentation video wall.', uSpan: [0.02, 0.33], vSpan: [0.47, 0.98], legacyId: 'bld-i-f2-r1' },
+      { id: 'bld-i-f2-c202', number: 'C-202', name: 'Lecture Hall C-202 (5m High)', kind: 'hall', capacity: 75, description: 'Large tiered university lecture hall (5m clear height) with raked seating, acoustic oak wood paneling, and dual presentation displays.', uSpan: [0.34, 0.62], vSpan: [0.47, 0.98], legacyId: 'bld-i-f2-r2' },
+      { id: 'bld-i-f2-gym', number: 'C-GYM', name: 'Volleyball Arena', kind: 'hall', capacity: 60, description: 'Dedicated indoor volleyball hall (5m clear height) equipped with two-tone sprung Taraflex sports flooring, official competition volleyball court lines, tournament volleyball net with antennas, umpire stand, and digital scoreboard.', uSpan: [0.63, 0.98], vSpan: [0.47, 0.98], legacyId: 'bld-i-f2-r3' },
+      // West Wing: Athlete Locker & Changing Room (opposite C-202)
+      { id: 'bld-i-f2-locker', number: 'C-Locker', name: 'Locker & Changing Room', kind: 'other', capacity: 25, description: 'Athletic team changing and locker room with lockers, benches, and grooming amenities.', uSpan: [0.34, 0.62], vSpan: [0.05, 0.44] },
     ],
   },
 ];
@@ -299,6 +320,126 @@ export function buildAccurateRoomOverrides(): Record<string, RoomGeometry> {
       }
     }
   }
+
+  overrides['bld-b-f1-r5'] = overrides['bld-b-f1-lobby'];
+  overrides['bld-b-f2-r5'] = overrides['bld-b-f2-lobby'];
+
+  // Open Study Places & Administration in Connecting Galleries (ADR-020, ADR-029)
+  overrides['room-open-study-bc'] = {
+    type: 'box',
+    position: [65.85, 5.4, 72.55],
+    size: [7.5, 2.6, 16.9],
+    precision: 'surveyed',
+  };
+
+  overrides['room-open-study-ac'] = {
+    type: 'box',
+    position: [54.0, 5.4, 84.75],
+    size: [14.6, 2.6, 7.5],
+    precision: 'surveyed',
+  };
+
+  overrides['room-admin-office'] = {
+    type: 'box',
+    position: [54.0, 1.8, 96.25],
+    size: [14.6, 2.6, 5.5],
+    precision: 'surveyed',
+  };
+
+  // Halls Building (bld-e, Floor 1): 3 separate halls under 3 architectural gables
+  overrides['bld-e-f1-hall-1'] = {
+    type: 'box',
+    position: [-38.78, 3.25, 10.90],
+    size: [17.8, 6.0, 34.0],
+    precision: 'surveyed',
+  };
+  overrides['bld-e-f1-r1'] = overrides['bld-e-f1-hall-1'];
+
+  overrides['bld-e-f1-hall-2'] = {
+    type: 'box',
+    position: [-20.45, 3.25, 10.90],
+    size: [17.8, 6.0, 34.0],
+    precision: 'surveyed',
+  };
+  overrides['bld-e-f1-r2'] = overrides['bld-e-f1-hall-2'];
+
+  overrides['bld-e-f1-tennis'] = {
+    type: 'box',
+    position: [-2.12, 3.25, 10.90],
+    size: [17.8, 6.0, 34.0],
+    precision: 'surveyed',
+  };
+  overrides['bld-e-f1-r3'] = overrides['bld-e-f1-tennis'];
+
+  // Block C Floor 1: CAD Blueprint Ground Floor Layout (media_1794086099836_2b4970fa.png)
+  // Northwest Staircase (5.53m width x 3.44m length x 2.6m height)
+  overrides['bld-i-f1-stairs'] = {
+    type: 'box',
+    position: [62.37, 1.55, 86.57],
+    size: [5.53, 2.6, 3.44],
+    precision: 'surveyed',
+  };
+
+  // West Corridor & Entrance Foyer with Passages "B" (5.53m width x 10.76m length x 2.6m height)
+  overrides['bld-i-f1-foyer'] = {
+    type: 'box',
+    position: [62.37, 1.55, 93.67],
+    size: [5.53, 2.6, 10.76],
+    precision: 'surveyed',
+  };
+
+  // Restrooms & WC (5.53m width x 6.31m length x 2.6m height)
+  overrides['bld-i-f1-wc'] = {
+    type: 'box',
+    position: [62.37, 1.55, 102.20],
+    size: [5.53, 2.6, 6.31],
+    precision: 'surveyed',
+  };
+
+
+  // Canteen & Dining Hall (South Wing: 19.0m width x 27.2m length x 2.6m height)
+  overrides['room-canteen'] = {
+    type: 'box',
+    position: [69.65, 1.55, 119.08],
+    size: [19.0, 2.6, 27.2],
+    precision: 'surveyed',
+  };
+
+  // Block C Floor 2: Exact Millimeter Blueprint Layout (CAD Sheet media_1794086015357_8ef747bc.png)
+  // East Wing, North: C-201 Large Tiered Lecture Hall (15.285m length x 9.6m width x 5.0m height)
+  overrides['bld-i-f2-c201'] = {
+    type: 'box',
+    position: [74.15, 6.40, 92.55],
+    size: [9.6, 5.0, 15.0],
+    precision: 'surveyed',
+  };
+  overrides['bld-i-f2-r1'] = overrides['bld-i-f2-c201'];
+
+  // East Wing, Middle: C-202 Large Tiered Lecture Hall (14.204m length x 9.6m width x 5.0m height)
+  overrides['bld-i-f2-c202'] = {
+    type: 'box',
+    position: [74.15, 6.40, 107.30],
+    size: [9.6, 5.0, 14.0],
+    precision: 'surveyed',
+  };
+  overrides['bld-i-f2-r2'] = overrides['bld-i-f2-c202'];
+
+  // East Wing, South: Volleyball Arena (18.511m length x 9.6m width x 5.0m height)
+  overrides['bld-i-f2-gym'] = {
+    type: 'box',
+    position: [74.15, 6.40, 123.65],
+    size: [9.6, 5.0, 18.2],
+    precision: 'surveyed',
+  };
+  overrides['bld-i-f2-r3'] = overrides['bld-i-f2-gym'];
+
+  // West Wing, Middle: Locker & Changing Room (14.2m length x 6.0m width)
+  overrides['bld-i-f2-locker'] = {
+    type: 'box',
+    position: [63.85, 5.20, 107.30],
+    size: [6.0, 2.6, 14.0],
+    precision: 'surveyed',
+  };
 
   return overrides;
 }

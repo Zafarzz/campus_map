@@ -113,6 +113,7 @@ const ROOM_KINDS: { label: string; value: RoomKind }[] = [
   { label: 'Laboratory (Лаборатория)', value: 'lab' },
   { label: 'Office / Faculty (Офис)', value: 'office' },
   { label: 'Hall / Common Space (Зал)', value: 'hall' },
+  { label: 'Library / Study Space (Коворкинг/Библиотека)', value: 'library' },
   { label: 'Other / Service (Прочее)', value: 'other' },
 ];
 

@@ -92,9 +92,14 @@ export function CampusMap() {
   return (
     <Canvas
       shadows={{ type: THREE.PCFSoftShadowMap }}
-      camera={{ position: initialPosition, fov: mapConfig.camera.fov, near: 1, far: 3000 }}
+      camera={{ position: initialPosition, fov: mapConfig.camera.fov, near: 0.2, far: 2000 }}
       dpr={[1, 1.5]}
-      gl={{ preserveDrawingBuffer: true, powerPreference: 'high-performance' }}
+      gl={{
+        preserveDrawingBuffer: true,
+        powerPreference: 'high-performance',
+        logarithmicDepthBuffer: true,
+        antialias: true,
+      }}
     >
       <RendererExposure exposure={tuning.toneMappingExposure ?? 1.0} />
 
@@ -108,8 +113,8 @@ export function CampusMap() {
       {tuning.bakeShadows && <BakeShadows />}
       {tuning.showStats && <Stats />}
 
-      {/* Soft contact shadow filter */}
-      {tuning.shadowsEnabled && (
+      {/* Soft contact shadow filter — Drei PCSS screen-space jitter is disabled by default to prevent shimmering; Three.js PCFSoftShadowMap is stable */}
+      {tuning.shadowsEnabled && tuning.softShadowsEnabled && (
         <SoftShadows size={tuning.softShadowSize} samples={tuning.softShadowSamples} focus={0.5} />
       )}
 
@@ -139,12 +144,12 @@ export function CampusMap() {
         intensity={tuning.sunIntensity}
         color={tuning.sunColor}
         shadow-mapSize={[tuning.shadowMapSize, tuning.shadowMapSize]}
-        shadow-camera-left={-195}
-        shadow-camera-right={195}
-        shadow-camera-top={195}
-        shadow-camera-bottom={-195}
-        shadow-camera-near={10}
-        shadow-camera-far={700}
+        shadow-camera-left={-165}
+        shadow-camera-right={165}
+        shadow-camera-top={165}
+        shadow-camera-bottom={-165}
+        shadow-camera-near={30}
+        shadow-camera-far={480}
         shadow-bias={tuning.shadowBias}
         shadow-normalBias={tuning.shadowNormalBias}
       />

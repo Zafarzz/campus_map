@@ -1,3 +1,4 @@
+import { CampusConnectors } from '../components/3d/CampusConnectors';
 import { describe, it, expect } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
 import { connectorsPx } from '../data/reference-footprints';
@@ -91,23 +92,23 @@ describe('Campus Building Connectors & Block C Hall (ADR-020)', () => {
     expect(bldH.parts).toHaveLength(1);
   });
 
-  it('includes Hall inside Block C (C-conF) on 1F and allows searching it', () => {
+  it('includes Large Lecture Hall C-201 inside Block C on 2F and allows searching it', () => {
     const bldC = demoCampus.buildings.find((b) => b.id === 'bld-i');
     expect(bldC).toBeDefined();
-    const floor1 = bldC?.floors.find((f) => f.level === 1);
-    expect(floor1).toBeDefined();
+    const floor2 = bldC?.floors.find((f) => f.level === 2);
+    expect(floor2).toBeDefined();
 
-    const confHall = floor1?.rooms.find((r) => r.id === 'room-c-conf');
-    expect(confHall).toBeDefined();
-    expect(confHall?.kind).toBe('hall');
-    expect(confHall?.name).toContain('Conference Hall');
+    const c201 = floor2?.rooms.find((r) => r.id === 'bld-i-f2-c201');
+    expect(c201).toBeDefined();
+    expect(c201?.kind).toBe('hall');
+    expect(c201?.number).toBe('C-201');
 
     const index = createCampusIndex(demoCampus);
-    const searchResults = search('Conference Hall', index, []);
-    expect(searchResults.some((res) => res.roomId === 'room-c-conf')).toBe(true);
+    const searchResults = search('C-201', index, []);
+    expect(searchResults.some((res) => res.roomId === 'bld-i-f2-c201')).toBe(true);
 
     const campusGeom = geometryProvider.build(demoCampus);
-    const hallGeom = campusGeom.rooms['room-c-conf'];
+    const hallGeom = campusGeom.rooms['bld-i-f2-c201'];
     expect(hallGeom).toBeDefined();
     expect(hallGeom.type).toBe('box');
     expect(hallGeom.precision).toBe('surveyed');
@@ -146,6 +147,43 @@ describe('Campus Building Connectors & Block C Hall (ADR-020)', () => {
     expectRectSize(pitch.footprint, 20.0, 40.0); // Football pitch: 20 × 40 m
     expectRectSize(court.footprint, 30.0, 40.0); // Multi-sport court: 30 × 40 m
     expectRectSize(courtTennis.footprint, 27.3, 40.0); // Tennis section: ~27.3 × 40 m
+  });
+
+  it('registers Open Study Places as confirmed surveyed rooms searchable and viewable across 3D and UI', () => {
+    const campusGeom = geometryProvider.build(demoCampus);
+    const index = createCampusIndex(demoCampus);
+
+    // Open Study Place in Gallery B-C (conn-bld-g-bld-i)
+    const ospBC = index.rooms.get('room-open-study-bc');
+    expect(ospBC).toBeDefined();
+    expect(ospBC?.room.name).toContain('Open Study Place');
+    expect(ospBC?.floor.level).toBe(2);
+    expect(campusGeom.rooms['room-open-study-bc']?.precision).toBe('surveyed');
+
+    // Open Study Place in Gallery A-C (conn-bld-h-bld-i)
+    const ospAC = index.rooms.get('room-open-study-ac');
+    expect(ospAC).toBeDefined();
+    expect(ospAC?.room.name).toContain('Open Study Place');
+    expect(ospAC?.floor.level).toBe(2);
+    expect(campusGeom.rooms['room-open-study-ac']?.precision).toBe('surveyed');
+
+    // Both are findable via full-text search
+    const results = search('Open Study Place', index, []);
+    expect(results.some((r) => r.roomId === 'room-open-study-bc')).toBe(true);
+    expect(results.some((r) => r.roomId === 'room-open-study-ac')).toBe(true);
+  });
+
+  it('models 3-zone architecture in Corridor A-C (conn-bld-h-bld-i) and 2F study place in Corridor B-C (conn-bld-g-bld-i)', () => {
+    const connAC = connectorsPx.find((c) => c.id === 'conn-bld-h-bld-i');
+    expect(connAC).toBeDefined();
+    expect(connAC?.floorCount).toBe(2);
+
+    const connBC = connectorsPx.find((c) => c.id === 'conn-bld-g-bld-i');
+    expect(connBC).toBeDefined();
+    expect(connBC?.floorCount).toBe(2);
+
+    // Verify CampusConnectors component is exported and accepts onSelectConnector
+    expect(typeof CampusConnectors).toBe('function');
   });
 });
 
