@@ -16,9 +16,9 @@ export const SPORTS_HALL_LAYOUT = {
 
 export type BlockCSportsHallInteriorProps = {
   /** World-space center of the sports hall box. */
-  position: [number, number, number];
+  position: [number, number, number] | readonly [number, number, number];
   /** World-space size [widthX, heightY, lengthZ] of the sports hall box. */
-  size: [number, number, number];
+  size: [number, number, number] | readonly [number, number, number];
   selected?: boolean;
 };
 
@@ -27,6 +27,7 @@ export type BlockCSportsHallInteriorProps = {
  * Dedicated indoor tournament volleyball court per user blueprint:
  * - Clear 5.0m ceiling height with structural steel trusses & suspended high-bay LED sports lights.
  * - Tournament Taraflex two-tone volleyball court (competition orange/maple infield + Olympic blue free zone).
+ *   Engineered with zero-overlap non-coplanar geometry to completely eliminate texture Z-fighting / jittering.
  * - Official competition volleyball net with red/white antennas, safety padded stanchion posts, and umpire stand.
  * - Mobile volleyball ball trolley with official Mikasa tournament volleyballs.
  * - Wall-mounted digital LED Volleyball Scoreboard (SETS 2:1, POINTS 25:23).
@@ -43,12 +44,13 @@ export function BlockCSportsHallInterior({
   const floorY = -heightY / 2;
   const ceilingY = heightY / 2;
 
-  // Shared athletic materials
+  // Shared athletic materials with anti-z-fighting settings
   const materials = useMemo(() => {
     return {
       courtSurround: new THREE.MeshStandardMaterial({
         color: '#1d4ed8', // Olympic competition blue free zone surround
         roughness: 0.45,
+        depthWrite: true,
       }),
       courtInfield: new THREE.MeshStandardMaterial({
         color: '#e5a358', // Warm competition maple volleyball court
@@ -56,20 +58,26 @@ export function BlockCSportsHallInterior({
         roughnessMap: woodPbr?.roughnessMap ?? null,
         roughness: 0.35,
         metalness: 0.05,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+        depthWrite: true,
       }),
       courtLineWhite: new THREE.MeshStandardMaterial({
         color: '#ffffff',
         roughness: 0.3,
         polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4,
+        depthWrite: true,
       }),
       courtLineBlue: new THREE.MeshStandardMaterial({
         color: '#0284c7',
         roughness: 0.3,
         polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4,
+        depthWrite: true,
       }),
       safetyPad: new THREE.MeshStandardMaterial({
         color: '#1e40af', // High-density vinyl wall safety mat
@@ -94,6 +102,8 @@ export function BlockCSportsHallInterior({
         transparent: true,
         opacity: 0.65,
         roughness: 0.85,
+        side: THREE.DoubleSide,
+        depthWrite: false, // Prevents depth-sorting jitter for geometry behind the net
       }),
       antennaRedWhite: new THREE.MeshStandardMaterial({
         color: '#ef4444',
@@ -153,6 +163,8 @@ export function BlockCSportsHallInterior({
         transparent: true,
         opacity: 0.35,
         roughness: 0.1,
+        side: THREE.DoubleSide,
+        depthWrite: false,
       }),
     };
   }, [woodPbr]);
@@ -163,6 +175,13 @@ export function BlockCSportsHallInterior({
   const halfCourtL = courtL / 2;
   const attackDist = (3.0 / 9.0) * halfCourtL; // ~2.4m from center net
 
+  // Non-overlapping surround apron dimensions (4 border slabs around the court)
+  const apronNorthSouthDepth = (lengthZ - courtL) / 2;
+  const apronWestEastWidth = (widthX - courtW) / 2;
+  const floorBaseY = floorY + 0.015;
+  const courtTopY = floorY + 0.028;
+  const lineTopY = courtTopY + 0.008;
+
   return (
     <group position={position}>
       {/* Invisible raycast volume */}
@@ -171,20 +190,60 @@ export function BlockCSportsHallInterior({
         <meshBasicMaterial visible={false} />
       </mesh>
 
-      {/* 1. Olympic Blue Surround Free-Zone Floor */}
-      <mesh position={[0, floorY + 0.02, 0]} receiveShadow>
-        <boxGeometry args={[widthX - 0.06, 0.04, lengthZ - 0.06]} />
+      {/* ========================================================
+          1. OLYMPIC BLUE SURROUND FREE-ZONE (4 NON-OVERLAPPING APRON SLABS)
+          Zero overlap under the maple court guarantees NO Z-fighting!
+         ======================================================== */}
+      {/* North Apron */}
+      <mesh
+        position={[0, floorBaseY, -halfCourtL - apronNorthSouthDepth / 2]}
+        receiveShadow
+      >
+        <boxGeometry args={[widthX - 0.04, 0.02, apronNorthSouthDepth]} />
         <primitive object={materials.courtSurround} attach="material" />
       </mesh>
 
-      {/* 2. Warm Maple Infield Playing Court (9m x 18m scaled) */}
-      <mesh position={[0, floorY + 0.03, 0]} receiveShadow>
+      {/* South Apron */}
+      <mesh
+        position={[0, floorBaseY, halfCourtL + apronNorthSouthDepth / 2]}
+        receiveShadow
+      >
+        <boxGeometry args={[widthX - 0.04, 0.02, apronNorthSouthDepth]} />
+        <primitive object={materials.courtSurround} attach="material" />
+      </mesh>
+
+      {/* West Apron */}
+      <mesh
+        position={[-courtW / 2 - apronWestEastWidth / 2, floorBaseY, 0]}
+        receiveShadow
+      >
+        <boxGeometry args={[apronWestEastWidth, 0.02, courtL]} />
+        <primitive object={materials.courtSurround} attach="material" />
+      </mesh>
+
+      {/* East Apron */}
+      <mesh
+        position={[courtW / 2 + apronWestEastWidth / 2, floorBaseY, 0]}
+        receiveShadow
+      >
+        <boxGeometry args={[apronWestEastWidth, 0.02, courtL]} />
+        <primitive object={materials.courtSurround} attach="material" />
+      </mesh>
+
+      {/* ========================================================
+          2. WARM MAPLE INFIELD PLAYING COURT
+          Positioned strictly inside the apron cutout with a dedicated elevation layer.
+         ======================================================== */}
+      <mesh position={[0, courtTopY, 0]} receiveShadow>
         <boxGeometry args={[courtW, 0.02, courtL]} />
         <primitive object={materials.courtInfield} attach="material" />
       </mesh>
 
-      {/* 3. Official Tournament Volleyball Court Markings */}
-      <group position={[0, floorY + 0.045, 0]}>
+      {/* ========================================================
+          3. OFFICIAL TOURNAMENT VOLLEYBALL COURT MARKINGS
+          Elevated above maple court with polygon offset to eliminate flickering.
+         ======================================================== */}
+      <group position={[0, lineTopY, 0]}>
         {/* Endlines (North & South) */}
         <mesh position={[0, 0, -halfCourtL]}>
           <boxGeometry args={[courtW, 0.005, 0.06]} />
@@ -236,7 +295,9 @@ export function BlockCSportsHallInterior({
         ))}
       </group>
 
-      {/* 4. Official Tournament Volleyball Net & Padded Stanchions */}
+      {/* ========================================================
+          4. OFFICIAL TOURNAMENT VOLLEYBALL NET & PADDED STANCHIONS
+         ======================================================== */}
       <group position={[0, 0, 0]}>
         {/* West Upright Stanchion Post & Safety Padding */}
         <group position={[-courtW / 2 - 0.5, floorY + 1.3, 0]}>
@@ -274,7 +335,7 @@ export function BlockCSportsHallInterior({
 
         {/* Regulation Volleyball Net (Top at 2.43m, Net 1.0m height, spanning across court) */}
         <group position={[0, floorY + 1.93, 0]}>
-          {/* Net dark mesh */}
+          {/* Net dark mesh with DoubleSide and depthWrite: false */}
           <mesh>
             <planeGeometry args={[courtW + 0.8, 1.0]} />
             <primitive object={materials.netMeshDark} attach="material" />
@@ -336,9 +397,10 @@ export function BlockCSportsHallInterior({
         </group>
       </group>
 
-      {/* 5. Mobile Volleyball Ball Trolleys & Mikasa Volleyballs */}
+      {/* ========================================================
+          5. MOBILE VOLLEYBALL TROLLEYS & MIKASA BALLS
+         ======================================================== */}
       <group position={[courtW / 2 + 0.9, floorY, -2.5]}>
-        {/* Trolley chrome basket */}
         <mesh position={[0, 0.65, 0]}>
           <boxGeometry args={[0.7, 0.45, 0.7]} />
           <primitive object={materials.steelSilver} attach="material" />
@@ -347,7 +409,6 @@ export function BlockCSportsHallInterior({
           <cylinderGeometry args={[0.02, 0.02, 0.5, 8]} />
           <primitive object={materials.steelDark} attach="material" />
         </mesh>
-        {/* Volleyballs in cart (blue & yellow Mikasa style) */}
         {[-0.18, 0.18].map((vx, i) =>
           [-0.18, 0.18].map((vz, j) => (
             <group key={`${i}-${j}`} position={[vx, 0.75, vz]}>
@@ -360,19 +421,18 @@ export function BlockCSportsHallInterior({
         )}
       </group>
 
-      {/* 6. Digital LED Volleyball Scoreboard on North End Wall */}
-      <group position={[0, floorY + 3.4, -lengthZ / 2 + 0.12]}>
-        {/* Matte black housing */}
+      {/* ========================================================
+          6. DIGITAL LED VOLLEYBALL SCOREBOARD (North End Wall)
+         ======================================================== */}
+      <group position={[0, floorY + 3.4, -lengthZ / 2 + 0.15]}>
         <mesh>
           <boxGeometry args={[3.2, 1.3, 0.1]} />
           <primitive object={materials.scoreboardBlack} attach="material" />
         </mesh>
-        {/* Header bar */}
         <mesh position={[0, 0.42, 0.06]}>
           <boxGeometry args={[3.0, 0.25, 0.01]} />
           <primitive object={materials.wallLower} attach="material" />
         </mesh>
-        {/* Sets score display (Amber LEDs) */}
         <mesh position={[-0.8, 0, 0.06]}>
           <boxGeometry args={[0.9, 0.45, 0.02]} />
           <primitive object={materials.ledAmber} attach="material" />
@@ -381,7 +441,6 @@ export function BlockCSportsHallInterior({
           <boxGeometry args={[0.9, 0.45, 0.02]} />
           <primitive object={materials.ledAmber} attach="material" />
         </mesh>
-        {/* Current set points (Red LEDs: 25 vs 23) */}
         <mesh position={[-0.8, -0.4, 0.06]}>
           <boxGeometry args={[0.9, 0.25, 0.02]} />
           <primitive object={materials.ledRed} attach="material" />
@@ -392,17 +451,21 @@ export function BlockCSportsHallInterior({
         </mesh>
       </group>
 
-      {/* 7. Safety End Wall Padding Mats (Impact Protection along North & South) */}
-      {[-lengthZ / 2 + 0.08, lengthZ / 2 - 0.08].map((padZ, pIdx) => (
+      {/* ========================================================
+          7. SAFETY END WALL PADDING MATS
+          Separated with safe clearance from bounding walls.
+         ======================================================== */}
+      {[-lengthZ / 2 + 0.14, lengthZ / 2 - 0.14].map((padZ, pIdx) => (
         <mesh key={pIdx} position={[0, floorY + 1.2, padZ]}>
           <boxGeometry args={[widthX - 0.4, 2.2, 0.08]} />
           <primitive object={materials.safetyPad} attach="material" />
         </mesh>
       ))}
 
-      {/* 8. Swedish Gymnastics Wall Bars (шведская стенка) along West Wall */}
-      <group position={[-widthX / 2 + 0.12, floorY + 1.5, 3.2]}>
-        {/* Vertical wooden uprights */}
+      {/* ========================================================
+          8. SWEDISH GYMNASTICS WALL BARS (шведская стенка)
+         ======================================================== */}
+      <group position={[-widthX / 2 + 0.18, floorY + 1.5, 3.2]}>
         <mesh position={[0, 0, -1.0]}>
           <boxGeometry args={[0.05, 3.0, 0.1]} />
           <primitive object={materials.woodGym} attach="material" />
@@ -411,7 +474,6 @@ export function BlockCSportsHallInterior({
           <boxGeometry args={[0.05, 3.0, 0.1]} />
           <primitive object={materials.woodGym} attach="material" />
         </mesh>
-        {/* Wooden rungs */}
         {Array.from({ length: 10 }).map((_, rIdx) => (
           <mesh key={rIdx} position={[0, -1.3 + rIdx * 0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.018, 0.018, 2.0, 8]} />
@@ -420,7 +482,9 @@ export function BlockCSportsHallInterior({
         ))}
       </group>
 
-      {/* 9. High-Bay Suspended Sports Luminaires at High Ceiling (Y = ceilingY - 0.4) */}
+      {/* ========================================================
+          9. HIGH-BAY SUSPENDED SPORTS LUMINAIRES
+         ======================================================== */}
       {[-lengthZ * 0.3, 0, lengthZ * 0.3].map((lumZ, lIdx) => (
         <group key={lIdx} position={[0, ceilingY - 0.4, lumZ]}>
           <mesh>
