@@ -35,8 +35,14 @@ def upgrade() -> None:
                     '{room_id}',
                     '"bld-e-f1-tennis"'::jsonb
                 )
-            WHERE id = 'place-gym';
+            WHERE id = 'place-gym'
+            """
+        )
+    )
 
+    op.execute(
+        sa.text(
+            """
             UPDATE place
             SET name = 'Main Sports Hall',
                 capacity = 60,
@@ -49,8 +55,14 @@ def upgrade() -> None:
                     '{room_id}',
                     '"bld-i-f2-gym"'::jsonb
                 )
-            WHERE id = 'place-sports-hall';
+            WHERE id = 'place-sports-hall'
+            """
+        )
+    )
 
+    op.execute(
+        sa.text(
+            """
             UPDATE place
             SET name = 'Block A Open Study Lounge',
                 building_id = CASE
@@ -62,7 +74,7 @@ def upgrade() -> None:
                     '{room_id}',
                     '"room-open-study-ac"'::jsonb
                 )
-            WHERE id = 'place-study-a';
+            WHERE id = 'place-study-a'
             """
         )
     )
@@ -79,8 +91,14 @@ def downgrade() -> None:
                     '{room_id}',
                     '"bld-e-f1-r1"'::jsonb
                 )
-            WHERE id = 'place-gym';
+            WHERE id = 'place-gym'
+            """
+        )
+    )
 
+    op.execute(
+        sa.text(
+            """
             UPDATE place
             SET name = 'Main Sports Hall',
                 capacity = 120,
@@ -93,8 +111,14 @@ def downgrade() -> None:
                     '{room_id}',
                     '"bld-e-f1-r1"'::jsonb
                 )
-            WHERE id = 'place-sports-hall';
+            WHERE id = 'place-sports-hall'
+            """
+        )
+    )
 
+    op.execute(
+        sa.text(
+            """
             UPDATE place
             SET name = 'Block A Open Study Lounge',
                 building_id = CASE
@@ -106,7 +130,7 @@ def downgrade() -> None:
                     '{room_id}',
                     '"bld-h-f1-a105"'::jsonb
                 )
-            WHERE id = 'place-study-a';
+            WHERE id = 'place-study-a'
             """
         )
     )

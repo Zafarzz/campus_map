@@ -486,8 +486,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/crowd_service.py": {
-    "mtime": 1794113623.279788,
-    "seen": 1794114210.0824432,
+    "mtime": 1794114951.7098505,
+    "seen": 1794117156.8443985,
     "ast_hash": "1da643e942a4f2263193fc452e01f5fe",
     "semantic_hash": ""
   },
@@ -798,9 +798,9 @@
     "semantic_hash": ""
   },
   "scripts/deploy-server.sh": {
-    "mtime": 1793976597.8704236,
-    "seen": 1793985943.9678388,
-    "ast_hash": "4c20e45b215bf569ea47c0c59be7dd9b",
+    "mtime": 1794116935.442846,
+    "seen": 1794117156.8776786,
+    "ast_hash": "4c9e7799882c1a887554c2133847a991",
     "semantic_hash": ""
   },
   "src/App.tsx": {
@@ -822,9 +822,9 @@
     "semantic_hash": ""
   },
   "src/__tests__/backendIntegration.test.ts": {
-    "mtime": 1794114326.1631715,
-    "seen": 1794114502.211375,
-    "ast_hash": "320bddcf47b41e94513d397bcbf0dc9b",
+    "mtime": 1794114951.7938104,
+    "seen": 1794117156.880043,
+    "ast_hash": "76959df56a4785abc8a046af2da1fd6c",
     "semantic_hash": ""
   },
   "src/__tests__/blockBFacade.test.ts": {
@@ -1092,9 +1092,9 @@
     "semantic_hash": ""
   },
   "src/components/3d/Room.tsx": {
-    "mtime": 1794113458.286652,
-    "seen": 1794114210.1005301,
-    "ast_hash": "fb57394d4b92e416feaf43de1cc22b6e",
+    "mtime": 1794114951.797933,
+    "seen": 1794117156.974497,
+    "ast_hash": "6fe6ec3b7f7b6a639ea21e5cf7a3e69b",
     "semantic_hash": ""
   },
   "src/components/3d/SiteFurniture.tsx": {
@@ -1530,8 +1530,8 @@
     "semantic_hash": ""
   },
   "src/hooks/useBackendLive.ts": {
-    "mtime": 1794113234.9955034,
-    "seen": 1794114210.1170156,
+    "mtime": 1794114951.8109825,
+    "seen": 1794117157.0753343,
     "ast_hash": "5b667d111ed367e9a3cdc7bda39cda2a",
     "semantic_hash": ""
   },
@@ -1554,9 +1554,9 @@
     "semantic_hash": ""
   },
   "src/services/campus/campusService.ts": {
-    "mtime": 1794113460.1791582,
-    "seen": 1794114210.118397,
-    "ast_hash": "cffdc908eceda216747fca09aa31d266",
+    "mtime": 1794114951.8178892,
+    "seen": 1794117157.0854092,
+    "ast_hash": "a30dd87f48dc80b4b97d3ea308d76a71",
     "semantic_hash": ""
   },
   "src/services/geometry/index.ts": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "src/components/lostfound/LostFoundView.tsx": {
-    "mtime": 1794114323.9960973,
-    "seen": 1794114502.3149505,
-    "ast_hash": "149ba1283cbbc8694f78c5ec8a411919",
+    "mtime": 1794114951.8039715,
+    "seen": 1794117157.0372925,
+    "ast_hash": "8c6e9ec91434b844f5f4ae8103bcc4bf",
     "semantic_hash": ""
   },
   "src/components/ui/AuthRequiredCard.tsx": {
@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "src/services/lostfound/lostFoundService.ts": {
-    "mtime": 1794114321.3738928,
-    "seen": 1794114502.382271,
-    "ast_hash": "ce3a3535ee80068230e5b4cbd136c4ec",
+    "mtime": 1794114951.8234053,
+    "seen": 1794117157.0890942,
+    "ast_hash": "d8a8627207f08afa64ed8f0c5ae7813d",
     "semantic_hash": ""
   },
   "src/services/lostfound/lostFoundTypes.ts": {
@@ -2358,8 +2358,8 @@
     "semantic_hash": ""
   },
   "src/components/crowds/CrowdedPlacesView.tsx": {
-    "mtime": 1794113311.9725263,
-    "seen": 1794114210.1064115,
+    "mtime": 1794114951.8011823,
+    "seen": 1794117157.0372846,
     "ast_hash": "2d9e050098147026d981eb2ffa8463b5",
     "semantic_hash": ""
   },
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "backend/alembic/versions/f6a4b2c9d105_update_crowded_places_navigation_targets.py": {
-    "mtime": 1794113723.6784463,
-    "seen": 1794114210.0643556,
-    "ast_hash": "9c6346de6e83db5aaf3726671aa741fa",
+    "mtime": 1794116835.5763881,
+    "seen": 1794117156.7765,
+    "ast_hash": "0db17b91af65824413a3b0db45851c74",
     "semantic_hash": ""
   },
   "src/__tests__/blockCFloor1.test.ts": {

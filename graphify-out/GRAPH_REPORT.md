@@ -1,7 +1,7 @@
 # Graph Report - campus_map  (2026-11-08)
 
 ## Corpus Check
-- 384 files · ~432,850 words
+- 384 files · ~432,905 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 21 file(s) not represented in the graph (top: (none) 8, .css 4, .example 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6831e04f`
+- Built from commit: `5cafc2c2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

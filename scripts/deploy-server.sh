@@ -49,7 +49,7 @@ wait_for_healthy() {
   local url_ready="http://127.0.0.1:${FRONTEND_PORT}/readyz"
   local url_version="http://127.0.0.1:${FRONTEND_PORT}/version.json"
   local attempt=1
-  local max_attempts=30
+  local max_attempts=45
 
   while [ "${attempt}" -le "${max_attempts}" ]; do
     if curl -fsS --max-time 4 "${url_ready}" >/dev/null 2>&1; then
@@ -181,7 +181,7 @@ main() {
   fi
 
   if ! git fetch --prune origin "${BRANCH}" 2>/dev/null; then
-    log "Direct git fetch skipped (using local origin/${BRANCH} ref)."
+    git fetch --prune "https://github.com/Zafarzz/campus_map.git" "${BRANCH}:refs/remotes/origin/${BRANCH}" 2>/dev/null || log "Direct git fetch skipped (using local origin/${BRANCH} ref)."
   fi
   local target_sha
   target_sha="$(git rev-parse "origin/${BRANCH}")"
@@ -223,13 +223,19 @@ main() {
   fi
 
   log "Ensuring PostgreSQL Alembic migrations & app privileges are at head ..."
-  compose run --rm -T backend-init /bin/sh -ec '
+  if ! compose run --rm -T backend-init /bin/sh -ec '
     export DATABASE_URL="postgresql+asyncpg://campus_app:${POSTGRES_APP_PASSWORD}@db:5432/campus"
     export DATABASE_MIGRATION_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
     export DATABASE_TEST_URL="postgresql+asyncpg://campus_owner:${POSTGRES_OWNER_PASSWORD}@db:5432/campus"
     alembic upgrade head
     python scripts/grant_app_privileges.py
-  '
+  '; then
+    log "ERROR: Alembic migration or grant privileges failed!"
+    if [ "${local_sha}" != "${target_sha}" ]; then
+      rollback "${local_sha}"
+    fi
+    exit 1
+  fi
 
   log "Waiting for end-to-end readiness (/readyz + /version.json == #${APP_COMMIT}) ..."
   if ! wait_for_healthy "${APP_COMMIT}"; then
