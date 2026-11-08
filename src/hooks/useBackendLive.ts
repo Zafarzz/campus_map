@@ -32,10 +32,10 @@ export type PlaceNavigationTarget = {
 
 export const PLACE_NAVIGATION_TARGETS: Record<string, PlaceNavigationTarget> = {
   'place-study-a': {
-    buildingId: 'bld-h',
-    floorId: 'bld-h-f1',
-    roomId: 'bld-h-f1-a105',
-    locationBadge: 'Block A · F1',
+    buildingId: 'bld-i',
+    floorId: 'bld-i-f2',
+    roomId: 'room-open-study-ac',
+    locationBadge: 'Block A–C · F2 · OSP-AC',
   },
   'place-corridor-main': {
     buildingId: 'bld-g',
@@ -58,14 +58,14 @@ export const PLACE_NAVIGATION_TARGETS: Record<string, PlaceNavigationTarget> = {
   'place-gym': {
     buildingId: 'bld-e',
     floorId: 'bld-e-f1',
-    roomId: 'bld-e-f1-r1',
-    locationBadge: 'Sports · F1',
+    roomId: 'bld-e-f1-tennis',
+    locationBadge: 'Halls · F1 · H-103',
   },
   'place-sports-hall': {
-    buildingId: 'bld-e',
-    floorId: 'bld-e-f1',
-    roomId: 'bld-e-f1-r2',
-    locationBadge: 'Sports · F1',
+    buildingId: 'bld-i',
+    floorId: 'bld-i-f2',
+    roomId: 'bld-i-f2-gym',
+    locationBadge: 'Block C · F2 · C-GYM',
   },
 };
 
@@ -73,8 +73,8 @@ export function resolvePlaceNavigationTarget(place: BusynessPlace): PlaceNavigat
   const preset = PLACE_NAVIGATION_TARGETS[place.place_id];
   const buildingId = preset?.buildingId ?? place.building_id ?? null;
   if (!buildingId) return null;
-  const floorId = place.floor_id ?? preset?.floorId ?? `${buildingId}-f1`;
-  const roomId = place.room_id ?? preset?.roomId;
+  const floorId = preset?.floorId ?? place.floor_id ?? `${buildingId}-f1`;
+  const roomId = preset?.roomId ?? place.room_id ?? undefined;
   return {
     buildingId,
     floorId,
@@ -258,6 +258,11 @@ export function useBackendLive(at: Date): BackendLive {
       try {
         const res = await apiGet<{ places: BusynessPlace[] }>('/busyness', { at: atKey }, controller.signal);
         if (!alive) return;
+        const normalizedPlaces = (res.places ?? []).map((p) =>
+          p.place_id === 'place-gym' && p.name === 'Campus Fitness Gym'
+            ? { ...p, name: 'Indoor Tennis Hall (H-103)' }
+            : p,
+        );
         setState({
           enabled: true,
           status: 'online',
@@ -266,7 +271,7 @@ export function useBackendLive(at: Date): BackendLive {
           updatingToCommit,
           reloadPendingCommit,
           latencyMs: ping.latencyMs,
-          places: res.places ?? [],
+          places: normalizedPlaces,
           updatedAt: new Date(),
         });
       } catch {

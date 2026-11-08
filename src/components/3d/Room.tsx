@@ -93,6 +93,12 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
       room.id === 'bld-b-f1-e105' ||
       room.id === 'bld-b-f2-e205') &&
     geometry.type === 'box';
+  const isOpenStudyPlace =
+    (room.id === 'room-open-study-ac' ||
+      room.id === 'room-open-study-bc' ||
+      room.number === 'OSP-AC' ||
+      room.number === 'OSP-BC') &&
+    geometry.type === 'box';
 
   return (
     <group>
@@ -103,7 +109,16 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
             size={geometry.size}
             selected={selected}
           />
-        </group>      ) : isCFoyer ? (
+        </group>
+      ) : isOpenStudyPlace ? (
+        <group {...events}>
+          <mesh position={geometry.position} rotation={[0, geometry.rotation ?? 0, 0]}>
+            <boxGeometry args={geometry.size} />
+            <meshBasicMaterial visible={false} />
+            {selected && <Edges color={mapConfig.colors.roomSelected} lineWidth={3} />}
+          </mesh>
+        </group>
+      ) : isCFoyer ? (
         <group {...events}>
           <BlockCFoyerInterior3D
             position={geometry.position}
@@ -210,10 +225,12 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
         >
           {isLibraryRoom
             ? '📚 F-101 · Library'
-            : isC201OrC202
-              ? `🎓 ${room.number} · Lecture Hall`
-              : isSportsHall
-                ? '🏐 C-GYM · Volleyball'
+            : isOpenStudyPlace
+              ? `📖 ${room.number} · Open Study`
+              : isC201OrC202
+                ? `🎓 ${room.number} · Lecture Hall`
+                : isSportsHall
+                  ? '🏐 C-GYM · Volleyball'
                   : isCanteen
                     ? '🍽️ Canteen · Dining Hall'
                     : isCFoyer

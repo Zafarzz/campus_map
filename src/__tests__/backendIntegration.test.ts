@@ -12,6 +12,11 @@ import {
 import { initialTimeMode, resolveSimulatedDate } from '../hooks/useNow';
 import { fetchBuildVersion, isBackendEnabled } from '../services/api/apiClient';
 import { loadCampus } from '../services/campus/campusService';
+import {
+  navigateToLostFoundItemOnMap,
+  resolveLostFoundNavigationTarget,
+} from '../services/lostfound/lostFoundService';
+import type { LostFoundItem } from '../services/lostfound/lostFoundTypes';
 import { loadLessonsForDate } from '../services/schedule/scheduleService';
 
 const okJson = (body: unknown) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
@@ -89,7 +94,7 @@ describe('backend integration seams', () => {
     });
   });
 
-  it('uses official AUT EduPage lesson periods with 12:45?13:30 lunch break free', () => {
+  it('uses official AUT EduPage lesson periods with 12:45-13:30 lunch break free', () => {
     const slotPairs = mapConfig.schedule.slots.map(([s, e]) => `${s}-${e}`);
     expect(slotPairs).not.toContain('12:00-13:20');
     expect(slotPairs).toEqual([
@@ -139,6 +144,8 @@ describe('backend integration seams', () => {
       name: 'Block A Open Study Lounge',
       kind: 'study_area',
       building_id: 'bld-h',
+      floor_id: 'bld-h-f1',
+      room_id: 'bld-h-f1-a105',
       capacity: 48,
       level: 'busy',
       percentage_of_capacity: 75.8,
@@ -149,16 +156,56 @@ describe('backend integration seams', () => {
 
     const target = resolvePlaceNavigationTarget(studyLounge);
     expect(target).toEqual({
-      buildingId: 'bld-h',
-      floorId: 'bld-h-f1',
-      roomId: 'bld-h-f1-a105',
-      locationBadge: 'Block A · F1',
+      buildingId: 'bld-i',
+      floorId: 'bld-i-f2',
+      roomId: 'room-open-study-ac',
+      locationBadge: 'Block A–C · F2 · OSP-AC',
     });
 
     navigateToPlaceOnMap(studyLounge, nav);
-    expect(selectedRooms).toEqual(['bld-h-f1-a105']);
-    expect(index.rooms.get('bld-h-f1-a105')?.building.id).toBe('bld-h');
-    expect(index.rooms.get('bld-h-f1-a105')?.floor.id).toBe('bld-h-f1');
+    expect(selectedRooms).toEqual(['room-open-study-ac']);
+    expect(index.rooms.get('room-open-study-ac')?.building.id).toBe('bld-i');
+    expect(index.rooms.get('room-open-study-ac')?.floor.id).toBe('bld-i-f2');
+
+    const sportsHall: BusynessPlace = {
+      ...studyLounge,
+      place_id: 'place-sports-hall',
+      name: 'Main Sports Hall',
+      kind: 'sports_hall',
+      building_id: 'bld-e',
+      floor_id: 'bld-e-f1',
+      room_id: 'bld-e-f1-r1',
+    };
+    expect(resolvePlaceNavigationTarget(sportsHall)).toEqual({
+      buildingId: 'bld-i',
+      floorId: 'bld-i-f2',
+      roomId: 'bld-i-f2-gym',
+      locationBadge: 'Block C · F2 · C-GYM',
+    });
+    navigateToPlaceOnMap(sportsHall, nav);
+    expect(selectedRooms).toEqual(['room-open-study-ac', 'bld-i-f2-gym']);
+    expect(index.rooms.get('bld-i-f2-gym')?.building.id).toBe('bld-i');
+    expect(index.rooms.get('bld-i-f2-gym')?.floor.id).toBe('bld-i-f2');
+
+    const indoorTennis: BusynessPlace = {
+      ...studyLounge,
+      place_id: 'place-gym',
+      name: 'Indoor Tennis Hall (H-103)',
+      kind: 'gym',
+      building_id: 'bld-e',
+      floor_id: 'bld-e-f1',
+      room_id: 'bld-e-f1-r1',
+    };
+    expect(resolvePlaceNavigationTarget(indoorTennis)).toEqual({
+      buildingId: 'bld-e',
+      floorId: 'bld-e-f1',
+      roomId: 'bld-e-f1-tennis',
+      locationBadge: 'Halls · F1 · H-103',
+    });
+    navigateToPlaceOnMap(indoorTennis, nav);
+    expect(selectedRooms).toEqual(['room-open-study-ac', 'bld-i-f2-gym', 'bld-e-f1-tennis']);
+    expect(index.rooms.get('bld-e-f1-tennis')?.building.id).toBe('bld-e');
+    expect(index.rooms.get('bld-e-f1-tennis')?.floor.id).toBe('bld-e-f1');
 
     const canteen: BusynessPlace = {
       ...studyLounge,
@@ -166,10 +213,96 @@ describe('backend integration seams', () => {
       name: 'Main Student Canteen',
       kind: 'canteen',
       building_id: 'bld-i',
+      floor_id: 'bld-i-f1',
+      room_id: 'room-canteen',
     };
     navigateToPlaceOnMap(canteen, nav);
-    expect(selectedRooms).toEqual(['bld-h-f1-a105', 'room-canteen']);
-    expect(index.rooms.get('room-canteen')?.building.id).toBe('bld-i');
-    expect(index.rooms.get('room-canteen')?.floor.id).toBe('bld-i-f1');
+    expect(selectedRooms).toEqual([
+      'room-open-study-ac',
+      'bld-i-f2-gym',
+      'bld-e-f1-tennis',
+      'room-canteen',
+    ]);
+  });
+
+  it('navigates to the exact building, floor, or room when a Lost & Found item is tapped', () => {
+    const index = createCampusIndex(demoCampus);
+    const selectedRooms: string[] = [];
+    const selectedFloors: string[] = [];
+    const selectedBuildings: string[] = [];
+
+    const nav = {
+      selectRoom: (id: string) => selectedRooms.push(id),
+      selectFloor: (id: string) => selectedFloors.push(id),
+      selectBuilding: (id: string) => selectedBuildings.push(id),
+    };
+
+    const airpodsItem: LostFoundItem = {
+      id: 'demo-lf-1',
+      reporter_user_id: 'demo-202590123',
+      is_mine: true,
+      kind: 'found',
+      status: 'open',
+      category: 'electronics',
+      title: 'Apple AirPods Pro in White Case',
+      description: 'Found on the 2nd row table in Block A Room 204 Computer Lab after the 11:15 class.',
+      building_id: 'bld-h',
+      floor_id: 'bld-h-f2',
+      room_id: 'bld-h-f2-r204', // legacy room ID
+      occurred_at: '2026-11-08T08:00:00Z',
+      expires_at: '2026-12-08T08:00:00Z',
+    };
+
+    expect(resolveLostFoundNavigationTarget(airpodsItem, index)).toEqual({
+      buildingId: 'bld-h',
+      floorId: 'bld-h-f2',
+      roomId: 'bld-h-f2-a204',
+    });
+    navigateToLostFoundItemOnMap(airpodsItem, index, nav);
+    expect(selectedRooms).toEqual(['bld-h-f2-a204']);
+
+    const libraryItem: LostFoundItem = {
+      id: 'lf-lib',
+      reporter_user_id: 'student-2',
+      is_mine: false,
+      kind: 'lost',
+      status: 'open',
+      category: 'books',
+      title: 'Calculus Textbook',
+      description: 'Left on a reading desk in the Library',
+      building_id: 'bld-f',
+      occurred_at: '2026-11-08T09:00:00Z',
+      expires_at: '2026-12-08T09:00:00Z',
+    };
+
+    expect(resolveLostFoundNavigationTarget(libraryItem, index)).toEqual({
+      buildingId: 'bld-d',
+      floorId: 'bld-d-f1',
+      roomId: 'bld-d-f1-f101',
+    });
+    navigateToLostFoundItemOnMap(libraryItem, index, nav);
+    expect(selectedRooms).toEqual(['bld-h-f2-a204', 'bld-d-f1-f101']);
+
+    const dormBuildingOnly: LostFoundItem = {
+      id: 'lf-dorm',
+      reporter_user_id: 'student-3',
+      is_mine: false,
+      kind: 'lost',
+      status: 'open',
+      category: 'clothing',
+      title: 'Grey Hoodie',
+      description: 'Left near the dormitory entrance bench',
+      building_id: 'bld-j',
+      occurred_at: '2026-11-08T09:30:00Z',
+      expires_at: '2026-12-08T09:30:00Z',
+    };
+
+    expect(resolveLostFoundNavigationTarget(dormBuildingOnly, index)).toEqual({
+      buildingId: 'bld-j',
+      floorId: null,
+      roomId: null,
+    });
+    navigateToLostFoundItemOnMap(dormBuildingOnly, index, nav);
+    expect(selectedBuildings).toEqual(['bld-j']);
   });
 });

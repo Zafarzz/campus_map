@@ -1,12 +1,15 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../../state/AuthContext';
+import { useMap } from '../../state/MapProvider';
 import {
   claimLostFoundItem,
   createLostFoundItem,
   listClaimsForItem,
   listLostFoundItems,
   listMyClaims,
+  navigateToLostFoundItemOnMap,
   resolveLostFoundClaim,
+  resolveLostFoundNavigationTarget,
 } from '../../services/lostfound/lostFoundService';
 import type {
   CreateLostFoundPayload,
@@ -17,7 +20,6 @@ import type {
 import {
   PackageIcon,
   CheckIcon,
-  ClockIcon,
   InfoIcon,
   AlertIcon,
   PlusIcon,
@@ -28,6 +30,7 @@ import {
   PhoneIcon,
   TelegramIcon,
   CameraIcon,
+  MapNavIcon,
 } from '../auth/AuthIcons';
 import { AuthRequiredCard } from '../ui/AuthRequiredCard';
 
@@ -164,6 +167,7 @@ function processImageFile(file: File): Promise<string> {
 
 export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
   const { isAuthenticated, token } = useAuth();
+  const { index, selectBuilding, selectFloor, selectRoom, clearSelection } = useMap();
 
   const [filterKind, setFilterKind] = useState<'all' | 'found' | 'lost' | 'my_items'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -183,6 +187,7 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
   const [reportPhotoBase64, setReportPhotoBase64] = useState<string | null>(null);
   const [reportPhotoName, setReportPhotoName] = useState<string | null>(null);
   const [reportBuilding, setReportBuilding] = useState<string>('bld-h');
+  const [reportRoom, setReportRoom] = useState<string>('');
   const [reportHandover, setReportHandover] = useState<string>('Security desk at main entrance');
   const [reportQuestion, setReportQuestion] = useState<string>('');
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
@@ -199,6 +204,32 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
   const [viewingClaimsItem, setViewingClaimsItem] = useState<LostFoundItem | null>(null);
   const [itemClaims, setItemClaims] = useState<LostFoundClaim[]>([]);
   const [isLoadingClaims, setIsLoadingClaims] = useState<boolean>(false);
+
+  const reportBuildingRooms = useMemo(() => {
+    if (!reportBuilding || reportBuilding === 'campus-grounds') return [];
+    const bld = index.buildings.get(reportBuilding);
+    if (!bld) return [];
+    return bld.floors.flatMap((f) =>
+      f.rooms.map((r) => ({
+        id: r.id,
+        floorId: f.id,
+        label: r.name ? `${r.number} · ${r.name}` : r.number,
+      })),
+    );
+  }, [index, reportBuilding]);
+
+  const handleLocateItem = useCallback(
+    (item: LostFoundItem) => {
+      navigateToLostFoundItemOnMap(item, index, {
+        selectBuilding,
+        selectFloor,
+        selectRoom,
+        clearSelection,
+      });
+      onBackToMap?.();
+    },
+    [index, selectBuilding, selectFloor, selectRoom, clearSelection, onBackToMap],
+  );
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -218,6 +249,7 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
     setReportTitle('');
     setReportDescription('');
     setReportContact('');
+    setReportRoom('');
     setReportPhotoBase64(null);
     setReportPhotoName(null);
     setReportQuestion('');
@@ -276,6 +308,10 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
     setFeedbackSuccess(null);
 
     try {
+      const selectedRoomEntry = reportRoom
+        ? reportBuildingRooms.find((r) => r.id === reportRoom)
+        : undefined;
+
       const payload: CreateLostFoundPayload = {
         kind: reportKind,
         category: reportCategory,
@@ -284,6 +320,8 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
         contact_info: reportContact.trim() || undefined,
         photo_base64: reportPhotoBase64 || undefined,
         building_id: reportBuilding === 'campus-grounds' ? undefined : reportBuilding,
+        floor_id: selectedRoomEntry?.floorId || undefined,
+        room_id: selectedRoomEntry?.id || undefined,
         handover_point: reportHandover.trim() || undefined,
         verification_question: reportQuestion.trim() || undefined,
       };
@@ -298,6 +336,7 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
       setReportTitle('');
       setReportDescription('');
       setReportContact('');
+      setReportRoom('');
       setReportPhotoBase64(null);
       setReportPhotoName(null);
       setReportQuestion('');
@@ -485,9 +524,34 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
               const isFound = item.kind === 'found';
               const isMine = item.is_mine;
               const hasClaimed = myClaims.some((c) => c.item_id === item.id);
+              const navTarget = resolveLostFoundNavigationTarget(item, index);
+              const resolvedRoom = navTarget.roomId
+                ? index.rooms.get(navTarget.roomId)?.room
+                : undefined;
+              const effectiveBldId = navTarget.buildingId ?? item.building_id;
+              const buildingLabel = effectiveBldId
+                ? BUILDINGS[effectiveBldId] || effectiveBldId
+                : 'Campus Grounds';
+              const locationDisplay = resolvedRoom
+                ? `${buildingLabel} · ${resolvedRoom.number}`
+                : buildingLabel;
 
               return (
-                <div key={item.id} className="lf-card">
+                <div
+                  key={item.id}
+                  className="lf-card"
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer' }}
+                  title={`Click to view ${locationDisplay} on 3D map`}
+                  onClick={() => handleLocateItem(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleLocateItem(item);
+                    }
+                  }}
+                >
                   <div className="lf-card__top">
                     <span
                       className={`lf-card__kind-badge lf-card__kind-badge--${
@@ -506,7 +570,10 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                   {item.photo_url && (
                     <div
                       className="lf-card__photo-box"
-                      onClick={() => setPreviewModalImage({ url: item.photo_url!, title: item.title })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewModalImage({ url: item.photo_url!, title: item.title });
+                      }}
                       title="Click to view full photo"
                     >
                       <img
@@ -523,11 +590,7 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
 
                   <div className="lf-card__location">
                     <CampusIcon size={14} />
-                    <span>
-                      {item.building_id
-                        ? BUILDINGS[item.building_id] || item.building_id
-                        : 'Campus Grounds'}
-                    </span>
+                    <span>{locationDisplay}</span>
                   </div>
 
                   {item.handover_point && (
@@ -577,12 +640,28 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                   })()}
 
                   <div className="lf-card__actions">
+                    <button
+                      type="button"
+                      className="crowd-hub-card__locate-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLocateItem(item);
+                      }}
+                      title={`Fly to ${locationDisplay} on 3D map`}
+                    >
+                      <MapNavIcon size={13} />
+                      <span>Locate in 3D</span>
+                    </button>
+
                     {isFound && !isMine && (
                       <button
                         type="button"
                         disabled={hasClaimed}
                         className={`lf-card__claim-btn${hasClaimed ? ' is-claimed' : ''}`}
-                        onClick={() => handleOpenClaimModal(item)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenClaimModal(item);
+                        }}
                       >
                         {hasClaimed ? (
                           <>
@@ -602,7 +681,10 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                       <button
                         type="button"
                         className="lf-card__manage-btn"
-                        onClick={() => handleOpenItemClaims(item)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenItemClaims(item);
+                        }}
                       >
                         <span>Check Claims</span>
                       </button>
@@ -702,7 +784,10 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                     id="report-building"
                     className="booking-drawer__input"
                     value={reportBuilding}
-                    onChange={(e) => setReportBuilding(e.target.value)}
+                    onChange={(e) => {
+                      setReportBuilding(e.target.value);
+                      setReportRoom('');
+                    }}
                   >
                     {REPORT_BUILDING_OPTIONS.map((b) => (
                       <option key={b.id} value={b.id}>
@@ -712,6 +797,25 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                   </select>
                 </div>
               </div>
+
+              {reportBuildingRooms.length > 0 && (
+                <div className="booking-drawer__field">
+                  <label htmlFor="report-room">Room / Area (Optional)</label>
+                  <select
+                    id="report-room"
+                    className="booking-drawer__input"
+                    value={reportRoom}
+                    onChange={(e) => setReportRoom(e.target.value)}
+                  >
+                    <option value="">General Building Area / Entrance</option>
+                    {reportBuildingRooms.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="booking-drawer__field">
                 <label htmlFor="report-desc">Description</label>

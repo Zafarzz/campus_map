@@ -135,41 +135,41 @@ DEFAULT_CAMPUS_PLACES: tuple[dict[str, Any], ...] = (
     {
         "id": "place-gym",
         "building_id": "bld-e",
-        "name": "Campus Fitness Gym",
+        "name": "Indoor Tennis Hall (H-103)",
         "kind": PlaceKind.gym,
         "capacity": 60,
-        "nearby_building_ids": ["bld-e", "bld-j"],
+        "nearby_building_ids": ["bld-e", "bld-i", "bld-h"],
         "config": {
             "floor_id": "bld-e-f1",
-            "room_id": "bld-e-f1-r1",
+            "room_id": "bld-e-f1-tennis",
             "tau_minutes": 15,
             "min_reports_for_reported": 3,
         },
     },
     {
         "id": "place-sports-hall",
-        "building_id": "bld-e",
+        "building_id": "bld-i",
         "name": "Main Sports Hall",
         "kind": PlaceKind.sports_hall,
-        "capacity": 120,
-        "nearby_building_ids": ["bld-e", "bld-f"],
+        "capacity": 60,
+        "nearby_building_ids": ["bld-i", "bld-h", "bld-g"],
         "config": {
-            "floor_id": "bld-e-f1",
-            "room_id": "bld-e-f1-r1",
+            "floor_id": "bld-i-f2",
+            "room_id": "bld-i-f2-gym",
             "tau_minutes": 15,
             "min_reports_for_reported": 3,
         },
     },
     {
         "id": "place-study-a",
-        "building_id": "bld-h",
+        "building_id": "bld-i",
         "name": "Block A Open Study Lounge",
         "kind": PlaceKind.study_area,
         "capacity": 48,
-        "nearby_building_ids": ["bld-h", "bld-g"],
+        "nearby_building_ids": ["bld-h", "bld-i", "bld-g"],
         "config": {
-            "floor_id": "bld-h-f1",
-            "room_id": "bld-h-f1-a105",
+            "floor_id": "bld-i-f2",
+            "room_id": "room-open-study-ac",
             "tau_minutes": 12,
             "min_reports_for_reported": 2,
         },
@@ -252,6 +252,10 @@ async def ensure_default_places(
         else:
             if bld_id is not None and place.building_id != bld_id:
                 place.building_id = bld_id
+            if place.name != spec["name"]:
+                place.name = spec["name"]
+            if place.capacity != spec["capacity"]:
+                place.capacity = spec["capacity"]
             if list(place.nearby_building_ids or []) != list(spec["nearby_building_ids"]):
                 place.nearby_building_ids = list(spec["nearby_building_ids"])
             merged_cfg = {**dict(spec["config"]), **dict(place.config or {})}

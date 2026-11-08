@@ -33,6 +33,7 @@ const DEMO_FALLBACK_PLACES: BusynessPlace[] = [
     kind: 'library',
     building_id: 'bld-d',
     floor_id: 'bld-d-f1',
+    room_id: 'bld-d-f1-f101',
     level: 'moderate',
     percentage_of_capacity: 48,
     capacity: 250,
@@ -44,12 +45,13 @@ const DEMO_FALLBACK_PLACES: BusynessPlace[] = [
     place_id: 'place-study-a',
     name: 'Block A Open Study Lounge',
     kind: 'study_area',
-    building_id: 'bld-h',
-    floor_id: 'bld-h-f1',
+    building_id: 'bld-i',
+    floor_id: 'bld-i-f2',
+    room_id: 'room-open-study-ac',
     level: 'moderate',
     percentage_of_capacity: 39,
-    capacity: 60,
-    headcount_likely: 23,
+    capacity: 48,
+    headcount_likely: 19,
     provenance: 'sensor',
     confidence: 0.85,
   },
@@ -59,6 +61,7 @@ const DEMO_FALLBACK_PLACES: BusynessPlace[] = [
     kind: 'canteen',
     building_id: 'bld-i',
     floor_id: 'bld-i-f1',
+    room_id: 'room-canteen',
     level: 'busy',
     percentage_of_capacity: 76,
     capacity: 180,
@@ -72,12 +75,41 @@ const DEMO_FALLBACK_PLACES: BusynessPlace[] = [
     kind: 'study_area',
     building_id: 'bld-g',
     floor_id: 'bld-g-f1',
+    room_id: 'bld-g-f1-lobby',
     level: 'quiet',
     percentage_of_capacity: 22,
     capacity: 80,
     headcount_likely: 18,
     provenance: 'sensor',
     confidence: 0.92,
+  },
+  {
+    place_id: 'place-sports-hall',
+    name: 'Main Sports Hall',
+    kind: 'sports_hall',
+    building_id: 'bld-i',
+    floor_id: 'bld-i-f2',
+    room_id: 'bld-i-f2-gym',
+    level: 'moderate',
+    percentage_of_capacity: 45,
+    capacity: 60,
+    headcount_likely: 27,
+    provenance: 'sensor',
+    confidence: 0.86,
+  },
+  {
+    place_id: 'place-gym',
+    name: 'Indoor Tennis Hall (H-103)',
+    kind: 'gym',
+    building_id: 'bld-e',
+    floor_id: 'bld-e-f1',
+    room_id: 'bld-e-f1-tennis',
+    level: 'quiet',
+    percentage_of_capacity: 25,
+    capacity: 60,
+    headcount_likely: 15,
+    provenance: 'sensor',
+    confidence: 0.84,
   },
 ];
 
@@ -99,7 +131,15 @@ export function CrowdedPlacesView({ onNavigateToMap }: CrowdedPlacesViewProps) {
   const places = useMemo(() => {
     let list = live.places.length > 0 ? [...live.places] : DEMO_FALLBACK_PLACES;
     if (selectedFilter !== 'all') {
-      list = list.filter((p) => p.kind === selectedFilter);
+      list = list.filter((p) => {
+        if (selectedFilter === 'sports_hall') {
+          return p.kind === 'sports_hall' || p.kind === 'gym';
+        }
+        if (selectedFilter === 'study_area') {
+          return p.kind === 'study_area' || p.kind === 'corridor';
+        }
+        return p.kind === selectedFilter;
+      });
     }
     return list.sort((a, b) => (b.percentage_of_capacity ?? 0) - (a.percentage_of_capacity ?? 0));
   }, [live.places, selectedFilter]);
@@ -208,6 +248,16 @@ export function CrowdedPlacesView({ onNavigateToMap }: CrowdedPlacesViewProps) {
               <div
                 key={place.place_id}
                 className={`crowd-hub-card${isSelected ? ' is-selected' : ''}`}
+                role="button"
+                tabIndex={0}
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleLocatePlace(place)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleLocatePlace(place);
+                  }
+                }}
               >
                 <div className="crowd-hub-card__header">
                   <div className="crowd-hub-card__title-box">
@@ -259,7 +309,10 @@ export function CrowdedPlacesView({ onNavigateToMap }: CrowdedPlacesViewProps) {
                   <button
                     type="button"
                     className="crowd-hub-card__locate-btn"
-                    onClick={() => handleLocatePlace(place)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLocatePlace(place);
+                    }}
                     title={`Center 3D map on ${place.name}`}
                   >
                     <MapNavIcon size={13} />

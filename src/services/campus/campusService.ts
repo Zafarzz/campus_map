@@ -46,14 +46,22 @@ export async function loadCampus(): Promise<Campus> {
         }
 
         // Ensure Block C (bld-i) Floor 2 contains C-201, C-202 & Volleyball Arena (bld-i-f2-gym),
+        // Open Study Lounges (room-open-study-ac, room-open-study-bc),
         // and does NOT contain the removed Conference Hall (room-c-conf),
         // and Floor 1 contains Canteen (room-canteen) spanning the floor.
         const bldI = draft.buildings.find((b) => b.id === 'bld-i');
         const bldIFloor1 = bldI?.floors.find((f) => f.level === 1);
         const bldIFloor2 = bldI?.floors.find((f) => f.level === 2);
         if (
-          (bldIFloor2 && (!bldIFloor2.rooms.some((r) => r.id === 'bld-i-f2-c201') || bldIFloor2.rooms.some((r) => r.id === 'room-c-conf'))) ||
-          (bldIFloor1 && (bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-room5') || bldIFloor1.rooms.some((r) => r.id === 'room-c-conf') || !bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-foyer')))
+          (bldIFloor2 &&
+            (!bldIFloor2.rooms.some((r) => r.id === 'bld-i-f2-c201') ||
+              !bldIFloor2.rooms.some((r) => r.id === 'bld-i-f2-gym') ||
+              !bldIFloor2.rooms.some((r) => r.id === 'room-open-study-ac') ||
+              bldIFloor2.rooms.some((r) => r.id === 'room-c-conf'))) ||
+          (bldIFloor1 &&
+            (bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-room5') ||
+              bldIFloor1.rooms.some((r) => r.id === 'room-c-conf') ||
+              !bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-foyer')))
         ) {
           const initialDoc = createInitialDocument();
           const initBldI = initialDoc.buildings.find((b) => b.id === 'bld-i');
