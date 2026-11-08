@@ -1199,6 +1199,106 @@ async def get_attendance_session_summary(
     }
 
 
+async def list_attendance_sessions(
+    session: AsyncSession,
+    *,
+    status_filter: str = "all",
+    room_id: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """List attendance sessions with meeting info and scan counts (§13.3)."""
+    stmt = (
+        select(AttendanceSession, Meeting)
+        .outerjoin(Meeting, Meeting.id == AttendanceSession.meeting_id)
+        .order_by(AttendanceSession.opened_at.desc())
+        .limit(limit)
+    )
+    if status_filter == "open":
+        stmt = stmt.where(AttendanceSession.closed_at.is_(None))
+    elif status_filter == "closed":
+        stmt = stmt.where(AttendanceSession.closed_at.is_not(None))
+
+    if room_id:
+        stmt = stmt.where(AttendanceSession.room_id == room_id)
+
+    rows = (await session.execute(stmt)).all()
+    results: list[dict[str, Any]] = []
+
+    for att_session, meeting in rows:
+        records = (
+            await session.execute(
+                select(AttendanceRecord.state, func.count(AttendanceRecord.id))
+                .where(AttendanceRecord.session_id == att_session.id)
+                .group_by(AttendanceRecord.state)
+            )
+        ).all()
+        counts: dict[str, int] = {
+            "present": 0,
+            "late": 0,
+            "pending_review": 0,
+            "guest": 0,
+            "rejected": 0,
+        }
+        total_scans = 0
+        for state, cnt in records:
+            counts[state] = cnt
+            total_scans += cnt
+
+        results.append(
+            {
+                "id": str(att_session.id),
+                "meeting_id": str(att_session.meeting_id) if att_session.meeting_id else None,
+                "room_id": att_session.room_id,
+                "subject": meeting.subject if meeting else None,
+                "teacher_label": meeting.teacher_label if meeting else None,
+                "group_label": meeting.group_label if meeting else None,
+                "opened_at": att_session.opened_at.isoformat(),
+                "closed_at": att_session.closed_at.isoformat() if att_session.closed_at else None,
+                "is_open": att_session.closed_at is None,
+                "token_step_seconds": att_session.token_step_seconds,
+                "late_after_minutes": att_session.late_after_minutes,
+                "expected_count": att_session.expected_count,
+                "counts": counts,
+                "total_scans": total_scans,
+            }
+        )
+    return results
+
+
+async def list_student_attendance_records(
+    session: AsyncSession,
+    *,
+    student_user_id: uuid.UUID,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Return attendance check-in records for a specific student (§13.3)."""
+    stmt = (
+        select(AttendanceRecord, AttendanceSession, Meeting)
+        .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+        .outerjoin(Meeting, Meeting.id == AttendanceSession.meeting_id)
+        .where(AttendanceRecord.user_id == student_user_id)
+        .order_by(AttendanceRecord.scanned_at.desc())
+        .limit(limit)
+    )
+    rows = (await session.execute(stmt)).all()
+    results: list[dict[str, Any]] = []
+    for record, att_session, meeting in rows:
+        results.append(
+            {
+                "id": str(record.id),
+                "session_id": str(record.session_id),
+                "room_id": att_session.room_id,
+                "subject": meeting.subject if meeting else None,
+                "teacher_label": meeting.teacher_label if meeting else None,
+                "group_label": meeting.group_label if meeting else None,
+                "state": record.state,
+                "scanned_at": record.scanned_at.isoformat(),
+                "review_reason": record.review_reason,
+            }
+        )
+    return results
+
+
 # ===========================================================================
 # §13.4 Timetable Optimiser & Scenario Engine (§6.2)
 # ===========================================================================

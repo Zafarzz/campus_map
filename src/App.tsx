@@ -24,6 +24,7 @@ import { CampusNavRail, type CampusNavSection } from './components/ui/CampusNavR
 import { BookingsView } from './components/booking/BookingsView';
 import { LostFoundView } from './components/lostfound/LostFoundView';
 import { CrowdedPlacesView } from './components/crowds/CrowdedPlacesView';
+import { AttendanceView } from './components/attendance/AttendanceView';
 import { AuthProvider } from './state/AuthContext';
 import { MapProvider, useMap } from './state/MapProvider';
 import './components/ui/panelMinimal.css';
@@ -63,6 +64,9 @@ const SECTION_HEADERS: Record<CampusNavSection, { title: string; desc: string }>
   lostfound: {
     title: 'Campus Lost & Found',
     desc: 'Community recovery registry and verified ownership claims',
+  },  attendance: {
+    title: 'Class Attendance (QR)',
+    desc: 'Dynamic rotating QR code check-in & attendance verification',
   },
 };
 
@@ -275,6 +279,9 @@ function AppLayout() {
               )}
               {activeSection === 'lostfound' && (
                 <LostFoundView onBackToMap={() => setActiveSection('map')} />
+              )}
+              {activeSection === 'attendance' && (
+                <AttendanceView onBackToMap={() => setActiveSection('map')} />
               )}
             </div>
 

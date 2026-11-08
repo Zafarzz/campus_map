@@ -1,0 +1,458 @@
+/* Campus Digital Twin — QR Attendance Styles */
+
+.att-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 20px;
+}
+
+/* Header & Tabs */
+.att-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.05);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.att-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.att-tab-btn:hover {
+  color: #0f172a;
+}
+
+.att-tab-btn.is-active {
+  background: #ffffff;
+  color: #002c6c;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* User Role Banner */
+.att-role-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(0, 44, 108, 0.06), rgba(207, 160, 82, 0.08));
+  border: 1px solid rgba(0, 44, 108, 0.12);
+  border-radius: 12px;
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.att-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #002c6c;
+}
+
+.att-role-switch-btn {
+  background: none;
+  border: 1px solid rgba(0, 44, 108, 0.2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #002c6c;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.att-role-switch-btn:hover {
+  background: rgba(0, 44, 108, 0.08);
+}
+
+/* Status Result Banner */
+.att-result-banner {
+  padding: 12px 14px;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  animation: attSlideDown 0.2s ease;
+}
+
+@keyframes attSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.att-result-banner--success {
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  color: #065f46;
+}
+
+.att-result-banner--warning {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+
+.att-result-banner--error {
+  background: #fef2f2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
+}
+
+.att-result-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: currentColor;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.att-result-close:hover {
+  opacity: 1;
+}
+
+/* Card Styles */
+.att-card {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.att-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.att-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* QR Code Section */
+.att-qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+  gap: 14px;
+}
+
+.att-qr-canvas {
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.att-qr-canvas svg {
+  width: 100%;
+  height: 100%;
+}
+
+.att-qr-timer-row {
+  width: 100%;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.att-qr-timer-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.att-qr-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.att-qr-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #002c6c, #cfa052);
+  border-radius: 3px;
+  transition: width 0.2s linear;
+}
+
+.att-token-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #e2e8f0;
+  color: #1e293b;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Quick Session List */
+.att-session-item {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.att-session-item:hover {
+  border-color: rgba(0, 44, 108, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.att-session-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.att-session-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.att-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.att-badge--present {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.att-badge--late {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.att-badge--pending {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.att-badge--rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.att-badge--open {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.att-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.att-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.att-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.att-btn--primary {
+  background: #002c6c;
+  color: #ffffff;
+}
+
+.att-btn--primary:hover {
+  background: #001f4d;
+}
+
+.att-btn--secondary {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.att-btn--secondary:hover {
+  background: #e2e8f0;
+}
+
+.att-btn--danger {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.att-btn--danger:hover {
+  background: #fecaca;
+}
+
+.att-btn--map {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.att-btn--map:hover {
+  background: #dbeafe;
+}
+
+/* Scanner Area */
+.att-scanner-box {
+  background: #0f172a;
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.att-scanner-video {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+
+.att-scanner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.att-scanner-target {
+  width: 160px;
+  height: 160px;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  position: relative;
+}
+
+.att-scanner-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: laserScan 2s infinite ease-in-out alternate;
+}
+
+@keyframes laserScan {
+  0% {
+    top: 5%;
+  }
+  100% {
+    top: 95%;
+  }
+}
+
+/* Projector Modal */
+.att-projector-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.att-projector-content {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 500px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.att-projector-qr {
+  width: 300px;
+  height: 300px;
+  padding: 12px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+}

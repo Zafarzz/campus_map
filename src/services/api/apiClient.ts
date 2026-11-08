@@ -117,6 +117,67 @@ export async function apiGet<T>(
 }
 
 /** POST `${base}/api/v1${path}` with JSON payload. Throws `ApiError` with backend message on failure. */
+export async function apiPatch<T>(
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+  token?: string | null,
+): Promise<T> {
+  if (!isBackendEnabled) throw new ApiError('Backend integration is disabled');
+  const url = `${explicitBase}${API_PREFIX}${path}`;
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+  const effectiveToken =
+    token ||
+    (typeof window !== 'undefined' && window.localStorage
+      ? window.localStorage.getItem('campus_auth_token')
+      : null);
+  if (effectiveToken) {
+    headers.Authorization = `Bearer ${effectiveToken}`;
+  }
+
+  const serializedBody = body !== undefined ? JSON.stringify(body) : undefined;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: serializedBody,
+      signal,
+    });
+    if (res.status === 401) {
+      const refreshed = await tryRefreshAccessToken(effectiveToken);
+      if (refreshed) {
+        headers.Authorization = `Bearer ${refreshed}`;
+        res = await fetch(url, {
+          method: 'PATCH',
+          headers,
+          body: serializedBody,
+          signal,
+        });
+      }
+    }
+  } catch (err) {
+    throw new ApiError(err instanceof Error ? err.message : 'Network error');
+  }
+
+  if (!res.ok) {
+    let errorMsg = `HTTP ${res.status} for ${path}`;
+    try {
+      const errJson = (await res.json()) as any;
+      if (errJson?.error?.message) errorMsg = errJson.error.message;
+      else if (typeof errJson?.detail === 'string') errorMsg = errJson.detail;
+    } catch {
+      // keep fallback
+    }
+    throw new ApiError(errorMsg, res.status);
+  }
+
+  return (await res.json()) as T;
+}
+
 export async function apiPost<T>(
   path: string,
   body?: unknown,

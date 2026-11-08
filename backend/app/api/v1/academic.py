@@ -560,6 +560,40 @@ async def open_attendance_session(
 
 
 @router.get(
+    "/attendance/sessions",
+    summary="List active or past attendance sessions (§13.3)",
+)
+async def list_attendance_sessions(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+    status: Annotated[str | None, Query(pattern="^(open|closed|all)$")] = "all",
+    room_id: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> dict[str, Any]:
+    _ = await ensure_principal_user(session, principal)
+    rows = await academic_service.list_attendance_sessions(
+        session, status_filter=status or "all", room_id=room_id, limit=limit
+    )
+    return {"count": len(rows), "sessions": rows}
+
+
+@router.get(
+    "/attendance/my-records",
+    summary="List the authenticated student's attendance records (§13.3)",
+)
+async def list_my_attendance_records(
+    session: SessionDep,
+    principal: CurrentPrincipal,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> dict[str, Any]:
+    user_id = await ensure_principal_user(session, principal)
+    records = await academic_service.list_student_attendance_records(
+        session, student_user_id=user_id, limit=limit
+    )
+    return {"count": len(records), "records": records}
+
+
+@router.get(
     "/attendance/sessions/{session_id}",
     summary="Get an attendance session summary and scan list (§13.3)",
 )

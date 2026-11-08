@@ -2,10 +2,11 @@ import {
   CalendarIcon,
   MapNavIcon,
   PackageIcon,
+  QrCodeIcon,
   UsersIcon,
 } from '../auth/AuthIcons';
 
-export type CampusNavSection = 'map' | 'crowds' | 'bookings' | 'lostfound';
+export type CampusNavSection = 'map' | 'crowds' | 'bookings' | 'lostfound' | 'attendance';
 
 interface CampusNavRailProps {
   activeSection: CampusNavSection;
@@ -67,6 +68,18 @@ export function CampusNavRail({ activeSection, onSelectSection }: CampusNavRailP
         >
           <PackageIcon size={18} />
           <span className="campus-nav-rail__tooltip">Lost & Found</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'attendance'}
+          className={`campus-nav-rail__btn${activeSection === 'attendance' ? ' is-active' : ''}`}
+          onClick={() => onSelectSection('attendance')}
+          title="Class Attendance & Rotating QR Check-in"
+          aria-label="QR Attendance"
+        >
+          <QrCodeIcon size={18} />
+          <span className="campus-nav-rail__tooltip">QR Attendance</span>
         </button>
       </div>
     </nav>

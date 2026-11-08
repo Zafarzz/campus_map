@@ -798,15 +798,15 @@
     "semantic_hash": ""
   },
   "scripts/deploy-server.sh": {
-    "mtime": 1794116935.442846,
-    "seen": 1794117156.8776786,
+    "mtime": 1794117217.5102887,
+    "seen": 1794139542.4838445,
     "ast_hash": "4c9e7799882c1a887554c2133847a991",
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1793956178.566659,
-    "seen": 1793965367.4538136,
-    "ast_hash": "a15440ad611a4d362cd956d7146f9163",
+    "mtime": 1794138195.2274714,
+    "seen": 1794139542.4838507,
+    "ast_hash": "a3af9c2c2b48f0379eac376c39dc10a1",
     "semantic_hash": ""
   },
   "src/__tests__/ajouArtObject.test.ts": {
@@ -1548,9 +1548,9 @@
     "semantic_hash": ""
   },
   "src/services/api/apiClient.ts": {
-    "mtime": 1793956178.5947447,
-    "seen": 1793965367.5843055,
-    "ast_hash": "9af68f06dcf439f2f5b75073ad02fa16",
+    "mtime": 1794138261.7503743,
+    "seen": 1794139542.6740491,
+    "ast_hash": "ab6927152e6fffb41d05c0446dd023a6",
     "semantic_hash": ""
   },
   "src/services/campus/campusService.ts": {
@@ -2184,9 +2184,9 @@
     "semantic_hash": ""
   },
   "backend/app/api/v1/academic.py": {
-    "mtime": 1793775687.7001832,
-    "seen": 1793817330.1272826,
-    "ast_hash": "a1316a0d219305dab9d5e22be35fdfb5",
+    "mtime": 1794137793.1564364,
+    "seen": 1794139542.3903196,
+    "ast_hash": "df3d8d2baaeacffefb5ebd8c4ee1231d",
     "semantic_hash": ""
   },
   "backend/app/api/v1/facilities.py": {
@@ -2220,9 +2220,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/academic_service.py": {
-    "mtime": 1793775687.7447796,
-    "seen": 1793817330.14605,
-    "ast_hash": "7392560dd3aaa3d69508bb8ba0a24954",
+    "mtime": 1794137793.1527112,
+    "seen": 1794139542.440507,
+    "ast_hash": "e32c3669aeba4d26090f25463f252602",
     "semantic_hash": ""
   },
   "backend/app/services/facilities_service.py": {
@@ -2238,9 +2238,9 @@
     "semantic_hash": ""
   },
   "backend/tests/test_academic.py": {
-    "mtime": 1793775687.7725267,
-    "seen": 1793817330.1542482,
-    "ast_hash": "ff62bc3aba98f7fbaaf0cd149bb111a1",
+    "mtime": 1794137825.4526718,
+    "seen": 1794139542.462911,
+    "ast_hash": "61580c5643360d41323b494ea807a52c",
     "semantic_hash": ""
   },
   "backend/tests/test_facilities.py": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "src/components/auth/AuthIcons.tsx": {
-    "mtime": 1793956178.5712662,
-    "seen": 1793965367.51912,
-    "ast_hash": "e06a861ba02d88aa1aa36695f7cd24b1",
+    "mtime": 1794137959.2273846,
+    "seen": 1794139542.6196492,
+    "ast_hash": "f69648b8708cc310582eab6b6f175c0e",
     "semantic_hash": ""
   },
   "public/assets/aut-seal.png": {
@@ -2328,9 +2328,9 @@
     "semantic_hash": ""
   },
   "src/components/ui/CampusNavRail.tsx": {
-    "mtime": 1793956178.5940378,
-    "seen": 1793965367.523508,
-    "ast_hash": "f82628529cc09eb6ef236a0034b10a8b",
+    "mtime": 1794138038.3384688,
+    "seen": 1794139542.639733,
+    "ast_hash": "034b06add95935fcf56a84285f2d05f6",
     "semantic_hash": ""
   },
   "src/services/booking/bookingService.ts": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "backend/alembic/versions/f6a4b2c9d105_update_crowded_places_navigation_targets.py": {
-    "mtime": 1794116835.5763881,
-    "seen": 1794117156.7765,
-    "ast_hash": "0db17b91af65824413a3b0db45851c74",
+    "mtime": 1794117217.4333282,
+    "seen": 1794139542.3792512,
+    "ast_hash": "23d848a2faa6c4fc57be0046a6c8cd76",
     "semantic_hash": ""
   },
   "src/__tests__/blockCFloor1.test.ts": {
@@ -2457,6 +2457,30 @@
     "mtime": 1794112318.9968712,
     "seen": 1794114210.1001604,
     "ast_hash": "b4cccd977ebb566558dcd9bec061af2d",
+    "semantic_hash": ""
+  },
+  "src/__tests__/attendance.test.ts": {
+    "mtime": 1794138439.703375,
+    "seen": 1794139542.4873927,
+    "ast_hash": "6fde662b2b464701faa873570e468b6f",
+    "semantic_hash": ""
+  },
+  "src/components/attendance/AttendanceView.tsx": {
+    "mtime": 1794138304.3955426,
+    "seen": 1794139542.6181877,
+    "ast_hash": "01be7ef3401b42b28b780a99a3043d39",
+    "semantic_hash": ""
+  },
+  "src/services/attendance/attendanceService.ts": {
+    "mtime": 1794138439.700488,
+    "seen": 1794139542.6740572,
+    "ast_hash": "0c5f8dbcf2282d97f8fe51e270547fb9",
+    "semantic_hash": ""
+  },
+  "src/services/attendance/attendanceTypes.ts": {
+    "mtime": 1794137879.1675365,
+    "seen": 1794139542.6740642,
+    "ast_hash": "5dcf56ebd51dca0fa30788f2a99c89fa",
     "semantic_hash": ""
   },
   "package-lock.json": {

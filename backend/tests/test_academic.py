@@ -841,3 +841,56 @@ async def test_exam_planner_and_scenario_optimiser_api_never_mutates_live_timeta
         rules_after = await db_session.scalar(select(func.count(MeetingRule.id)))
     assert meetings_after == meetings_before
     assert rules_after == rules_before
+
+
+@pytest.mark.asyncio
+async def test_list_attendance_sessions_and_my_records_api(
+    client: AsyncClient,
+    admin_auth_headers: dict[str, str],
+    auth_headers: dict[str, str],
+) -> None:
+    # 1. Admin/teacher opens an attendance session
+    r_open = await client.post(
+        "/api/v1/academic/attendance/sessions",
+        headers=admin_auth_headers,
+        json={
+            "room_id": "bld-h-f1-a101",
+            "token_step_seconds": 20,
+            "late_after_minutes": 15,
+            "expected_count": 30,
+        },
+    )
+    assert r_open.status_code == 201
+    session_data = r_open.json()
+    session_id = session_data["id"]
+    token = session_data["qr"]["token"]
+
+    # 2. List sessions
+    r_list = await client.get(
+        "/api/v1/academic/attendance/sessions?status=open",
+        headers=auth_headers,
+    )
+    assert r_list.status_code == 200
+    list_data = r_list.json()
+    assert list_data["count"] >= 1
+    found = any(s["id"] == session_id for s in list_data["sessions"])
+    assert found is True
+
+    # 3. Student scans QR token
+    r_scan = await client.post(
+        f"/api/v1/academic/attendance/sessions/{session_id}/scan",
+        headers=auth_headers,
+        json={"token": token},
+    )
+    assert r_scan.status_code == 201
+    assert r_scan.json()["state"] == "present"
+
+    # 4. Student checks my-records
+    r_my = await client.get(
+        "/api/v1/academic/attendance/my-records",
+        headers=auth_headers,
+    )
+    assert r_my.status_code == 200
+    my_data = r_my.json()
+    assert my_data["count"] >= 1
+    assert any(rec["session_id"] == session_id for rec in my_data["records"])

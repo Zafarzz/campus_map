@@ -207,4 +207,25 @@ export const CameraIcon = (p: IconProps) => (
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
     <circle cx="12" cy="13" r="4" />
   </Icon>
+);
+export const QrCodeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <path d="M7 7h.01M18 7h.01M7 18h.01M14 14h3v3h-3zM18 18h3v3h-3zM14 18v3h-3" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Icon>
+);
+
+export const RefreshIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M21.5 2v6h-6M2.5 22v-6h6M21.5 8A10 10 0 0 0 4.1 6.1L2.5 8M2.5 16a10 10 0 0 0 17.4 1.9l1.6-1.9" />
+  </Icon>
+);
+
+export const CheckCircleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m9 12 2 2 4-4" strokeWidth={2.2} />
+  </Icon>
 );
