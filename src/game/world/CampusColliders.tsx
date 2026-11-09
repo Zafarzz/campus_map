@@ -293,7 +293,7 @@ export function buildCampusColliderSpecs(
   }
 
   const left = min[0] - 22;
-  const right = max[0] + 12;
+  const right = 104.0; // Synchronized with rightGate in ContextLayer.tsx (X = 104.0)
   const top = min[1] - 22;
   const bottom = max[1] + 22;
   const fenceHeight = 2.5;
@@ -330,7 +330,7 @@ export function buildCampusColliderSpecs(
     halfExtents: [fenceHalfThick, fenceHeight / 2, eastBottomLen / 2],
   });
 
-  // Main Entrance Gate solid structures
+  // Main Entrance Gate solid structures (X = right = 104.0)
   list.push({
     id: 'gate-security-cabin',
     position: [right, 2.0, gateZ + 4.5],
@@ -351,9 +351,33 @@ export function buildCampusColliderSpecs(
     position: [right - 3.8, 1.4, gateZ + 14.5],
     halfExtents: [2.2, 1.4, 2.6],
   });
+
+  // Turnstile Pedestals (solid steel cabinets at X = right + 0.3 = 104.3m)
+  // Walkway lanes are at Z = gateZ - 0.45m and Z = gateZ - 1.65m (clear, walkable corridors)
+  [-1.2, 0.0, 1.2].forEach((tx, idx) => {
+    const worldPz = gateZ - (1.05 + tx);
+    list.push({
+      id: `gate-turnstile-pedestal-${idx}`,
+      position: [right + 0.3, 0.68, worldPz],
+      halfExtents: [0.6, 0.5, 0.14],
+    });
+  });
+
+  // Side Glass Railing Barriers (flanking turnstiles)
+  list.push({
+    id: 'gate-turnstile-barrier-north',
+    position: [right + 0.3, 0.55, gateZ - (1.05 + 1.85)],
+    halfExtents: [0.5, 0.45, 0.04],
+  });
+  list.push({
+    id: 'gate-turnstile-barrier-south',
+    position: [right + 0.3, 0.55, gateZ - (1.05 - 1.85)],
+    halfExtents: [0.5, 0.45, 0.04],
+  });
+
   list.push({
     id: 'gate-outer-boundary',
-    position: [right + 4.5, fenceHeight / 2, gateZ],
+    position: [right + 12.0, fenceHeight / 2, gateZ],
     halfExtents: [fenceHalfThick, fenceHeight / 2, gateWidth / 2 + 2],
   });
 
@@ -371,71 +395,85 @@ export function buildCampusColliderSpecs(
   });
 
   // 7. Grand Campus Fountain: located on the central lawn north of the Sports Complex
-  const fountainX = 0.0;
+  // Visual fountain is positioned at [5.5, 0, -23.1] with scale 1.0 (see ContextLayer.tsx)
+  const fountainX = 5.5;
   const fountainZ = -23.1;
-  const s = 0.7; // scaled to fit central lawn
-  const outerHalfLen = (FOUNTAIN_DIMENSIONS.outerLength * s) / 2;
-  const outerHalfWid = (FOUNTAIN_DIMENSIONS.outerWidth * s) / 2;
+  const s = 1.0;
+  const outerHalfLen = (FOUNTAIN_DIMENSIONS.outerLength * s) / 2; // 57.0 / 2 = 28.5m
+  const outerHalfWid = (FOUNTAIN_DIMENSIONS.outerWidth * s) / 2; // 19.5 / 2 = 9.75m
 
-  // Bridge centers along X relative to fountainX: ±(7.5 + 1.05) * 1.5 = ±12.825m
+  // Bridge centers along X relative to fountainX: ±(15.0 / 2 + 2.1 / 2) = ±8.55m
+  // World positions: West bridge = 5.5 - 8.55 = -3.05m, East bridge = 5.5 + 8.55 = +14.05m
   const bridgeOffset =
-    (FOUNTAIN_DIMENSIONS.bridgeDistance / 2 + FOUNTAIN_DIMENSIONS.bridgeWalkwayWidth / 2) * s;
-  const bridgeHalfW = (FOUNTAIN_DIMENSIONS.bridgeWalkwayWidth * s) / 2; // 1.575m
-  const deckTopY = (FOUNTAIN_DIMENSIONS.bridgeDeckHeight + 0.07) * s;   // ~1.23m
+    (FOUNTAIN_DIMENSIONS.bridgeDistance / 2 + FOUNTAIN_DIMENSIONS.bridgeWalkwayWidth / 2) * s; // 8.55m
+  const bridgeHalfW = (FOUNTAIN_DIMENSIONS.bridgeWalkwayWidth * s) / 2; // 1.05m
+  const platformHalfW = (FOUNTAIN_DIMENSIONS.bridgePlatformWidth * s) / 2; // 1.65m
+  const deckTopY = FOUNTAIN_DIMENSIONS.bridgeDeckHeight + 0.07; // 0.82m
 
   // Three solid water/cascade bays separated by the two bridge corridors
-  const westBayMinX = -outerHalfLen;
-  const westBayMaxX = -bridgeOffset - bridgeHalfW;
+  const westBayMinX = fountainX - outerHalfLen; // -23.0m
+  const westBayMaxX = fountainX - bridgeOffset - bridgeHalfW; // -4.10m
   list.push({
     id: 'campus-fountain-basin-west',
-    position: [fountainX + (westBayMinX + westBayMaxX) / 2, 1.1, fountainZ],
-    halfExtents: [(westBayMaxX - westBayMinX) / 2, 1.1, outerHalfWid],
+    position: [(westBayMinX + westBayMaxX) / 2, 0.55, fountainZ],
+    halfExtents: [(westBayMaxX - westBayMinX) / 2, 0.55, outerHalfWid],
   });
 
-  const centerBayMinX = -bridgeOffset + bridgeHalfW;
-  const centerBayMaxX = bridgeOffset - bridgeHalfW;
+  const centerBayMinX = fountainX - bridgeOffset + bridgeHalfW; // -2.00m
+  const centerBayMaxX = fountainX + bridgeOffset - bridgeHalfW; // +13.00m
   list.push({
     id: 'campus-fountain-basin',
-    position: [fountainX + (centerBayMinX + centerBayMaxX) / 2, 1.1, fountainZ],
-    halfExtents: [(centerBayMaxX - centerBayMinX) / 2, 1.1, outerHalfWid],
+    position: [(centerBayMinX + centerBayMaxX) / 2, 0.55, fountainZ],
+    halfExtents: [(centerBayMaxX - centerBayMinX) / 2, 0.55, outerHalfWid],
   });
 
-  const eastBayMinX = bridgeOffset + bridgeHalfW;
-  const eastBayMaxX = outerHalfLen;
+  const eastBayMinX = fountainX + bridgeOffset + bridgeHalfW; // +15.10m
+  const eastBayMaxX = fountainX + outerHalfLen; // +34.00m
   list.push({
     id: 'campus-fountain-basin-east',
-    position: [fountainX + (eastBayMinX + eastBayMaxX) / 2, 1.1, fountainZ],
-    halfExtents: [(eastBayMaxX - eastBayMinX) / 2, 1.1, outerHalfWid],
+    position: [(eastBayMinX + eastBayMaxX) / 2, 0.55, fountainZ],
+    halfExtents: [(eastBayMaxX - eastBayMinX) / 2, 0.55, outerHalfWid],
   });
 
-  // Walkable decks and north/south stair-ramps for both bridges
-  const deckHalfLenZ = ((FOUNTAIN_DIMENSIONS.basinWidth + 1.2) * s) / 2; // 14.4m
-  const rampRunZ = 2.6;
+  // Walkable decks, observation platforms, and north/south approach ramps for both bridges
+  const deckHalfLenZ = ((FOUNTAIN_DIMENSIONS.basinWidth + 1.2) * s) / 2; // 9.6m
+  const rampRunZ = 2.0;
   const rampLength = Math.hypot(rampRunZ, deckTopY);
   const rampAngle = Math.atan2(deckTopY, rampRunZ);
 
   [-bridgeOffset, bridgeOffset].forEach((bx, idx) => {
-    const worldBx = fountainX + bx;
-    // Flat bridge deck (top surface at deckTopY)
+    const worldBx = fountainX + bx; // -3.05m or +14.05m
+
+    // Flat bridge deck (walkable corridor, top surface at deckTopY = 0.82m)
     list.push({
       id: `fountain-bridge-deck-${idx}`,
       position: [worldBx, deckTopY / 2, fountainZ],
       halfExtents: [bridgeHalfW, deckTopY / 2, deckHalfLenZ],
-      friction: 0.2,
+      friction: 0.3,
     });
-    // North approach ramp (Z < fountainZ, slopes up as Z increases toward fountainZ)
+
+    // Central viewing platform deck (widened to 3.3m in the center 4.8m)
+    list.push({
+      id: `fountain-bridge-deck-plat-${idx}`,
+      position: [worldBx, deckTopY / 2, fountainZ],
+      halfExtents: [platformHalfW, deckTopY / 2, 2.4],
+      friction: 0.3,
+    });
+
+    // North approach ramp (slopes smoothly up from ground Y=0 to deck Y=0.82m)
     list.push({
       id: `fountain-bridge-ramp-n-${idx}`,
-      position: [worldBx, deckTopY / 2 - 0.05, fountainZ - deckHalfLenZ - rampRunZ / 2 + 0.2],
-      halfExtents: [bridgeHalfW, 0.12, rampLength / 2],
+      position: [worldBx, deckTopY / 2 - 0.04, fountainZ - deckHalfLenZ - rampRunZ / 2 + 0.1],
+      halfExtents: [bridgeHalfW + 0.05, 0.1, rampLength / 2],
       rotation: [rampAngle, 0, 0],
       friction: 0.3,
     });
-    // South approach ramp (Z > fountainZ, slopes up as Z decreases toward fountainZ)
+
+    // South approach ramp (slopes smoothly up from ground Y=0 to deck Y=0.82m)
     list.push({
       id: `fountain-bridge-ramp-s-${idx}`,
-      position: [worldBx, deckTopY / 2 - 0.05, fountainZ + deckHalfLenZ + rampRunZ / 2 - 0.2],
-      halfExtents: [bridgeHalfW, 0.12, rampLength / 2],
+      position: [worldBx, deckTopY / 2 - 0.04, fountainZ + deckHalfLenZ + rampRunZ / 2 - 0.1],
+      halfExtents: [bridgeHalfW + 0.05, 0.1, rampLength / 2],
       rotation: [-rampAngle, 0, 0],
       friction: 0.3,
     });

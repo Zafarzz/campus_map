@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  InteractiveTurnstiles,
   MAIN_ENTRANCE_MATERIALS,
   MAIN_ENTRANCE_WIDTH,
 } from '../components/3d/MainEntranceGate';
@@ -11,6 +12,8 @@ import {
 } from '../components/3d/facades/facadeTextures';
 import { demoCampus } from '../data/demo-campus';
 import { geometryProvider } from '../services/geometry';
+import { buildCampusColliderSpecs } from '../game/world/CampusColliders';
+import { sharedCampusAudio } from '../game/audio/campusAudioEngine';
 
 describe('Main Entrance & Checkpoint (КПП AUT) Architecture', () => {
   it('conforms to 18.8m total width from CAD elevation blueprint', () => {
@@ -92,5 +95,65 @@ describe('Main Entrance & Checkpoint (КПП AUT) Architecture', () => {
       // Gate is adjacent to the eastern boundary road
       expect(Math.abs(kppE.footprint.center[0] - roadEast.footprint.center[0])).toBeLessThan(20);
     }
+  });
+
+  it('exports interactive speed-gate turnstiles component and audio chime', () => {
+    expect(typeof InteractiveTurnstiles).toBe('function');
+    expect(typeof sharedCampusAudio.playTurnstileBeep).toBe('function');
+    expect(() => sharedCampusAudio.playTurnstileBeep()).not.toThrow();
+  });
+
+  it('generates solid colliders for turnstile pedestals and flanking barriers while keeping walk lanes clear', () => {
+    const campusGeom = geometryProvider.build(demoCampus);
+    const colliders = buildCampusColliderSpecs(campusGeom, null);
+
+    // 3 pedestals
+    const p0 = colliders.find((c) => c.id === 'gate-turnstile-pedestal-0');
+    const p1 = colliders.find((c) => c.id === 'gate-turnstile-pedestal-1');
+    const p2 = colliders.find((c) => c.id === 'gate-turnstile-pedestal-2');
+    expect(p0).toBeDefined();
+    expect(p1).toBeDefined();
+    expect(p2).toBeDefined();
+
+    // Pedestals positioned at X = 104.3 (right + 0.3)
+    expect(p0?.position[0]).toBeCloseTo(104.3, 1);
+    expect(p1?.position[0]).toBeCloseTo(104.3, 1);
+    expect(p2?.position[0]).toBeCloseTo(104.3, 1);
+
+    // Flanking side barriers
+    const bNorth = colliders.find((c) => c.id === 'gate-turnstile-barrier-north');
+    const bSouth = colliders.find((c) => c.id === 'gate-turnstile-barrier-south');
+    expect(bNorth).toBeDefined();
+    expect(bSouth).toBeDefined();
+
+    // Walkway lanes between pedestals must not be blocked by any colliders
+    // Lane 1 center is between P0 and P1
+    const lane1Z = (p0!.position[2] + p1!.position[2]) / 2;
+    // Lane 2 center is between P1 and P2
+    const lane2Z = (p1!.position[2] + p2!.position[2]) / 2;
+
+    const isBlockingLane = (pz: number, c: { id: string; position: [number, number, number]; halfExtents: [number, number, number] }) => {
+      // Ignore ground plane
+      if (c.id === 'ground-terrain' || c.position[1] < 0.2) return false;
+      const minX = c.position[0] - c.halfExtents[0];
+      const maxX = c.position[0] + c.halfExtents[0];
+      const minZ = c.position[2] - c.halfExtents[2];
+      const maxZ = c.position[2] + c.halfExtents[2];
+      // Check if collider covers X = 104.3 and contains the lane Z center
+      const coversX = 104.3 >= minX && 104.3 <= maxX;
+      const coversZ = pz >= minZ && pz <= maxZ;
+      return coversX && coversZ;
+    };
+
+    const blockersLane1 = colliders.filter((c) => isBlockingLane(lane1Z, c));
+    const blockersLane2 = colliders.filter((c) => isBlockingLane(lane2Z, c));
+
+    expect(blockersLane1).toHaveLength(0);
+    expect(blockersLane2).toHaveLength(0);
+
+    // Outer boundary fence must not block the entrance pavilion driveway at X = right + 4.5
+    const outerBoundary = colliders.find((c) => c.id === 'gate-outer-boundary');
+    expect(outerBoundary).toBeDefined();
+    expect(outerBoundary!.position[0]).toBeGreaterThanOrEqual(116.0);
   });
 });

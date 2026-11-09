@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   StaticGeometryBatcher,
@@ -10,6 +11,7 @@ import {
   getAjouSteleTexture,
   getAutGateLogoTexture,
 } from './facades/facadeTextures';
+import { sharedCampusAudio } from '../../game/audio/campusAudioEngine';
 
 export const MAIN_ENTRANCE_WIDTH = 18.8;
 
@@ -250,11 +252,10 @@ export function MainEntranceGate({
     for (const tx of [-1.2, 0.0, 1.2]) {
       b.addBox('turnstile', [0.28, 1.0, 1.2], [tpX + tx, tpY + 0.5, 0.3]);
       b.addBox('metal', [0.26, 0.02, 1.16], [tpX + tx, tpY + 1.01, 0.3]);
-      b.addBox('cardReader', [0.12, 0.015, 0.12], [tpX + tx, tpY + 1.02, 0.72]);
-      b.addBox('glass', [0.24, 0.65, 0.02], [tpX + tx + 0.25, tpY + 0.55, 0.3]);
     }
 
-    for (const gx of [-1.85, -0.6, 0.6, 1.85]) {
+    // Outer side glass barriers (flanking turnstiles north & south)
+    for (const gx of [-1.85, 1.85]) {
       b.addCylinder('turnstile', [0.025, 0.025, 0.9, 8], [tpX + gx, tpY + 0.45, -0.2]);
       b.addCylinder('turnstile', [0.025, 0.025, 0.9, 8], [tpX + gx, tpY + 0.45, 0.8]);
       b.addBox('turnstile', [0.03, 0.04, 1.0], [tpX + gx, tpY + 0.85, 0.3]);
@@ -390,6 +391,276 @@ export function MainEntranceGate({
           <planeGeometry args={[2.8, 1.5]} />
         </mesh>
       )}
+
+      {/* Interactive speed-gate turnstiles with animated glass flaps and RFID indicators */}
+      <InteractiveTurnstiles tpX={1.05} tpY={0.18} />
+    </group>
+  );
+}
+
+export type InteractiveTurnstilesProps = {
+  tpX?: number;
+  tpY?: number;
+};
+
+/**
+ * Interactive speed-gate turnstiles for the Main Entrance:
+ * - 4 animated swinging tempered-glass wings (2 per lane) with stainless steel hinges
+ * - 3 pedestals with dual-sided RFID readers and status LEDs (Red = standby, Emerald Green = access granted)
+ * - Walk Mode proximity trigger (< 2.8m): plays RFID chime, flips LEDs to green, smoothly swings open 90°
+ * - Exit proximity (> 3.8m): smoothly closes flaps and returns LEDs to standby red
+ * - Interactive pointer click support with 5s auto-close
+ */
+export function InteractiveTurnstiles({
+  tpX = 1.05,
+  tpY = 0.18,
+}: InteractiveTurnstilesProps) {
+  const rootRef = useRef<THREE.Group>(null);
+  const leftWing1Ref = useRef<THREE.Group>(null);
+  const rightWing1Ref = useRef<THREE.Group>(null);
+  const leftWing2Ref = useRef<THREE.Group>(null);
+  const rightWing2Ref = useRef<THREE.Group>(null);
+
+  const isOpenRef = useRef(false);
+  const currentAngleRef = useRef(0);
+  const openDirectionRef = useRef(1);
+  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const wingGlassMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#a7f3d0',
+        roughness: 0.1,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.7,
+        depthWrite: false,
+      }),
+    [],
+  );
+
+  const hingeMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: MAIN_ENTRANCE_MATERIALS.k7_turnstiles,
+        roughness: 0.2,
+        metalness: 0.85,
+      }),
+    [],
+  );
+
+  const readerHousingMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#1e293b',
+        roughness: 0.4,
+        metalness: 0.6,
+      }),
+    [],
+  );
+
+  const ledMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#ef4444',
+        emissive: '#ef4444',
+        emissiveIntensity: 0.8,
+        roughness: 0.2,
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      wingGlassMat.dispose();
+      hingeMat.dispose();
+      readerHousingMat.dispose();
+      ledMat.dispose();
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
+  }, [wingGlassMat, hingeMat, readerHousingMat, ledMat]);
+
+  const worldPos = useMemo(() => new THREE.Vector3(), []);
+  const camPos = useMemo(() => new THREE.Vector3(), []);
+
+  const setGateState = (open: boolean, dir = 1) => {
+    if (open !== isOpenRef.current) {
+      isOpenRef.current = open;
+      openDirectionRef.current = dir;
+      if (open) {
+        sharedCampusAudio.playTurnstileBeep();
+        ledMat.color.set('#10b981');
+        ledMat.emissive.set('#10b981');
+        ledMat.emissiveIntensity = 2.0;
+      } else {
+        ledMat.color.set('#ef4444');
+        ledMat.emissive.set('#ef4444');
+        ledMat.emissiveIntensity = 0.8;
+      }
+    }
+  };
+
+  const handlePointerClick = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    const nextState = !isOpenRef.current;
+    setGateState(nextState, 1);
+    if (nextState) {
+      if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = setTimeout(() => {
+        setGateState(false, 1);
+      }, 5000);
+    }
+  };
+
+  useFrame((state, delta) => {
+    if (!rootRef.current) return;
+
+    rootRef.current.getWorldPosition(worldPos);
+    state.camera.getWorldPosition(camPos);
+
+    const dx = camPos.x - worldPos.x;
+    const dz = camPos.z - worldPos.z;
+    const dy = Math.abs(camPos.y - worldPos.y);
+    const dist = Math.hypot(dx, dz);
+
+    const isNear = dist < 2.8 && dy < 2.5;
+
+    if (isNear && !isOpenRef.current) {
+      const dir = dx > 0 ? 1 : -1;
+      setGateState(true, dir);
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = null;
+      }
+    } else if (!isNear && dist > 3.8 && isOpenRef.current && !autoCloseTimerRef.current) {
+      setGateState(false, openDirectionRef.current);
+    }
+
+    const targetAngle = isOpenRef.current ? (Math.PI / 2) * openDirectionRef.current : 0;
+    currentAngleRef.current = THREE.MathUtils.damp(
+      currentAngleRef.current,
+      targetAngle,
+      8.0,
+      delta,
+    );
+
+    const a = currentAngleRef.current;
+    if (leftWing1Ref.current) leftWing1Ref.current.rotation.y = a;
+    if (rightWing1Ref.current) rightWing1Ref.current.rotation.y = -a;
+    if (leftWing2Ref.current) leftWing2Ref.current.rotation.y = a;
+    if (rightWing2Ref.current) rightWing2Ref.current.rotation.y = -a;
+  });
+
+  return (
+    <group
+      ref={rootRef}
+      position={[tpX, tpY, 0.3]}
+      onClick={handlePointerClick}
+      onPointerOver={() => {
+        if (typeof document !== 'undefined') {
+          document.body.style.cursor = 'pointer';
+        }
+      }}
+      onPointerOut={() => {
+        if (typeof document !== 'undefined') {
+          document.body.style.cursor = 'default';
+        }
+      }}
+    >
+      {/* Lane 1 Left Wing (Pedestal 0 inner face at x = -1.06) */}
+      <group ref={leftWing1Ref} position={[-1.06, 0.55, 0]}>
+        <mesh material={hingeMat} raycast={NO_RAYCAST}>
+          <cylinderGeometry args={[0.016, 0.016, 0.65, 12]} />
+        </mesh>
+        <mesh position={[0.025, 0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[0.025, -0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[0.21, 0, 0]} material={wingGlassMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.42, 0.65, 0.014]} />
+        </mesh>
+      </group>
+
+      {/* Lane 1 Right Wing (Pedestal 1 left face at x = -0.14) */}
+      <group ref={rightWing1Ref} position={[-0.14, 0.55, 0]}>
+        <mesh material={hingeMat} raycast={NO_RAYCAST}>
+          <cylinderGeometry args={[0.016, 0.016, 0.65, 12]} />
+        </mesh>
+        <mesh position={[-0.025, 0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[-0.025, -0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[-0.21, 0, 0]} material={wingGlassMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.42, 0.65, 0.014]} />
+        </mesh>
+      </group>
+
+      {/* Lane 2 Left Wing (Pedestal 1 right face at x = +0.14) */}
+      <group ref={leftWing2Ref} position={[0.14, 0.55, 0]}>
+        <mesh material={hingeMat} raycast={NO_RAYCAST}>
+          <cylinderGeometry args={[0.016, 0.016, 0.65, 12]} />
+        </mesh>
+        <mesh position={[0.025, 0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[0.025, -0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[0.21, 0, 0]} material={wingGlassMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.42, 0.65, 0.014]} />
+        </mesh>
+      </group>
+
+      {/* Lane 2 Right Wing (Pedestal 2 left face at x = +1.06) */}
+      <group ref={rightWing2Ref} position={[1.06, 0.55, 0]}>
+        <mesh material={hingeMat} raycast={NO_RAYCAST}>
+          <cylinderGeometry args={[0.016, 0.016, 0.65, 12]} />
+        </mesh>
+        <mesh position={[-0.025, 0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[-0.025, -0.18, 0]} material={hingeMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.05, 0.06, 0.03]} />
+        </mesh>
+        <mesh position={[-0.21, 0, 0]} material={wingGlassMat} raycast={NO_RAYCAST}>
+          <boxGeometry args={[0.42, 0.65, 0.014]} />
+        </mesh>
+      </group>
+
+      {/* RFID Card Readers and LEDs on the 3 Pedestals */}
+      {[-1.2, 0.0, 1.2].map((tx, idx) => (
+        <group key={`turnstile-reader-${idx}`} position={[tx, 0, 0]}>
+          {/* Entry side reader pad on pedestal top */}
+          <mesh position={[0, 1.025, 0.42]} material={readerHousingMat} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.14, 0.015, 0.14]} />
+          </mesh>
+          <mesh position={[0, 1.034, 0.42]} material={ledMat}>
+            <boxGeometry args={[0.09, 0.005, 0.09]} />
+          </mesh>
+
+          {/* Exit side reader pad on pedestal top */}
+          <mesh position={[0, 1.025, -0.42]} material={readerHousingMat} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.14, 0.015, 0.14]} />
+          </mesh>
+          <mesh position={[0, 1.034, -0.42]} material={ledMat}>
+            <boxGeometry args={[0.09, 0.005, 0.09]} />
+          </mesh>
+
+          {/* Front & back face passage status indicators */}
+          <mesh position={[0, 0.72, 0.601]} material={ledMat} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.08, 0.08, 0.005]} />
+          </mesh>
+          <mesh position={[0, 0.72, -0.601]} material={ledMat} raycast={NO_RAYCAST}>
+            <boxGeometry args={[0.08, 0.08, 0.005]} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }

@@ -20,6 +20,8 @@ import { BlockFFacade } from './facades/BlockFFacade';
 import { BlockDFacade } from './facades/BlockDFacade';
 import { BlockEFacade } from './facades/BlockEFacade';
 import { BlockFCourtyardFacade } from './facades/BlockFCourtyardFacade';
+import { BlockFSouthFacade } from './facades/BlockFSouthFacade';
+import { BlockFRoof } from './facades/BlockFRoof';
 import { SportsComplexRoof, SportsComplexFrontFacade } from './facades/SportsComplexFacade';
 import {
   getArchitecturalWallTextures,
@@ -976,7 +978,7 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
               buildingWidth={width}
               buildingDepth={depth}
               facing="east"
-              wallHeight={9.8}
+              wallHeight={12.0}
               opacity={opacity}
               transparent={transparent}
               wallColor={wallColor}
@@ -986,9 +988,9 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
             />
           </group>
 
-          {/* Authentic Courtyard Ensemble matching reference photo media_1793558789621.jpg:
-              West Facade (10 window bays + basement lightwell hoods + drainpipes),
-              1-Storey Corner Entrance Vestibule, and South End Facade */}
+          {/* Authentic Courtyard Ensemble:
+              West Facade (10 window bays + basement lightwell hoods + drainpipes)
+              and 1-Storey Corner Entrance Vestibule */}
           <BlockFCourtyardFacade
             opacity={opacity}
             transparent={transparent}
@@ -997,6 +999,18 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
             plinthColor={appearance.plinthColor}
             frameColor={appearance.windowColor}
             roofColor={appearance.roofColor}
+          />
+
+          {/* Authentic South Facade (Library / Hall Building) in Axes А–В per blueprint media_1794216793227_98a34af3.jpg */}
+          <BlockFSouthFacade
+            opacity={opacity}
+            transparent={transparent}
+            wallColor={wallColor}
+            trimColor={appearance.corniceColor}
+            plinthColor={appearance.plinthColor}
+            frameColor={appearance.windowColor}
+            friezeColor={appearance.corniceColor}
+            doorColor="#162d59"
           />
         </>
       )}
@@ -1069,7 +1083,15 @@ const BuildingPartMesh = React.memo(function BuildingPartMesh({
       )}
 
       {/* 8. Roof Structure */}
-      {appearance.roofType === 'hip' && !isBlockFVestibule ? (
+      {isBlockFMain ? (
+        <BlockFRoof
+          roofColor={appearance.roofColor}
+          corniceColor={appearance.corniceColor}
+          wallColor={wallColor}
+          opacity={opacity}
+          transparent={transparent}
+        />
+      ) : appearance.roofType === 'hip' && !isBlockFVestibule ? (
         <group position={[worldX, wallHeight, worldZ]}>
           <HipRoof
             width={width + (appearance.roofOverhang ?? 1.2)}

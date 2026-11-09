@@ -13,6 +13,7 @@ import { BlockCCanteenInterior3D, CANTEEN_ROOM_ID } from './BlockCCanteenInterio
 import { TennisHallInterior3D, EventHallInterior3D, TENNIS_HALL_ID, EVENT_HALL_1_ID, EVENT_HALL_2_ID } from './HallsBuildingInteriors';
 import { ClassroomInterior3D } from './ClassroomInterior3D';
 import { BlockCLectureHall3D } from './BlockCLectureHall3D';
+import { BlockFLectureHall3D } from './BlockFLectureHall3D';
 import { LobbyInterior3D } from './LobbyInterior3D';
 import {
   BlockCFoyerInterior3D,
@@ -76,6 +77,17 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
       room.number === 'C-202' ||
       room.id === 'bld-i-f2-r1' ||
       room.id === 'bld-i-f2-r2') &&
+    geometry.type === 'box';
+  const isF201OrF202 =
+    (room.id === 'bld-d-f2-f201' ||
+      room.id === 'bld-d-f2-f202' ||
+      room.number === 'F-201' ||
+      room.number === 'F-202' ||
+      room.id === 'bld-d-f2-r1' ||
+      room.id === 'bld-d-f2-r2' ||
+      ((room.number === 'F201' || room.number === 'F202') && room.id.startsWith('bld-d')) ||
+      (room.name?.toLowerCase().includes('amphitheatre') && room.id.startsWith('bld-d')) ||
+      (room.name?.toLowerCase().includes('amphitheater') && room.id.startsWith('bld-d'))) &&
     geometry.type === 'box';
   const isLibraryRoom =
     (room.id === LIBRARY_ROOM_ID || room.number === 'F-101') && geometry.type === 'box';
@@ -161,6 +173,15 @@ export function Room({ room, geometry, status, selected, onSelect }: Props) {
       ) : isC201OrC202 ? (
         <group {...events}>
           <BlockCLectureHall3D
+            position={geometry.position}
+            size={geometry.size}
+            roomNumber={room.number}
+            selected={selected}
+          />
+        </group>
+      ) : isF201OrF202 ? (
+        <group {...events}>
+          <BlockFLectureHall3D
             position={geometry.position}
             size={geometry.size}
             roomNumber={room.number}

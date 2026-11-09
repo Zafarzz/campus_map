@@ -106,6 +106,9 @@ export function BlockFCourtyardFacade({
         transparent: true,
         opacity: transparent ? opacity * 0.9 : 0.94,
         depthWrite: !transparent,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       }),
     );
 
@@ -204,11 +207,15 @@ export function BlockFCourtyardFacade({
     const lowerH = winH - 0.52;
     const addWestWindow = (wy: number, wz: number) => {
       const wx = westWallX - 0.08;
-      b.addBox('cavity', [0.06, winH - 0.06, winW - 0.06], [wx + 0.035, wy, wz]);
-      b.addBox('frame', [0.06, winH, winW], [wx, wy, wz]);
-      b.addBox('frame', [0.045, 0.045, winW - 0.08], [wx + 0.01, wy + winH / 2 - 0.52, wz]);
-      b.addBox('frame', [0.045, lowerH - 0.06, 0.045], [wx + 0.01, wy - winH / 2 + lowerH / 2, wz]);
-      b.addBox('glass', [0.03, winH - 0.1, winW - 0.1], [wx + 0.015, wy, wz]);
+      b.addBox('cavity', [0.02, winH - 0.06, winW - 0.06], [wx + 0.03, wy, wz]);
+      // Perimeter window frame (top, bottom, left, right rails/stiles)
+      b.addBox('frame', [0.06, 0.05, winW], [wx, wy + winH / 2 - 0.025, wz]);
+      b.addBox('frame', [0.06, 0.05, winW], [wx, wy - winH / 2 + 0.025, wz]);
+      b.addBox('frame', [0.06, winH - 0.1, 0.05], [wx, wy, wz - winW / 2 + 0.025]);
+      b.addBox('frame', [0.06, winH - 0.1, 0.05], [wx, wy, wz + winW / 2 - 0.025]);
+      b.addBox('frame', [0.05, 0.045, winW - 0.08], [wx - 0.01, wy + winH / 2 - 0.52, wz]);
+      b.addBox('frame', [0.05, lowerH - 0.06, 0.045], [wx - 0.01, wy - winH / 2 + lowerH / 2, wz]);
+      b.addBox('glass', [0.02, winH - 0.1, winW - 0.1], [wx, wy, wz]);
       b.addBox('trim', [0.18, 0.12, winW + 0.24], [wx - 0.06, wy - winH / 2 - 0.06, wz]);
       b.addBox('trim', [0.14, 0.1, winW + 0.18], [wx - 0.04, wy + winH / 2 + 0.05, wz]);
     };
@@ -270,31 +277,6 @@ export function BlockFCourtyardFacade({
     b.addBox('frame', [vestWidth - 1.6, 0.06, 0.06], [vestCenterX, 2.45, vestZ + 0.15]);
     for (const hx of [-3.0, -1.6, 1.6, 3.0]) {
       b.addCylinder('handle', [0.018, 0.018, 0.7, 10], [vestCenterX + hx, 1.3, vestZ + 0.2]);
-    }
-
-    // 3. South End Facade
-    const southEndWidth = 20.0;
-    const southEndCenterX = 62.05;
-    const southEndZ = -49.2;
-    b.addBox('plinth', [southEndWidth + 0.1, plinthH, 0.2], [southEndCenterX, plinthH / 2, southEndZ + 0.08]);
-    b.addBox('trim', [southEndWidth + 0.15, 0.08, 0.16], [southEndCenterX, plinthH, southEndZ + 0.12]);
-    b.addBox('wall', [southEndWidth, wallH - plinthH, 0.15], [southEndCenterX, (wallH + plinthH) / 2, southEndZ]);
-    b.addBox('trim', [southEndWidth + 0.2, 0.35, 0.32], [southEndCenterX, 8.05, southEndZ + 0.14]);
-    b.addBox('trim', [southEndWidth + 0.25, 0.15, 0.38], [southEndCenterX, 8.35, southEndZ + 0.18]);
-
-    const addSouthWindow = (wx: number, wy: number) => {
-      const wz = southEndZ + 0.08;
-      b.addBox('frame', [winW, winH, 0.06], [wx, wy, wz]);
-      b.addBox('frame', [winW - 0.08, 0.045, 0.045], [wx, wy + winH / 2 - 0.52, wz + 0.01]);
-      b.addBox('frame', [0.045, lowerH - 0.06, 0.045], [wx, wy - winH / 2 + lowerH / 2, wz + 0.01]);
-      b.addBox('glass', [winW - 0.1, winH - 0.1, 0.03], [wx, wy, wz + 0.015]);
-      b.addBox('trim', [winW + 0.24, 0.12, 0.18], [wx, wy - winH / 2 - 0.06, wz - 0.06]);
-      b.addBox('trim', [winW + 0.18, 0.1, 0.14], [wx, wy + winH / 2 + 0.05, wz - 0.04]);
-    };
-
-    for (const ex of [-6.0, -2.0, 2.0, 6.0]) {
-      addSouthWindow(southEndCenterX + ex, f1WinY);
-      addSouthWindow(southEndCenterX + ex, f2WinY);
     }
 
     return b.buildAll();

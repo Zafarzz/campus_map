@@ -106,6 +106,9 @@ export function AjouLogoMedallion({
       opacity: transparent ? opacity * 0.5 : 1,
       depthWrite: !transparent,
       side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
     });
 
     const textMat = new THREE.MeshStandardMaterial({

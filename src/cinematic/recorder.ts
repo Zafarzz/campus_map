@@ -7,10 +7,13 @@
  * `preserveDrawingBuffer`.
  */
 
+export type VideoFormat = 'mp4' | 'webm';
+
 export type RecorderOptions = {
   width: number;
   height: number;
   fps: number;
+  format?: VideoFormat;
   /** Swap red and blue channels (workaround for encoders that deliver BGR-ordered video). */
   swapRB?: boolean;
 };
@@ -24,18 +27,37 @@ const SWAP_RB_FILTER =
   ) +
   '#f")';
 
-// VP8 first: it is encoded in software by Chrome, whereas VP9/AV1 may use a hardware encoder that on
-// some Linux GPU/driver combinations outputs red and blue swapped.
-const MIME_CANDIDATES = [
+export const MP4_MIME_CANDIDATES = [
+  'video/mp4;codecs=avc1',
+  'video/mp4;codecs=h264',
+  'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+  'video/mp4;codecs=av01',
+  'video/mp4;codecs=vp9',
+  'video/mp4',
+];
+
+export const WEBM_MIME_CANDIDATES = [
   'video/webm;codecs=vp8',
   'video/webm;codecs=vp9',
   'video/webm;codecs=av1',
   'video/webm',
 ];
 
-export function pickMimeType(): string | null {
+export function pickMimeType(format: VideoFormat = 'mp4'): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
-  return MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? null;
+
+  if (format === 'mp4') {
+    const mp4Match = MP4_MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m));
+    if (mp4Match) return mp4Match;
+    // Fallback to WebM if browser does not support native MP4 container
+    return WEBM_MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? null;
+  }
+
+  return (
+    WEBM_MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ??
+    MP4_MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ??
+    null
+  );
 }
 
 export function isRecordingSupported(): boolean {
@@ -47,6 +69,12 @@ export function isRecordingSupported(): boolean {
   );
 }
 
+export function isFormatSupported(format: VideoFormat): boolean {
+  if (typeof MediaRecorder === 'undefined') return false;
+  const candidates = format === 'mp4' ? MP4_MIME_CANDIDATES : WEBM_MIME_CANDIDATES;
+  return candidates.some((m) => MediaRecorder.isTypeSupported(m));
+}
+
 class CinematicRecorderEngine {
   private source: HTMLCanvasElement | null = null;
   private out: HTMLCanvasElement | null = null;
@@ -54,6 +82,7 @@ class CinematicRecorderEngine {
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private swapRB = false;
+  private currentFormat: VideoFormat = 'mp4';
 
   setSource(canvas: HTMLCanvasElement | null) {
     this.source = canvas;
@@ -63,12 +92,18 @@ class CinematicRecorderEngine {
     return this.recorder !== null && this.recorder.state !== 'inactive';
   }
 
+  get format(): VideoFormat {
+    return this.currentFormat;
+  }
+
   start(opts: RecorderOptions): void {
     if (!this.source) throw new Error('WebGL canvas is not ready');
-    const mimeType = pickMimeType();
+    const requestedFormat = opts.format ?? 'mp4';
+    const mimeType = pickMimeType(requestedFormat);
     if (!mimeType || typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
-      throw new Error('Video recording (MediaRecorder + WebM) is not supported by this browser');
+      throw new Error('Video recording is not supported by this browser');
     }
+    this.currentFormat = mimeType.includes('mp4') ? 'mp4' : 'webm';
     const out = document.createElement('canvas');
     out.width = opts.width;
     out.height = opts.height;
@@ -108,9 +143,11 @@ class CinematicRecorderEngine {
   stop(): Promise<Blob> {
     const rec = this.recorder;
     if (!rec) return Promise.reject(new Error('Not recording'));
+    const isMp4 = this.currentFormat === 'mp4';
     return new Promise((resolve, reject) => {
       rec.onstop = () => {
-        const blob = new Blob(this.chunks, { type: rec.mimeType || 'video/webm' });
+        const mime = rec.mimeType || (isMp4 ? 'video/mp4' : 'video/webm');
+        const blob = new Blob(this.chunks, { type: mime });
         this.cleanup();
         blob.size > 0 ? resolve(blob) : reject(new Error('Recording is empty'));
       };

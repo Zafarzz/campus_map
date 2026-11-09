@@ -112,7 +112,7 @@ function createTierRingGeometry(
     depth: height,
     bevelEnabled: false,
   });
-  geom.rotateX(Math.PI / 2);
+  geom.rotateX(-Math.PI / 2);
   return geom;
 }
 
@@ -156,10 +156,16 @@ export function AmphitheaterHall({
       stairDark: new THREE.MeshStandardMaterial({
         color: '#334155',
         roughness: 0.8,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       }),
       stairNosing: new THREE.MeshStandardMaterial({
         color: '#cbd5e1',
         roughness: 0.4,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
       }),
       wood: new THREE.MeshStandardMaterial({
         color: '#78350f',
@@ -212,12 +218,16 @@ export function AmphitheaterHall({
         map: parquetTex ?? undefined,
         color: parquetTex ? '#ffffff' : '#d7cbb5',
         roughness: 0.5,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       }),
       grilyato: new THREE.MeshStandardMaterial({
         map: grilyatoTex ?? undefined,
         color: grilyatoTex ? '#ffffff' : '#090d16',
         roughness: 0.9,
         metalness: 0.3,
+        side: THREE.DoubleSide,
       }),
       redCushion: new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.7 }),
       blueCushion: new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.7 }),
@@ -272,7 +282,7 @@ export function AmphitheaterHall({
       spec.floor.bowl.chamfer,
     );
     const floorBowlGeo = new THREE.ShapeGeometry(floorBowlShape);
-    floorBowlGeo.rotateX(Math.PI / 2);
+    floorBowlGeo.rotateX(-Math.PI / 2);
     // Concrete subfloor plinth slab to completely shield parquet from outdoor terrain & exterior shadows
     batcher.addGeometry('plinth', floorBowlGeo, [0, 0.02, 0]);
     // Sunken amphitheater parquet floor raised cleanly above subfloor
@@ -331,7 +341,7 @@ export function AmphitheaterHall({
         batcher.addBox(
           'stairNosing',
           [stW - 0.04, 0.03, 0.06],
-          toWorld(sx, sy, sz, rotY, 0, stepH - 0.015, zPos + stepTread / 2 - 0.03),
+          toWorld(sx, sy, sz, rotY, 0, stepH - 0.015 + 0.002, zPos + stepTread / 2 - 0.03),
           [0, rotY, 0],
         );
       }

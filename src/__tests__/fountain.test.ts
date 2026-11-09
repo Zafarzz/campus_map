@@ -6,6 +6,7 @@ import {
 } from '../components/3d/CampusFountain';
 import { demoCampus } from '../data/demo-campus';
 import { geometryProvider } from '../services/geometry';
+import { buildCampusColliderSpecs } from '../game/world/CampusColliders';
 
 describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => {
   it('conforms to exact 1.5x scaled architectural dimensions requested by user', () => {
@@ -107,5 +108,48 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
     expect(FOUNTAIN_DIMENSIONS.palmTreeCount).toBe(7);
     expect(FOUNTAIN_DIMENSIONS.palmMinHeight).toBeGreaterThanOrEqual(3.5);
     expect(FOUNTAIN_DIMENSIONS.palmMaxHeight).toBeLessThanOrEqual(4.5);
+  });
+
+  it('generates fully walkable physics colliders for both pedestrian bridges in walk mode', () => {
+    const geometry = geometryProvider.build(demoCampus);
+    const colliders = buildCampusColliderSpecs(geometry);
+
+    // Verify presence of bridge decks and approach ramps
+    const westDeck = colliders.find((c) => c.id === 'fountain-bridge-deck-0');
+    const eastDeck = colliders.find((c) => c.id === 'fountain-bridge-deck-1');
+    expect(westDeck).toBeDefined();
+    expect(eastDeck).toBeDefined();
+
+    // West bridge must be centered at X = -3.05 (fountainX 5.5 - 8.55)
+    expect(westDeck!.position[0]).toBeCloseTo(-3.05, 1);
+    // East bridge must be centered at X = +14.05 (fountainX 5.5 + 8.55)
+    expect(eastDeck!.position[0]).toBeCloseTo(14.05, 1);
+
+    // Top surface of the deck is at Y = 0.82m
+    const deckTopY = westDeck!.position[1] + westDeck!.halfExtents[1];
+    expect(deckTopY).toBeCloseTo(0.82, 2);
+
+    // Ramps present for both bridges
+    expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-n-0')).toBe(true);
+    expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-s-0')).toBe(true);
+    expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-n-1')).toBe(true);
+    expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-s-1')).toBe(true);
+
+    // Verify that water basins DO NOT block either bridge corridor:
+    // West bridge corridor: X in [-4.10, -2.00]
+    // East bridge corridor: X in [13.00, 15.10]
+    const basins = colliders.filter((c) => c.id.startsWith('campus-fountain-basin'));
+    expect(basins.length).toBe(3);
+
+    for (const b of basins) {
+      const minX = b.position[0] - b.halfExtents[0];
+      const maxX = b.position[0] + b.halfExtents[0];
+
+      // Neither West bridge center (-3.05) nor East bridge center (14.05) should be inside any basin obstacle
+      const coversWestBridge = minX < -3.05 && maxX > -3.05;
+      const coversEastBridge = minX < 14.05 && maxX > 14.05;
+      expect(coversWestBridge).toBe(false);
+      expect(coversEastBridge).toBe(false);
+    }
   });
 });
