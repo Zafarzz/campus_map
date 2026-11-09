@@ -196,12 +196,40 @@ export function BlockFFacade({
     plinthColor,
     frameColor,
     wallTextures,
+    plinthTextures,
     glassTexture,
     englishFriezeTexture,
     koreanFriezeTexture,
-    transparent,
-    opacity,
   ]);
+
+  useEffect(() => {
+    const opaqueMats = [
+      materials.wallMat,
+      materials.plinthMat,
+      materials.trimMat,
+      materials.frameMat,
+      materials.cavityMat,
+      materials.englishFriezeMat,
+      materials.koreanFriezeMat,
+      materials.jointMat,
+    ];
+    for (const mat of opaqueMats) {
+      mat.transparent = transparent;
+      mat.opacity = opacity;
+      mat.depthWrite = !transparent;
+      mat.needsUpdate = true;
+    }
+    materials.glassMat.opacity = transparent ? opacity * 0.9 : 0.94;
+    materials.glassMat.depthWrite = !transparent;
+    materials.glassMat.needsUpdate = true;
+  }, [materials, transparent, opacity]);
+
+  useEffect(
+    () => () => {
+      Object.values(materials).forEach((m) => m.dispose());
+    },
+    [materials],
+  );
 
   const bayCount = Math.max(6, Math.round(facadeLength / 6.0));
   const bayWidth = facadeLength / bayCount;

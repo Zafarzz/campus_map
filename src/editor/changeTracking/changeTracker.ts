@@ -167,13 +167,13 @@ export function computeSemanticChanges(
         name: baselineDoc.name,
         description: baselineDoc.description,
         aiComment: baselineDoc.aiComment,
-        photos: cloneDocument((baselineDoc.photos ?? []) as any),
+        photos: cloneDocument(baselineDoc.photos ?? []),
       },
       after: {
         name: currentDoc.name,
         description: currentDoc.description,
         aiComment: currentDoc.aiComment,
-        photos: cloneDocument((currentDoc.photos ?? []) as any),
+        photos: cloneDocument(currentDoc.photos ?? []),
       },
     });
   }
@@ -195,7 +195,7 @@ export function computeSemanticChanges(
         summary: `Added building "${currBld.name}" (${currBld.footprint.size[0]}m × ${currBld.footprint.size[1]}m, ${currBld.floors.length} floors)`,
         aiComment: currBld.aiComment,
         before: null,
-        after: cloneDocument(currBld as any),
+        after: cloneDocument(currBld),
       });
 
       // Also record rooms added inside the new building
@@ -215,7 +215,7 @@ export function computeSemanticChanges(
             summary: `Added ${rm.elementType || rm.kind} "${rm.number}" (${rm.size[0]}m × ${rm.size[1]}m)`,
             aiComment: rm.aiComment,
             before: null,
-            after: cloneDocument(rm as any),
+            after: cloneDocument(rm),
           });
         }
       }
@@ -288,8 +288,8 @@ export function computeSemanticChanges(
         categories: bldCats,
         summary: bldSummaries.join('; '),
         aiComment: currBld.aiComment,
-        before: cloneDocument(baseBldMeta as any),
-        after: cloneDocument(currBldMeta as any),
+        before: cloneDocument(baseBldMeta),
+        after: cloneDocument(currBldMeta),
       });
     }
 
@@ -337,8 +337,8 @@ export function computeSemanticChanges(
             categories: flCats,
             summary: flSums.join('; '),
             aiComment: currFl.aiComment,
-            before: cloneDocument(baseFlMeta as any),
-            after: cloneDocument(currFlMeta as any),
+            before: cloneDocument(baseFlMeta),
+            after: cloneDocument(currFlMeta),
           });
         }
       }
@@ -379,7 +379,7 @@ export function computeSemanticChanges(
           summary: `Added ${semLabel} "${currRm.number}" (${currRm.size[0]}m × ${currRm.size[1]}m)`,
           aiComment: currRm.aiComment,
           before: null,
-          after: cloneDocument(currRm as any),
+          after: cloneDocument(currRm),
         });
         continue;
       }
@@ -453,8 +453,8 @@ export function computeSemanticChanges(
           categories: rmCats,
           summary: rmSummaries.join('; '),
           aiComment: currRm.aiComment,
-          before: cloneDocument(baseRm as any),
-          after: cloneDocument(currRm as any),
+          before: cloneDocument(baseRm),
+          after: cloneDocument(currRm),
         });
       }
     }
@@ -476,7 +476,7 @@ export function computeSemanticChanges(
           categories: ['deleted'],
           summary: `Deleted ${semLabel} "${baseRm.number}" (${baseRm.size[0]}m × ${baseRm.size[1]}m)`,
           aiComment: baseRm.aiComment,
-          before: cloneDocument(baseRm as any),
+          before: cloneDocument(baseRm),
           after: null,
         });
       }
@@ -498,7 +498,7 @@ export function computeSemanticChanges(
         categories: ['deleted'],
         summary: `Deleted building "${baseBld.name}" (${baseBld.footprint.size[0]}m × ${baseBld.footprint.size[1]}m)`,
         aiComment: baseBld.aiComment,
-        before: cloneDocument(baseBld as any),
+        before: cloneDocument(baseBld),
         after: null,
       });
     }
@@ -530,7 +530,7 @@ export function computeSemanticChanges(
         summary: `Added outdoor ${currEl.type} "${currEl.name}"`,
         aiComment: currEl.aiComment,
         before: null,
-        after: cloneDocument(currEl as any),
+        after: cloneDocument(currEl),
       });
       continue;
     }
@@ -594,8 +594,8 @@ export function computeSemanticChanges(
         categories: outCats,
         summary: outSummaries.join('; '),
         aiComment: currEl.aiComment,
-        before: cloneDocument(baseEl as any),
-        after: cloneDocument(currEl as any),
+        before: cloneDocument(baseEl),
+        after: cloneDocument(currEl),
       });
     }
   }
@@ -613,7 +613,7 @@ export function computeSemanticChanges(
         categories: ['deleted'],
         summary: `Deleted outdoor ${baseEl.type} "${baseEl.name}"`,
         aiComment: baseEl.aiComment,
-        before: cloneDocument(baseEl as any),
+        before: cloneDocument(baseEl),
         after: null,
       });
     }
@@ -636,7 +636,7 @@ export function revertIndividualChange(
     next.name = baselineDoc.name;
     next.description = baselineDoc.description;
     next.aiComment = baselineDoc.aiComment;
-    next.photos = baselineDoc.photos ? JSON.parse(JSON.stringify(baselineDoc.photos)) : undefined;
+    next.photos = baselineDoc.photos ? cloneDocument(baselineDoc.photos) : undefined;
     return next;
   }
 
@@ -649,11 +649,11 @@ export function revertIndividualChange(
       const currIdx = next.buildings.findIndex((b) => b.id === change.targetId);
       if (currIdx === -1) {
         // It was deleted -> restore full building
-        next.buildings.push(cloneDocument(baseBld as any) as any);
+        next.buildings.push(cloneDocument(baseBld));
       } else {
         // Restore building shell/props while keeping floor rooms unless they were also reverted
         const existingFloors = next.buildings[currIdx].floors;
-        const restoredBld = cloneDocument(baseBld as any) as unknown as EditorBuilding;
+        const restoredBld = cloneDocument(baseBld);
         restoredBld.floors = existingFloors;
         restoredBld.floorCount = existingFloors.length;
         next.buildings[currIdx] = restoredBld;
@@ -671,7 +671,7 @@ export function revertIndividualChange(
       fl.name = baseFl.name;
       fl.description = baseFl.description;
       fl.aiComment = baseFl.aiComment;
-      fl.photos = baseFl.photos ? JSON.parse(JSON.stringify(baseFl.photos)) : undefined;
+      fl.photos = baseFl.photos ? cloneDocument(baseFl.photos) : undefined;
     }
     return next;
   }
@@ -692,10 +692,10 @@ export function revertIndividualChange(
       const rmIdx = fl.rooms.findIndex((r) => r.id === change.targetId);
       if (rmIdx === -1) {
         // Deleted room -> restore it
-        fl.rooms.push(cloneDocument(baseRm as any) as any);
+        fl.rooms.push(cloneDocument(baseRm));
       } else {
         // Modified/moved/resized/renamed room -> restore to baseline
-        fl.rooms[rmIdx] = cloneDocument(baseRm as any) as any;
+        fl.rooms[rmIdx] = cloneDocument(baseRm);
       }
     }
     return next;
@@ -709,9 +709,9 @@ export function revertIndividualChange(
     } else {
       const idx = next.outdoorElements.findIndex((el) => el.id === change.targetId);
       if (idx === -1) {
-        next.outdoorElements.push(cloneDocument(baseOut as any) as any);
+        next.outdoorElements.push(cloneDocument(baseOut));
       } else {
-        next.outdoorElements[idx] = cloneDocument(baseOut as any) as any;
+        next.outdoorElements[idx] = cloneDocument(baseOut);
       }
     }
     return next;

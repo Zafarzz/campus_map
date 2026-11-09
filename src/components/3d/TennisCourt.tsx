@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 
 export type TennisCourtProps = {
@@ -62,6 +62,8 @@ export function TennisCourt({
 
     return { runoffMat, innerCourtMat, lineMat, postMat, netTapeMat, netMeshMat };
   }, []);
+
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   const totalLength = 36.0; // along Z
   const totalWidth = 18.0;  // along X

@@ -5,6 +5,8 @@
  * `domain/geometry` and are produced by a geometry provider, keyed by these IDs.
  */
 
+import type { BuildingAppearance } from '../appearance/types';
+
 export type DataProvenance =
   /** Confirmed by the user / official source. */
   | 'confirmed'
@@ -39,7 +41,7 @@ export type Building = {
   floors: Floor[];
   provenance: DataProvenance;
   appearancePreset?: string;
-  appearance?: any; // Partial<BuildingAppearance>
+  appearance?: Partial<BuildingAppearance>;
 };
 
 export type Campus = {

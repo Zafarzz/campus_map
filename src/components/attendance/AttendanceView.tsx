@@ -223,6 +223,8 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   };
 
   // Teacher actions
+  const [confirmingCloseSession, setConfirmingCloseSession] = useState<boolean>(false);
+
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formRoomId) return;
@@ -238,9 +240,10 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
         newSession.subject = formSubject;
       }
       setActiveTeacherSession(newSession);
+      setConfirmingCloseSession(false);
       await loadSessionsData();
-    } catch (err: any) {
-      alert(`Could not start attendance session: ${err?.message || 'Error'}`);
+    } catch (err: unknown) {
+      setScanError(`Could not start attendance session: ${err instanceof Error ? err.message : 'Error'}`);
     } finally {
       setIsCreatingSession(false);
     }
@@ -248,11 +251,9 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
 
   const handleCloseActiveSession = async () => {
     if (!activeTeacherSession) return;
-    if (!window.confirm('Close this attendance session? Late and present counts will be finalized.')) {
-      return;
-    }
     await closeAttendanceSession(activeTeacherSession.id);
     setActiveTeacherSession(null);
+    setConfirmingCloseSession(false);
     await loadSessionsData();
   };
 
@@ -574,11 +575,15 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
 
               {/* Rotating QR Box */}
               <div className="att-qr-box">
-                <div
-                  className="att-qr-canvas"
-                  dangerouslySetInnerHTML={{ __html: currentQr?.qr_svg || '' }}
-                  title="Dynamic Rotating QR Code"
-                />
+                <div className="att-qr-canvas" title="Dynamic Rotating QR Code">
+                  {currentQr?.qr_svg && currentQr.qr_svg.trim().startsWith('<svg') && (
+                    <img
+                      src={`data:image/svg+xml;utf8,${encodeURIComponent(currentQr.qr_svg)}`}
+                      alt="Dynamic Rotating QR Code"
+                      style={{ width: '100%', height: '100%', display: 'block' }}
+                    />
+                  )}
+                </div>
 
                 <div className="att-qr-timer-row">
                   <div className="att-qr-timer-info">
@@ -962,10 +967,15 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
               </button>
             </div>
 
-            <div
-              className="att-projector-qr"
-              dangerouslySetInnerHTML={{ __html: currentQr?.qr_svg || '' }}
-            />
+            <div className="att-projector-qr">
+              {currentQr?.qr_svg && currentQr.qr_svg.trim().startsWith('<svg') && (
+                <img
+                  src={`data:image/svg+xml;utf8,${encodeURIComponent(currentQr.qr_svg)}`}
+                  alt="Projector Rotating QR Code"
+                  style={{ width: '100%', height: '100%', display: 'block' }}
+                />
+              )}
+            </div>
 
             <div style={{ width: '100%', maxWidth: 300 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>

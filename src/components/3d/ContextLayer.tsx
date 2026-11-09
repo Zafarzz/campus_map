@@ -266,6 +266,7 @@ function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
   }, [gateZ, gateWidth, left, top, rightGate, plinthHeight, metalHeight]);
 
   useEffect(() => () => disposeMergedMap(merged), [merged]);
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   return (
     <group>
@@ -464,6 +465,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
   }, [geometry.context]);
 
   useEffect(() => () => disposeMergedMap(mergedContext), [mergedContext]);
+  useEffect(() => () => Object.values(contextMaterials).forEach((m) => m.dispose()), [contextMaterials]);
 
   return (
     <group>
@@ -491,7 +493,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       <SportsFacilities />
 
       {/* Grand Campus Fountain */}
-      <CampusFountain scale={1.0} position={[5.5, 0, -23.1]} />
+      <CampusFountain scale={1.0} position={[0.0, 0, -23.1]} />
 
       {/* Campus Outdoor Infrastructure & Site Furniture */}
       <SiteFurniture />

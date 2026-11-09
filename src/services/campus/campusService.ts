@@ -2,9 +2,13 @@ import type { Campus } from '../../domain/campus/types';
 import type { RoomGeometry } from '../../domain/geometry/types';
 import type { ContextFeaturePx, PxRect } from '../../data/reference-footprints';
 import { demoCampus } from '../../data/demo-campus';
-import { loadDraft } from '../../editor/storage/storageService';
-import { createInitialDocument, editorDocToCampusAndGeom } from '../../editor/domain/adapter';
+import type { EditorDocument } from '../../editor/domain/types';
 import { apiGet, isBackendEnabled } from '../api/apiClient';
+import {
+  HAS_EDITOR_DRAFT_KEY,
+  LS_EDITOR_DRAFT_KEY,
+  getRawStorageItem,
+} from '../storage/localStore';
 
 export type ActiveEditorOverrides = {
   buildingFootprintsPx?: Record<string, PxRect[]>;
@@ -20,26 +24,43 @@ export function getActiveEditorOverrides(): ActiveEditorOverrides {
 
 /**
  * Campus data source. Loads user-saved draft from storage if present,
- * or falls back to demoCampus.
+ * or falls back to demoCampus without downloading editor modules on cold start.
  */
 export async function loadCampus(): Promise<Campus> {
-  try {
-    const draft = await loadDraft();
-    const hasAllBuildings =
-      draft &&
-      draft.buildings &&
-      demoCampus.buildings.every((db) => draft.buildings.some((b) => b.id === db.id));
+  const hasSavedDraft =
+    getRawStorageItem(HAS_EDITOR_DRAFT_KEY) === '1' ||
+    getRawStorageItem(LS_EDITOR_DRAFT_KEY) !== null;
 
-    if (hasAllBuildings && draft && draft.buildings && draft.buildings.length >= demoCampus.buildings.length) {
-      const cCount = draft.buildings.filter((b) => b.shortName === 'C').length;
-      if (cCount <= 1) {
+  if (hasSavedDraft) {
+    try {
+      const { loadDraft } = await import('../../editor/storage/storageService');
+      const draft = await loadDraft();
+      const hasAllBuildings =
+        draft &&
+        draft.buildings &&
+        demoCampus.buildings.every((db) => draft.buildings.some((b) => b.id === db.id));
+
+      if (hasAllBuildings && draft && draft.buildings && draft.buildings.length >= demoCampus.buildings.length) {
+        const cCount = draft.buildings.filter((b) => b.shortName === 'C').length;
+        if (cCount <= 1) {
+          const { createInitialDocument, editorDocToCampusAndGeom } = await import(
+            '../../editor/domain/adapter'
+          );
+          let cachedInitialDoc: EditorDocument | null = null;
+          const getInitialDoc = (): EditorDocument => {
+            if (!cachedInitialDoc) {
+              cachedInitialDoc = createInitialDocument();
+            }
+            return cachedInitialDoc;
+          };
+
         // Ensure Block B (bld-g) in saved draft is flush with the amphitheater hall without gap (ADR-029)
         const bldG = draft.buildings.find((b) => b.id === 'bld-g');
         if (bldG) {
           bldG.footprint.center = [69.0, 60.5];
           if (bldG.parts?.[0]) bldG.parts[0].center = [69.0, 60.5];
         }
-        const connG = draft.outdoorElements?.find((e: any) => e.id === 'out-conn-bld-g-bld-i');
+        const connG = draft.outdoorElements?.find((e) => e.id === 'out-conn-bld-g-bld-i');
         if (connG) {
           connG.center = [65.25, 76.25];
           connG.size = [7.5, 16.5];
@@ -63,7 +84,7 @@ export async function loadCampus(): Promise<Campus> {
               bldIFloor1.rooms.some((r) => r.id === 'room-c-conf') ||
               !bldIFloor1.rooms.some((r) => r.id === 'bld-i-f1-foyer')))
         ) {
-          const initialDoc = createInitialDocument();
+          const initialDoc = getInitialDoc();
           const initBldI = initialDoc.buildings.find((b) => b.id === 'bld-i');
           const initFloor1 = initBldI?.floors.find((f) => f.level === 1);
           const initFloor2 = initBldI?.floors.find((f) => f.level === 2);
@@ -79,21 +100,22 @@ export async function loadCampus(): Promise<Campus> {
         const bldE = draft.buildings.find((b) => b.id === 'bld-e');
         const bldEFloor1 = bldE?.floors.find((f) => f.level === 1);
         if (bldE && bldEFloor1 && !bldEFloor1.rooms.some((r) => r.id === 'bld-e-f1-tennis')) {
-          const initialDoc = createInitialDocument();
+          const initialDoc = getInitialDoc();
           const initBldE = initialDoc.buildings.find((b) => b.id === 'bld-e');
           const initFloor1 = initBldE?.floors.find((f) => f.level === 1);
           if (initFloor1) {
             bldEFloor1.rooms = initFloor1.rooms;
           }
         }
-        const { campus, buildingFootprintsPx, roomOverrides, contextFeaturesPx } =
-          editorDocToCampusAndGeom(draft);
-        activeEditorOverrides = { buildingFootprintsPx, roomOverrides, contextFeaturesPx };
-        return campus;
+          const { campus, buildingFootprintsPx, roomOverrides, contextFeaturesPx } =
+            editorDocToCampusAndGeom(draft);
+          activeEditorOverrides = { buildingFootprintsPx, roomOverrides, contextFeaturesPx };
+          return campus;
+        }
       }
+    } catch (err) {
+      console.warn('[campusService] Failed to load draft from storage, using demoCampus:', err);
     }
-  } catch (err) {
-    console.warn('[campusService] Failed to load draft from storage, using demoCampus:', err);
   }
 
   activeEditorOverrides = {};

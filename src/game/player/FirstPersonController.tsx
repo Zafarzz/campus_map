@@ -63,6 +63,7 @@ export function FirstPersonController({
   const lastNearestBuildingRef = useRef<string | null>(null);
   const proximityCheckAccumRef = useRef<number>(0);
   const eulerRef = useRef<THREE.Euler>(new THREE.Euler(0, 0, 0, 'YXZ'));
+  const groundRayRef = useRef<InstanceType<typeof rapier.Ray> | null>(null);
 
   // Set initial camera orientation on mount
   useEffect(() => {
@@ -182,12 +183,18 @@ export function FirstPersonController({
     // 3. Ground detection & Jump
     const capsuleBottomOffset =
       gameConfig.player.capsuleHalfHeight + gameConfig.player.capsuleRadius;
-    const ray = new rapier.Ray(
-      { x: pos.x, y: pos.y, z: pos.z },
-      { x: 0, y: -1, z: 0 },
-    );
+    if (!groundRayRef.current) {
+      groundRayRef.current = new rapier.Ray(
+        { x: pos.x, y: pos.y, z: pos.z },
+        { x: 0, y: -1, z: 0 },
+      );
+    } else {
+      groundRayRef.current.origin.x = pos.x;
+      groundRayRef.current.origin.y = pos.y;
+      groundRayRef.current.origin.z = pos.z;
+    }
     const hit = world.castRay(
-      ray,
+      groundRayRef.current,
       capsuleBottomOffset + 0.2,
       true,
       undefined,

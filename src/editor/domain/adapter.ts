@@ -54,7 +54,12 @@ export function metersToPxRect(center: Vec2, size: [number, number]): PxRect {
   const r = l + w / mpp;
   const t = cz / mpp + imgH / 2 - d / (2 * mpp);
   const b = t + d / mpp;
-  return [Math.round(l), Math.round(t), Math.round(r), Math.round(b)];
+  return [
+    Number(l.toFixed(2)),
+    Number(t.toFixed(2)),
+    Number(r.toFixed(2)),
+    Number(b.toFixed(2)),
+  ];
 }
 
 const CONTEXT_LABELS: Record<string, string> = {
@@ -87,7 +92,7 @@ function createInitialOutdoorElements(): EditorOutdoorElement[] {
         description: 'Architectural fountain with 2 bridges and 5-tier cascade',
         layer: 'infrastructure',
         shape: 'rect',
-        center: [Number((center[0] - 50.0).toFixed(2)), center[1]],
+        center: [0.0, -23.1],
         size: [54, 18],
         contextKind: 'pitch',
       });
@@ -334,6 +339,8 @@ export function editorDocToCampusAndGeom(doc: EditorDocument): {
         const rooms = fl.rooms.map((rm) => {
           const worldX = bld.footprint.center[0] + rm.localCenter[0];
           const worldZ = bld.footprint.center[1] + rm.localCenter[1];
+          const baseOverride = accurateRoomOverrides[rm.id];
+          const baseBox = baseOverride?.type === 'box' ? baseOverride : undefined;
 
           const elHeight =
             rm.elementType === 'door'
@@ -342,13 +349,14 @@ export function editorDocToCampusAndGeom(doc: EditorDocument): {
                 ? 1.4
                 : rm.elementType === 'wall' || rm.elementType === 'partition'
                   ? roomHeight
-                  : roomHeight;
+                  : (baseBox?.size[1] ?? roomHeight);
+          const roomY = baseBox?.position[1] ?? y;
 
           const geom: RoomGeometry = {
             type: 'box',
-            position: [worldX, y, worldZ],
+            position: [worldX, roomY, worldZ],
             size: [rm.size[0], elHeight, rm.size[1]],
-            rotation: rm.rotation,
+            rotation: rm.rotation ?? baseBox?.rotation,
             precision: rm.provenance === 'confirmed' ? 'surveyed' : 'approximate',
           };
           roomOverrides[rm.id] = geom;

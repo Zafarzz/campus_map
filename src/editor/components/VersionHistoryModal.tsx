@@ -24,6 +24,11 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -40,30 +45,39 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
     }
   };
 
-  const handleRestore = async (ver: CampusVersion) => {
-    const ok = window.confirm(
-      `Restore snapshot "${ver.name}" (${new Date(ver.timestamp).toLocaleString()})?\n\nYour current state will be automatically backed up as a snapshot before restoring.`,
-    );
-    if (!ok) return;
-    await onRestoreVersion(ver);
+  const handleRestore = (ver: CampusVersion) => {
+    setPendingConfirm({
+      message: `Restore snapshot "${ver.name}" (${new Date(ver.timestamp).toLocaleString()})? Your current state will be automatically backed up before restoring.`,
+      confirmLabel: 'Restore Snapshot',
+      onConfirm: async () => {
+        setPendingConfirm(null);
+        await onRestoreVersion(ver);
+      },
+    });
   };
 
-  const handleDelete = async (ver: CampusVersion) => {
-    if (ver.type === 'initial') {
-      alert('The initial baseline snapshot cannot be deleted.');
-      return;
-    }
-    const ok = window.confirm(`Delete snapshot "${ver.name}" from history?`);
-    if (!ok) return;
-    await onDeleteVersion(ver.id);
+  const handleDelete = (ver: CampusVersion) => {
+    if (ver.type === 'initial') return;
+    setPendingConfirm({
+      message: `Delete snapshot "${ver.name}" from history?`,
+      confirmLabel: 'Delete Snapshot',
+      onConfirm: async () => {
+        setPendingConfirm(null);
+        await onDeleteVersion(ver.id);
+      },
+    });
   };
 
-  const handleReset = async () => {
-    const ok = window.confirm(
-      'Reset the entire campus map to its original factory state?\n\nAn automatic backup snapshot of your current edits will be saved before resetting.',
-    );
-    if (!ok) return;
-    await onResetToDefaults();
+  const handleReset = () => {
+    setPendingConfirm({
+      message:
+        'Reset the entire campus map to its original factory state? An automatic backup snapshot of your current edits will be saved before resetting.',
+      confirmLabel: 'Reset Campus',
+      onConfirm: async () => {
+        setPendingConfirm(null);
+        await onResetToDefaults();
+      },
+    });
   };
 
   return (
@@ -84,6 +98,9 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Saved Snapshots and Reset"
         style={{
           width: 'min(650px, 94vw)',
           maxHeight: '88dvh',
@@ -131,6 +148,59 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
             ✕
           </button>
         </div>
+
+        {pendingConfirm && (
+          <div
+            role="alert"
+            style={{
+              padding: '12px 20px',
+              backgroundColor: '#fffbeb',
+              borderBottom: '1px solid #fde68a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+              {pendingConfirm.message}
+            </span>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => void pendingConfirm.onConfirm()}
+                style={{
+                  padding: '5px 12px',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {pendingConfirm.confirmLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingConfirm(null)}
+                style={{
+                  padding: '5px 10px',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Create Named Version Section */}
         <div

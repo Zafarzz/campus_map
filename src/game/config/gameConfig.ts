@@ -401,33 +401,4 @@ export function findNearestBuildingInRange(
   return bestId ? { buildingId: bestId, distance: bestDist } : null;
 }
 
-export function isGameRoute(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.location.pathname === '/game' ||
-    window.location.pathname.startsWith('/game/') ||
-    window.location.hash === '#/game' ||
-    window.location.hash.startsWith('#/game')
-  );
-}
-
-export function navigateToGame(): void {
-  if (typeof window === 'undefined') return;
-  window.location.hash = '#/game';
-  window.dispatchEvent(new HashChangeEvent('hashchange'));
-}
-
-export function navigateToMap(): void {
-  if (typeof window === 'undefined') return;
-  if (document.pointerLockElement) {
-    document.exitPointerLock?.();
-  }
-  if (window.location.pathname.startsWith('/game')) {
-    window.history.pushState({}, '', '/');
-  }
-  if (window.location.hash) {
-    window.location.hash = '';
-  }
-  window.dispatchEvent(new PopStateEvent('popstate'));
-  window.dispatchEvent(new HashChangeEvent('hashchange'));
-}
+export { isGameRoute, navigateToGame, navigateToMap } from '../../hooks/useAppRoute';

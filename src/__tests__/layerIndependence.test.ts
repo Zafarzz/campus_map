@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { demoCampus } from '../data/demo-campus';
 import {
   ACADEMIC_CLASSIC,
@@ -15,6 +15,7 @@ import {
   updateBuildingFootprint,
 } from '../editor/history/commands';
 import {
+  clearDraftStorage,
   cloneDocument,
   createNamedVersion,
   initStorage,
@@ -22,6 +23,10 @@ import {
   saveDraft,
 } from '../editor/storage/storageService';
 import { geometryProvider } from '../services/geometry';
+
+afterEach(() => {
+  clearDraftStorage();
+});
 
 describe('Layer Independence & Visual Architecture (Stage C)', () => {
   it('Scenario 1: Changing building appearance does not mutate spatial geometry', () => {
@@ -172,7 +177,7 @@ describe('Layer Independence & Visual Architecture (Stage C)', () => {
     const loaded = await loadDraft();
     expect(loaded).toBeDefined();
     expect(loaded!.buildings[0].appearancePreset).toBe('academic-classic');
-    expect(loaded!.buildings[0].appearance.wallColor).toBe('#e0e7ff');
-    expect(loaded!.buildings[0].appearance.roofColor).toBe('#1e3a8a');
+    expect(loaded!.buildings[0].appearance?.wallColor).toBe('#e0e7ff');
+    expect(loaded!.buildings[0].appearance?.roofColor).toBe('#1e3a8a');
   });
 });

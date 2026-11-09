@@ -17,16 +17,12 @@ import { RoomDetails } from './components/ui/RoomDetails';
 import { SearchBox } from './components/ui/SearchBox';
 import { ViewportNavigationTools } from './components/ui/ViewportNavigationTools';
 import { CinematicButton, CinematicOverlay, useCinematicClean } from './cinematic/CinematicMode';
-import { isGameRoute, navigateToGame } from './game/config/gameConfig';
 import { AuthHeaderButton } from './components/auth/AuthHeaderButton';
 import { AuthModal } from './components/auth/AuthModal';
 import { CampusNavRail, type CampusNavSection } from './components/ui/CampusNavRail';
-import { BookingsView } from './components/booking/BookingsView';
-import { LostFoundView } from './components/lostfound/LostFoundView';
-import { CrowdedPlacesView } from './components/crowds/CrowdedPlacesView';
-import { AttendanceView } from './components/attendance/AttendanceView';
+import { navigateToEditor, navigateToGame, useAppRoute } from './hooks/useAppRoute';
 import { AuthProvider } from './state/AuthContext';
-import { MapProvider, useMap } from './state/MapProvider';
+import { MapProvider, useCampusData, useMapSelection } from './state/MapProvider';
 import './components/ui/panelMinimal.css';
 
 const LazyEditorPage = lazy(() =>
@@ -35,16 +31,18 @@ const LazyEditorPage = lazy(() =>
 const LazyGameScene = lazy(() =>
   import('./game/GameScene').then((m) => ({ default: m.GameScene })),
 );
-
-function isEditorRoute(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.location.pathname === '/editor' ||
-    window.location.pathname.startsWith('/editor/') ||
-    window.location.hash === '#/editor' ||
-    window.location.hash.startsWith('#/editor')
-  );
-}
+const LazyCrowdedPlacesView = lazy(() =>
+  import('./components/crowds/CrowdedPlacesView').then((m) => ({ default: m.CrowdedPlacesView })),
+);
+const LazyBookingsView = lazy(() =>
+  import('./components/booking/BookingsView').then((m) => ({ default: m.BookingsView })),
+);
+const LazyLostFoundView = lazy(() =>
+  import('./components/lostfound/LostFoundView').then((m) => ({ default: m.LostFoundView })),
+);
+const LazyAttendanceView = lazy(() =>
+  import('./components/attendance/AttendanceView').then((m) => ({ default: m.AttendanceView })),
+);
 
 type MobileSheetSnap = 'collapsed' | 'half' | 'expanded';
 
@@ -71,7 +69,8 @@ const SECTION_HEADERS: Record<CampusNavSection, { title: string; desc: string }>
 };
 
 function AppLayout() {
-  const { index, selection, clearSelection } = useMap();
+  const { index } = useCampusData();
+  const { selection, clearSelection } = useMapSelection();
   const isDev = isDevOrDebugMode();
   const cinematicClean = useCinematicClean();
   const [showTuning, setShowTuning] = useState(false);
@@ -245,10 +244,7 @@ function AppLayout() {
                   <button
                     type="button"
                     className="mode-btn mode-btn--editor"
-                    onClick={() => {
-                      window.location.hash = '#/editor';
-                      window.dispatchEvent(new HashChangeEvent('hashchange'));
-                    }}
+                    onClick={navigateToEditor}
                     title="Open 2D Campus Floorplan & Map Editor (/editor)"
                   >
                     ✏️ 2D Editor
@@ -271,17 +267,21 @@ function AppLayout() {
                   {selection.roomId && <RoomDetails />}
                 </>
               )}
-              {activeSection === 'crowds' && (
-                <CrowdedPlacesView onNavigateToMap={() => setActiveSection('map')} />
-              )}
-              {activeSection === 'bookings' && (
-                <BookingsView onBackToMap={() => setActiveSection('map')} />
-              )}
-              {activeSection === 'lostfound' && (
-                <LostFoundView onBackToMap={() => setActiveSection('map')} />
-              )}
-              {activeSection === 'attendance' && (
-                <AttendanceView onBackToMap={() => setActiveSection('map')} />
+              {activeSection !== 'map' && (
+                <Suspense fallback={<div className="panel-loading">Loading section…</div>}>
+                  {activeSection === 'crowds' && (
+                    <LazyCrowdedPlacesView onNavigateToMap={() => setActiveSection('map')} />
+                  )}
+                  {activeSection === 'bookings' && (
+                    <LazyBookingsView onBackToMap={() => setActiveSection('map')} />
+                  )}
+                  {activeSection === 'lostfound' && (
+                    <LazyLostFoundView onBackToMap={() => setActiveSection('map')} />
+                  )}
+                  {activeSection === 'attendance' && (
+                    <LazyAttendanceView onBackToMap={() => setActiveSection('map')} />
+                  )}
+                </Suspense>
               )}
             </div>
 
@@ -322,63 +322,41 @@ function AppLayout() {
 }
 
 export default function App() {
-  const [inEditor, setInEditor] = useState<boolean>(isEditorRoute);
-  const [inGame, setInGame] = useState<boolean>(isGameRoute);
-
-  useEffect(() => {
-    const handleLocationChange = () => {
-      setInEditor(isEditorRoute());
-      setInGame(isGameRoute());
-    };
-
-    window.addEventListener('popstate', handleLocationChange);
-    window.addEventListener('hashchange', handleLocationChange);
-
-    return () => {
-      window.removeEventListener('popstate', handleLocationChange);
-      window.removeEventListener('hashchange', handleLocationChange);
-    };
-  }, []);
-
-  if (inEditor) {
-    return (
-      <Suspense fallback={<InitialCampusLoader stageMessage="Loading 2D Vector Editor..." />}>
-        <Leva hidden={true} />
-        <LazyEditorPage />
-      </Suspense>
-    );
-  }
-
-  if (inGame) {
-    return (
-      <MapProvider
-        fallback={
-          <WalkthroughLoadingOverlay
-            title="Loading 3D Walk Mode"
-            stageMessage="Loading campus world geometry..."
-          />
-        }
-      >
-        <Suspense
-          fallback={
-            <WalkthroughLoadingOverlay
-              title="Loading 3D Walk Mode"
-              stageMessage="Initializing 3D Physics & Walkthrough Engine..."
-            />
-          }
-        >
-          <Leva hidden={true} />
-          <LazyGameScene />
-        </Suspense>
-      </MapProvider>
-    );
-  }
+  const { inEditor, inGame } = useAppRoute();
 
   return (
     <AuthProvider>
-      <MapProvider fallback={<InitialCampusLoader stageMessage="Initializing campus digital twin..." />}>
-        <AppLayout />
-      </MapProvider>
+      {inEditor ? (
+        <Suspense fallback={<InitialCampusLoader stageMessage="Loading 2D Vector Editor..." />}>
+          <Leva hidden={true} />
+          <LazyEditorPage />
+        </Suspense>
+      ) : inGame ? (
+        <MapProvider
+          fallback={
+            <WalkthroughLoadingOverlay
+              title="Loading 3D Walk Mode"
+              stageMessage="Loading campus world geometry..."
+            />
+          }
+        >
+          <Suspense
+            fallback={
+              <WalkthroughLoadingOverlay
+                title="Loading 3D Walk Mode"
+                stageMessage="Initializing 3D Physics & Walkthrough Engine..."
+              />
+            }
+          >
+            <Leva hidden={true} />
+            <LazyGameScene />
+          </Suspense>
+        </MapProvider>
+      ) : (
+        <MapProvider fallback={<InitialCampusLoader stageMessage="Initializing campus digital twin..." />}>
+          <AppLayout />
+        </MapProvider>
+      )}
     </AuthProvider>
   );
 }

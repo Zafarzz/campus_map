@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
 import { mapConfig } from '../../config/mapConfig';
@@ -168,6 +168,8 @@ export function BlockCSportsHallInterior({
       }),
     };
   }, [woodPbr]);
+
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   // Volleyball court dimensions scaled to hall
   const courtW = Math.min(7.2, widthX - 2.0);

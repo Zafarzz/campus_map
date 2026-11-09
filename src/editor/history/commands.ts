@@ -32,6 +32,14 @@ export class SnapshotCommand implements EditorCommand {
   undo(): EditorDocument {
     return cloneDocument(this.beforeDoc);
   }
+
+  getAfterDoc(): EditorDocument {
+    return this.afterDoc;
+  }
+
+  withAfterDoc(nextAfterDoc: EditorDocument): SnapshotCommand {
+    return new SnapshotCommand(this.description, this.beforeDoc, nextAfterDoc);
+  }
 }
 
 // Immutable document modification helpers
@@ -142,7 +150,7 @@ export function updateRoomPolygonInDoc(
 
 export function addBuildingToDoc(doc: EditorDocument, building: EditorBuilding): EditorDocument {
   const next = cloneDocument(doc);
-  next.buildings.push(cloneDocument(building as any) as any);
+  next.buildings.push(cloneDocument(building));
   return next;
 }
 
@@ -163,7 +171,7 @@ export function duplicateBuildingInDoc(
   const suffix = Date.now().toString(36).slice(-4);
   const newBldId = `${src.id}-copy-${suffix}`;
   const offset: Vec2 = [8, 8];
-  const copy: EditorBuilding = cloneDocument(src as any) as any;
+  const copy: EditorBuilding = cloneDocument(src);
   copy.id = newBldId;
   copy.name = `${src.name} (Copy)`;
   copy.shortName = `${src.shortName || 'B'}-2`;
@@ -197,7 +205,7 @@ export function addFloorToDoc(doc: EditorDocument, buildingId: string, floor: Ed
   const next = cloneDocument(doc);
   const bld = next.buildings.find((b) => b.id === buildingId);
   if (bld) {
-    bld.floors.push(cloneDocument(floor as any) as any);
+    bld.floors.push(cloneDocument(floor));
     bld.floors.sort((a, b) => a.level - b.level);
     bld.floorCount = bld.floors.length;
   }
@@ -219,7 +227,7 @@ export function addRoomToDoc(doc: EditorDocument, buildingId: string, floorId: s
   const bld = next.buildings.find((b) => b.id === buildingId);
   const fl = bld?.floors.find((f) => f.id === floorId);
   if (fl) {
-    fl.rooms.push(cloneDocument(room as any) as any);
+    fl.rooms.push(cloneDocument(room));
   }
   return next;
 }
@@ -254,7 +262,7 @@ export function duplicateRoomInDoc(
   const suffix = Date.now().toString(36).slice(-4);
   const newId = `${src.id}-copy-${suffix}`;
   const offset: Vec2 = [2.0, 2.0];
-  const copy: EditorRoom = cloneDocument(src as any) as any;
+  const copy: EditorRoom = cloneDocument(src);
   copy.id = newId;
   copy.number = `${src.number}-C`;
   copy.name = src.name ? `${src.name} (Copy)` : undefined;
@@ -310,7 +318,7 @@ export function addOutdoorElementToDoc(
 ): EditorDocument {
   const next = cloneDocument(doc);
   if (!next.outdoorElements) next.outdoorElements = [];
-  next.outdoorElements.push(cloneDocument(element as any) as any);
+  next.outdoorElements.push(cloneDocument(element));
   return next;
 }
 
@@ -376,7 +384,7 @@ export function duplicateOutdoorElementInDoc(
   const suffix = Date.now().toString(36).slice(-4);
   const newId = `${src.id}-copy-${suffix}`;
   const offset: Vec2 = [5, 5];
-  const copy: EditorOutdoorElement = cloneDocument(src as any) as any;
+  const copy: EditorOutdoorElement = cloneDocument(src);
   copy.id = newId;
   copy.name = `${src.name} (Copy)`;
   copy.center = [
@@ -391,6 +399,66 @@ export function duplicateOutdoorElementInDoc(
   }
   next.outdoorElements.push(copy);
   return { doc: next, newOutdoorId: newId };
+}
+
+export function moveMultiSelectionInDoc(
+  doc: EditorDocument,
+  delta: [dx: number, dz: number],
+  selectedIds: string[],
+  floorContext?: { buildingId: string; floorId: string },
+): EditorDocument {
+  const [dx, dz] = delta;
+  if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) return doc;
+  const idSet = new Set(selectedIds);
+  let next = cloneDocument(doc);
+
+  if (floorContext?.buildingId && floorContext?.floorId) {
+    const bld = next.buildings.find((b) => b.id === floorContext.buildingId);
+    const fl = bld?.floors.find((f) => f.id === floorContext.floorId);
+    if (fl) {
+      for (const rm of fl.rooms) {
+        if (!idSet.has(rm.id)) continue;
+        rm.localCenter = [
+          Number((rm.localCenter[0] + dx).toFixed(2)),
+          Number((rm.localCenter[1] + dz).toFixed(2)),
+        ];
+        if (rm.polygon && rm.polygon.length > 0) {
+          rm.polygon = rm.polygon.map(([px, pz]) => [
+            Number((px + dx).toFixed(2)),
+            Number((pz + dz).toFixed(2)),
+          ]);
+        }
+      }
+    }
+    return next;
+  }
+
+  for (const id of selectedIds) {
+    const bld = next.buildings.find((b) => b.id === id);
+    if (bld) {
+      next = updateBuildingFootprint(
+        next,
+        id,
+        [
+          Number((bld.footprint.center[0] + dx).toFixed(2)),
+          Number((bld.footprint.center[1] + dz).toFixed(2)),
+        ],
+        bld.footprint.size,
+      );
+      continue;
+    }
+    const out = (next.outdoorElements ?? []).find((o) => o.id === id);
+    if (out) {
+      next = updateOutdoorElementInDoc(next, id, {
+        center: [
+          Number((out.center[0] + dx).toFixed(2)),
+          Number((out.center[1] + dz).toFixed(2)),
+        ],
+      });
+    }
+  }
+
+  return next;
 }
 
 export function updateFloorPropsInDoc(

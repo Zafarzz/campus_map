@@ -5,7 +5,6 @@ import type {
   EditorBuilding,
   EditorDocument,
   EditorFloor,
-  EditorLayerId,
   EditorOutdoorElement,
   EditorRoom,
   EditorSelection,
@@ -17,6 +16,8 @@ import type {
   ValidationIssue,
 } from '../domain/types';
 import type { PhotoTargetSpec } from '../history/commands';
+import { INDOOR_ELEMENT_TYPES, OUTDOOR_TYPES, ROOM_KINDS } from './canvasConstants';
+import { EditorValidationList } from './EditorValidationList';
 import { PhotoAttachmentsSection } from './PhotoAttachmentsSection';
 
 interface EditorRightPanelProps {
@@ -91,43 +92,6 @@ interface EditorRightPanelProps {
   onRevertChange?: (change: SemanticChange) => void;
   onExportZip?: () => void;
 }
-
-const INDOOR_ELEMENT_TYPES: { label: string; value: IndoorElementType }[] = [
-  { label: '🏫 Room / Classroom', value: 'room' },
-  { label: '🚶 Corridor / Passage', value: 'corridor' },
-  { label: '🏛️ Hall / Auditorium', value: 'hall' },
-  { label: '🛋️ Lobby / Foyer', value: 'lobby' },
-  { label: '🚪 Door', value: 'door' },
-  { label: '🪟 Window', value: 'window' },
-  { label: '🪜 Stairs / Staircase', value: 'stairs' },
-  { label: '🛗 Elevator', value: 'elevator' },
-  { label: '🚩 Entrance', value: 'entrance' },
-  { label: '🏃 Exit', value: 'exit' },
-  { label: '🧱 Wall (Structural)', value: 'wall' },
-  { label: '📏 Partition / Divider', value: 'partition' },
-  { label: '📦 Custom Object', value: 'custom' },
-];
-
-const ROOM_KINDS: { label: string; value: RoomKind }[] = [
-  { label: 'Classroom (Аудитория)', value: 'classroom' },
-  { label: 'Laboratory (Лаборатория)', value: 'lab' },
-  { label: 'Office / Faculty (Офис)', value: 'office' },
-  { label: 'Hall / Common Space (Зал)', value: 'hall' },
-  { label: 'Library / Study Space (Коворкинг/Библиотека)', value: 'library' },
-  { label: 'Other / Service (Прочее)', value: 'other' },
-];
-
-const OUTDOOR_TYPES: { label: string; value: OutdoorElementType; layer: EditorLayerId }[] = [
-  { label: '🚶 Pedestrian Path / Sidewalk', value: 'path', layer: 'paths' },
-  { label: '🌉 Connecting Walkway', value: 'walkway', layer: 'paths' },
-  { label: '🛣️ Road / Driveway', value: 'road', layer: 'paths' },
-  { label: '🌿 Green Area / Lawn', value: 'lawn', layer: 'greenery' },
-  { label: '🌳 Tree / Vegetation', value: 'tree', layer: 'greenery' },
-  { label: '🏟️ Plaza / Open Space / Court', value: 'plaza', layer: 'infrastructure' },
-  { label: '⛲ Fountain / Water Feature', value: 'fountain', layer: 'infrastructure' },
-  { label: '⛩️ Campus Entrance / Gate', value: 'entrance', layer: 'infrastructure' },
-  { label: '📍 Custom Outdoor Object', value: 'custom', layer: 'annotations' },
-];
 
 export const EditorRightPanel: React.FC<EditorRightPanelProps> = ({
   doc,
@@ -1549,68 +1513,11 @@ export const EditorRightPanel: React.FC<EditorRightPanelProps> = ({
           </div>
         )}
 
-        {/* VALIDATION ISSUES LIST */}
-        {issues.length > 0 && (
-          <div
-            style={{
-              marginTop: 'auto',
-              paddingTop: 12,
-              borderTop: '1px solid #e2e8f0',
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: issues.some((i) => i.severity === 'error') ? '#dc2626' : '#d97706',
-                display: 'block',
-                marginBottom: 6,
-              }}
-            >
-              VALIDATION CHECKS ({issues.length})
-            </span>
-
-            <div style={{ maxHeight: 150, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {issues.map((iss) => (
-                <div
-                  key={iss.id}
-                  onClick={() => {
-                    if (iss.targetType === 'building') {
-                      onSelectionChange({ type: 'building', buildingId: iss.targetId });
-                    } else if (iss.targetType === 'outdoor') {
-                      onSelectionChange({ type: 'outdoor', outdoorId: iss.targetId });
-                    } else if (iss.targetType === 'room') {
-                      for (const b of doc.buildings) {
-                        for (const f of b.floors) {
-                          if (f.rooms.some((r) => r.id === iss.targetId)) {
-                            onSelectionChange({
-                              type: 'room',
-                              buildingId: b.id,
-                              floorId: f.id,
-                              roomId: iss.targetId,
-                            });
-                            return;
-                          }
-                        }
-                      }
-                    }
-                  }}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: 5,
-                    fontSize: 11,
-                    backgroundColor: iss.severity === 'error' ? '#fef2f2' : '#fffbeb',
-                    border: `1px solid ${iss.severity === 'error' ? '#fecaca' : '#fde68a'}`,
-                    color: iss.severity === 'error' ? '#b91c1c' : '#92400e',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {iss.message}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <EditorValidationList
+          doc={doc}
+          issues={issues}
+          onSelectionChange={onSelectionChange}
+        />
       </div>
     </aside>
   );

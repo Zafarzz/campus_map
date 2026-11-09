@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   computeSemanticChanges,
   revertIndividualChange,
@@ -21,6 +21,7 @@ import {
   duplicateBuildingInDoc,
   duplicateOutdoorElementInDoc,
   duplicateRoomInDoc,
+  moveMultiSelectionInDoc,
   removeBuildingFromDoc,
   removeOutdoorElementFromDoc,
   removePhotoFromTargetInDoc,
@@ -44,6 +45,7 @@ import {
   simulatePageReloadForAttachments,
 } from '../editor/storage/attachmentStorage';
 import {
+  clearDraftStorage,
   cloneDocument,
   createNamedVersion,
   deleteVersion,
@@ -53,6 +55,10 @@ import {
   saveDraft,
 } from '../editor/storage/storageService';
 import { validateDocument } from '../editor/validation/validator';
+
+afterEach(() => {
+  clearDraftStorage();
+});
 
 describe('2D Editor Domain & Adapter', () => {
   it('creates initial EditorDocument conforming to schema v1 with outdoor elements and multi-part wings', () => {
@@ -757,5 +763,92 @@ describe('2D Editor Photo Attachments & Visual References (Section 10)', () => {
     );
   });
 });
+
+describe('Multi-Selection Drag & History Coalescing', () => {
+  it('moves multiple selected buildings and outdoor elements atomically in outdoor mode', () => {
+    const doc = createInitialDocument();
+    const b1 = doc.buildings[0];
+    const b2 = doc.buildings[1];
+    const out1 = doc.outdoorElements![0];
+
+    const moved = moveMultiSelectionInDoc(
+      doc,
+      [10, -5],
+      [b1.id, b2.id, out1.id],
+    );
+
+    const movedB1 = moved.buildings.find((b) => b.id === b1.id)!;
+    const movedB2 = moved.buildings.find((b) => b.id === b2.id)!;
+    const movedOut1 = moved.outdoorElements!.find((o) => o.id === out1.id)!;
+
+    expect(movedB1.footprint.center[0]).toBeCloseTo(b1.footprint.center[0] + 10, 2);
+    expect(movedB1.footprint.center[1]).toBeCloseTo(b1.footprint.center[1] - 5, 2);
+    expect(movedB2.footprint.center[0]).toBeCloseTo(b2.footprint.center[0] + 10, 2);
+    expect(movedB2.footprint.center[1]).toBeCloseTo(b2.footprint.center[1] - 5, 2);
+    expect(movedOut1.center[0]).toBeCloseTo(out1.center[0] + 10, 2);
+    expect(movedOut1.center[1]).toBeCloseTo(out1.center[1] - 5, 2);
+  });
+
+  it('moves multiple selected rooms atomically in floor mode', () => {
+    const doc = createInitialDocument();
+    const bld = doc.buildings[0];
+    const fl = bld.floors[0];
+    const r1 = fl.rooms[0];
+    const r2 = fl.rooms[1];
+
+    const moved = moveMultiSelectionInDoc(
+      doc,
+      [4.5, 2.25],
+      [r1.id, r2.id],
+      { buildingId: bld.id, floorId: fl.id },
+    );
+
+    const movedFl = moved.buildings.find((b) => b.id === bld.id)!.floors.find((f) => f.id === fl.id)!;
+    const movedR1 = movedFl.rooms.find((r) => r.id === r1.id)!;
+    const movedR2 = movedFl.rooms.find((r) => r.id === r2.id)!;
+
+    expect(movedR1.localCenter[0]).toBeCloseTo(r1.localCenter[0] + 4.5, 2);
+    expect(movedR1.localCenter[1]).toBeCloseTo(r1.localCenter[1] + 2.25, 2);
+    expect(movedR2.localCenter[0]).toBeCloseTo(r2.localCenter[0] + 4.5, 2);
+    expect(movedR2.localCenter[1]).toBeCloseTo(r2.localCenter[1] + 2.25, 2);
+  });
+
+  it('coalesces consecutive SnapshotCommands with identical labels within the coalescing window', () => {
+    const history = new HistoryManager(50);
+    const doc0 = createInitialDocument();
+    const bldId = doc0.buildings[0].id;
+    const doc1 = updateBuildingPropsInDoc(doc0, bldId, { name: 'A' });
+    const doc2 = updateBuildingPropsInDoc(doc1, bldId, { name: 'AB' });
+    const doc3 = updateBuildingPropsInDoc(doc2, bldId, { name: 'ABC' });
+
+    history.push(new SnapshotCommand('Rename building', doc0, doc1), { coalesce: true, coalesceWindowMs: 5000 });
+    history.push(new SnapshotCommand('Rename building', doc1, doc2), { coalesce: true, coalesceWindowMs: 5000 });
+    history.push(new SnapshotCommand('Rename building', doc2, doc3), { coalesce: true, coalesceWindowMs: 5000 });
+
+    expect(history.undoCount).toBe(1);
+    const undone = history.undo(doc3)!;
+    expect(undone.doc.buildings[0].name).toBe(doc0.buildings[0].name);
+    const redone = history.redo(undone.doc)!;
+    expect(redone.doc.buildings[0].name).toBe('ABC');
+  });
+
+  it('preserves UV attributes on merged interior wood geometries and synchronizes fountain coordinates', async () => {
+    const { sharedBookcaseFrameGeo } = await import('../components/3d/BlockFLibraryInterior');
+    const { sharedBoothUnitGeos } = await import('../components/3d/ClassroomInterior3D');
+    const { FOUNTAIN_AUDIO_CENTER } = await import('../game/audio/campusAudioEngine');
+    const { TELEPORT_LOCATIONS } = await import('../game/config/gameConfig');
+
+    expect(sharedBookcaseFrameGeo.getAttribute('uv')).toBeDefined();
+    expect(sharedBoothUnitGeos.boothWoodGeo.getAttribute('uv')).toBeDefined();
+
+    const doc = createInitialDocument();
+    const editorFountain = (doc.outdoorElements ?? []).find((o) => o.id === 'out-fountain-main');
+    expect(editorFountain?.center).toEqual([0.0, -23.1]);
+    expect(FOUNTAIN_AUDIO_CENTER).toEqual([0.0, -23.1]);
+    const landmarkFountain = TELEPORT_LOCATIONS.find((l) => l.id === 'fountain-bridge');
+    expect(landmarkFountain?.position[0]).toBeCloseTo(0.0, 2);
+  });
+});
+
 
 

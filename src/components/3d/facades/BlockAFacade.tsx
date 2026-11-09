@@ -173,7 +173,36 @@ export function BlockAFacade({
       downpipeMat,
       grooveMat,
     };
-  }, [wallColor, trimColor, plinthColor, frameColor, wallTextures, transparent, opacity]);
+  }, [wallColor, trimColor, plinthColor, frameColor, wallTextures, plinthTextures, glassTexture]);
+
+  useEffect(() => {
+    const opaqueMats = [
+      materials.wallMat,
+      materials.plinthMat,
+      materials.trimMat,
+      materials.frameMat,
+      materials.darkFrameMat,
+      materials.steelMat,
+      materials.downpipeMat,
+      materials.grooveMat,
+    ];
+    for (const mat of opaqueMats) {
+      mat.transparent = transparent;
+      mat.opacity = opacity;
+      mat.depthWrite = !transparent;
+      mat.needsUpdate = true;
+    }
+    materials.glassMat.opacity = transparent ? opacity * 0.45 : 0.92;
+    materials.glassMat.depthWrite = !transparent;
+    materials.glassMat.needsUpdate = true;
+  }, [materials, transparent, opacity]);
+
+  useEffect(
+    () => () => {
+      Object.values(materials).forEach((m) => m.dispose());
+    },
+    [materials],
+  );
 
   const merged = useMemo(() => {
     const batcher = new StaticGeometryBatcher();

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { NO_RAYCAST } from '../geometry/staticGeometryMerger';
 import { getAjouLogoTexture } from './facadeTextures';
@@ -74,27 +74,18 @@ export function AjouLogoMedallion({
       color: '#cbd5e1',
       metalness: 0.85,
       roughness: 0.25,
-      transparent,
-      opacity,
-      depthWrite: !transparent,
     });
 
     const navyMat = new THREE.MeshStandardMaterial({
       color: '#002b66',
       metalness: 0.1,
       roughness: 0.3,
-      transparent,
-      opacity,
-      depthWrite: !transparent,
     });
 
     const whiteMat = new THREE.MeshStandardMaterial({
       color: '#ffffff',
       metalness: 0.05,
       roughness: 0.35,
-      transparent,
-      opacity,
-      depthWrite: !transparent,
     });
 
     const logoMat = new THREE.MeshStandardMaterial({
@@ -103,22 +94,41 @@ export function AjouLogoMedallion({
       roughness: 0.2,
       metalness: 0.08,
       transparent: true,
-      opacity: transparent ? opacity * 0.5 : 1,
-      depthWrite: !transparent,
       side: THREE.DoubleSide,
     });
 
     const textMat = new THREE.MeshStandardMaterial({
       map: textTexture ?? null,
       transparent: true,
-      opacity: transparent ? opacity * 0.5 : 1,
       roughness: 0.3,
       metalness: 0.1,
       depthWrite: false,
     });
 
     return { rimMat, navyMat, whiteMat, logoMat, textMat };
-  }, [logoTexture, textTexture, transparent, opacity]);
+  }, [logoTexture, textTexture]);
+
+  useEffect(() => {
+    for (const mat of [materials.rimMat, materials.navyMat, materials.whiteMat]) {
+      mat.transparent = transparent;
+      mat.opacity = opacity;
+      mat.depthWrite = !transparent;
+      mat.needsUpdate = true;
+    }
+    materials.logoMat.opacity = transparent ? opacity * 0.5 : 1;
+    materials.logoMat.depthWrite = !transparent;
+    materials.logoMat.needsUpdate = true;
+
+    materials.textMat.opacity = transparent ? opacity * 0.5 : 1;
+    materials.textMat.needsUpdate = true;
+  }, [materials, transparent, opacity]);
+
+  useEffect(
+    () => () => {
+      Object.values(materials).forEach((m) => m.dispose());
+    },
+    [materials],
+  );
 
   return (
     <group position={position} rotation={rotation} scale={scale}>

@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Vec2 } from '../../domain/geometry/types';
+import { navigateToMap } from '../../hooks/useAppRoute';
 import {
   computeSemanticChanges,
   revertIndividualChange,
 } from '../changeTracking/changeTracker';
 import { createInitialDocument } from '../domain/adapter';
 import type {
+  CampusVersion,
   CanvasViewport,
   EditorBuilding,
   EditorDocument,
@@ -30,6 +32,7 @@ import {
   duplicateBuildingInDoc,
   duplicateOutdoorElementInDoc,
   duplicateRoomInDoc,
+  moveMultiSelectionInDoc,
   removeBuildingFromDoc,
   removeFloorFromDoc,
   removeOutdoorElementFromDoc,
@@ -67,7 +70,7 @@ import { VersionHistoryModal } from './VersionHistoryModal';
 export const EditorPage: React.FC = () => {
   const [doc, setDoc] = useState<EditorDocument | null>(null);
   const [baselineDoc, setBaselineDoc] = useState<EditorDocument | null>(null);
-  const [versions, setVersions] = useState<any[]>([]);
+  const [versions, setVersions] = useState<CampusVersion[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [selection, setSelection] = useState<EditorSelection>({ type: 'none' });
   const [tool, setTool] = useState<EditorTool>('select');
@@ -78,6 +81,12 @@ export const EditorPage: React.FC = () => {
   const [leftTab, setLeftTab] = useState<'buildings' | 'outdoor' | 'changes'>('buildings');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [mobileDrawer, setMobileDrawer] = useState<'none' | 'left' | 'right'>('none');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   const [visibleLayers, setVisibleLayers] = useState<Record<EditorLayerId, boolean>>({
     buildings: true,
@@ -147,18 +156,51 @@ export const EditorPage: React.FC = () => {
     return computeSemanticChanges(baselineDoc, doc);
   }, [doc, baselineDoc]);
 
-  // Document Mutation with Command Pattern + Reliable Autosave
+  const autosaveTimerRef = useRef<number | undefined>(undefined);
+  const pendingAutosaveDocRef = useRef<EditorDocument | null>(null);
+
+  const scheduleAutosave = useCallback((nextDoc: EditorDocument) => {
+    pendingAutosaveDocRef.current = nextDoc;
+    if (autosaveTimerRef.current !== undefined) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = undefined;
+      const toSave = pendingAutosaveDocRef.current;
+      pendingAutosaveDocRef.current = null;
+      if (toSave) {
+        saveDraft(toSave).catch(() => {});
+      }
+    }, 250);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current !== undefined) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+      if (pendingAutosaveDocRef.current) {
+        saveDraft(pendingAutosaveDocRef.current).catch(() => {});
+        pendingAutosaveDocRef.current = null;
+      }
+    };
+  }, []);
+
+  // Document Mutation with Command Pattern + Coalescing + Debounced Autosave
   const applyMutation = useCallback(
     (actionName: string, nextDoc: EditorDocument) => {
       if (!doc) return;
+      const shouldCoalesce =
+        actionName.startsWith('Update ') ||
+        actionName.startsWith('Change ') ||
+        actionName.startsWith('Inline rename');
       const cmd = new SnapshotCommand(actionName, doc, nextDoc);
-      history.current.push(cmd);
+      history.current.push(cmd, { coalesce: shouldCoalesce, coalesceWindowMs: 500 });
       setDoc(nextDoc);
       setIsDirty(true);
-      // Autosave draft to IndexedDB / localStorage asynchronously
-      saveDraft(nextDoc).catch(() => {});
+      scheduleAutosave(nextDoc);
     },
-    [doc],
+    [doc, scheduleAutosave],
   );
 
   // Undo / Redo
@@ -168,10 +210,10 @@ export const EditorPage: React.FC = () => {
     if (res) {
       setDoc(res.doc);
       setIsDirty(true);
-      saveDraft(res.doc).catch(() => {});
+      scheduleAutosave(res.doc);
       showToast(`Undid: ${res.description}`);
     }
-  }, [doc, showToast]);
+  }, [doc, scheduleAutosave, showToast]);
 
   const handleRedo = useCallback(() => {
     if (!doc || !history.current.canRedo) return;
@@ -179,14 +221,19 @@ export const EditorPage: React.FC = () => {
     if (res) {
       setDoc(res.doc);
       setIsDirty(true);
-      saveDraft(res.doc).catch(() => {});
+      scheduleAutosave(res.doc);
       showToast(`Redid: ${res.description}`);
     }
-  }, [doc, showToast]);
+  }, [doc, scheduleAutosave, showToast]);
 
   // Save current draft explicitly
   const handleSave = useCallback(async () => {
     if (!doc) return;
+    if (autosaveTimerRef.current !== undefined) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = undefined;
+    }
+    pendingAutosaveDocRef.current = null;
     await saveDraft(doc);
     setIsDirty(false);
     showToast('Saved to 3D Campus Map');
@@ -386,9 +433,7 @@ export const EditorPage: React.FC = () => {
       await saveDraft(doc);
       setIsDirty(false);
     }
-    window.location.hash = '';
-    window.history.pushState(null, '', '/');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    navigateToMap();
   }, [doc]);
 
   // Operations: Buildings
@@ -472,24 +517,27 @@ export const EditorPage: React.FC = () => {
   );
 
   const handleDeleteBuilding = useCallback(
-    async (buildingId: string) => {
+    (buildingId: string) => {
       if (!doc) return;
       const bld = doc.buildings.find((b) => b.id === buildingId);
       if (!bld) return;
 
-      const ok = window.confirm(
-        `Delete building "${bld.name}" and all its floors? You can undo this action with Ctrl+Z.`,
-      );
-      if (!ok) return;
+      setConfirmDialog({
+        title: `Delete "${bld.name}"?`,
+        message: `Delete building "${bld.name}" and all its floors? You can undo this action with Ctrl+Z.`,
+        confirmLabel: 'Delete Building',
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          await createNamedVersion(doc, `Auto-backup before deleting ${bld.shortName || bld.name}`, '', 'auto');
+          const updatedVersions = await loadVersions();
+          setVersions(updatedVersions);
 
-      await createNamedVersion(doc, `Auto-backup before deleting ${bld.shortName || bld.name}`, '', 'auto');
-      const updatedVersions = await loadVersions();
-      setVersions(updatedVersions);
-
-      const next = removeBuildingFromDoc(doc, buildingId);
-      applyMutation(`Deleted building "${bld.name}"`, next);
-      setSelection({ type: 'none' });
-      showToast(`Deleted ${bld.name}`);
+          const next = removeBuildingFromDoc(doc, buildingId);
+          applyMutation(`Deleted building "${bld.name}"`, next);
+          setSelection({ type: 'none' });
+          showToast(`Deleted ${bld.name}`);
+        },
+      });
     },
     [doc, applyMutation, showToast],
   );
@@ -523,15 +571,21 @@ export const EditorPage: React.FC = () => {
       const fl = bld?.floors.find((f) => f.id === floorId);
       if (!bld || !fl) return;
       if (bld.floors.length <= 1) {
-        alert('Cannot delete the only floor of a building.');
+        showToast('Cannot delete the only floor of a building');
         return;
       }
-      const ok = window.confirm(`Delete Floor ${fl.level} and all its elements?`);
-      if (!ok) return;
-      const next = removeFloorFromDoc(doc, buildingId, floorId);
-      applyMutation(`Deleted Floor ${fl.level}`, next);
-      setSelection({ type: 'building', buildingId, floorId: bld.floors[0]?.id });
-      showToast(`Deleted Floor ${fl.level}`);
+      setConfirmDialog({
+        title: `Delete Floor ${fl.level}?`,
+        message: `Delete Floor ${fl.level} and all its elements?`,
+        confirmLabel: 'Delete Floor',
+        onConfirm: () => {
+          setConfirmDialog(null);
+          const next = removeFloorFromDoc(doc, buildingId, floorId);
+          applyMutation(`Deleted Floor ${fl.level}`, next);
+          setSelection({ type: 'building', buildingId, floorId: bld.floors[0]?.id });
+          showToast(`Deleted Floor ${fl.level}`);
+        },
+      });
     },
     [doc, applyMutation, showToast],
   );
@@ -1170,6 +1224,17 @@ export const EditorPage: React.FC = () => {
             onAddFloor={handleAddFloor}
             onDuplicateSelected={handleDuplicateSelected}
             onDeleteSelected={handleDeleteSelected}
+            onMoveMultiSelection={(delta, selectedIds, action) => {
+              const next = moveMultiSelectionInDoc(
+                doc,
+                delta,
+                selectedIds,
+                selection.buildingId && selection.floorId
+                  ? { buildingId: selection.buildingId, floorId: selection.floorId }
+                  : undefined,
+              );
+              applyMutation(action, next);
+            }}
             onRevertChange={handleRevertChange}
           />
 
@@ -1306,6 +1371,80 @@ export const EditorPage: React.FC = () => {
         onDeleteVersion={handleDeleteVersion}
         onResetToDefaults={handleResetToDefaults}
       />
+
+      {/* 4. NON-BLOCKING CONFIRMATION DIALOG */}
+      {confirmDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={confirmDialog.title}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(2px)',
+          }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            style={{
+              width: 'min(440px, 92vw)',
+              backgroundColor: '#ffffff',
+              borderRadius: 12,
+              border: '1px solid #cbd5e1',
+              padding: '20px 22px',
+              boxShadow: '0 20px 40px rgba(15, 23, 42, 0.22)',
+              color: '#0f172a',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+              {confirmDialog.title}
+            </h3>
+            <p style={{ margin: '0 0 18px', fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                style={{
+                  padding: '7px 14px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#334155',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDialog.onConfirm()}
+                style={{
+                  padding: '7px 14px',
+                  backgroundColor: '#dc2626',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                }}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

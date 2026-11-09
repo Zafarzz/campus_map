@@ -526,11 +526,32 @@ function GlazedConnectorMesh({
         roughness: 0.2,
         emissive: '#1e293b',
         emissiveIntensity: 0.4,
-        transparent: dimmed,
-        opacity: dimmed ? 0.35 : 1,
       }),
     };
-  }, [dimmed, roofTileTex, marbleTex]);
+  }, [roofTileTex, marbleTex]);
+
+  useEffect(() => {
+    materials.glass.opacity = dimmed ? 0.15 : 0.22;
+    materials.glass.needsUpdate = true;
+
+    const dimmable = [
+      materials.frame,
+      materials.plinth,
+      materials.roof,
+      materials.redRoof,
+      materials.whiteTrim,
+      materials.wall,
+      materials.wood,
+      materials.darkWood,
+      materials.screen,
+    ];
+    for (const mat of dimmable) {
+      mat.transparent = dimmed;
+      mat.opacity = dimmed ? 0.35 : 1;
+      mat.depthWrite = !dimmed;
+      mat.needsUpdate = true;
+    }
+  }, [materials, dimmed]);
 
   const merged = useMemo(() => {
     const batcher = new StaticGeometryBatcher();

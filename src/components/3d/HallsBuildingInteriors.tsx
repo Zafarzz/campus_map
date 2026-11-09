@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { Edges } from '@react-three/drei';
 import { getInteriorWoodTextures } from './materials/pbrMaterials';
 
 export const HALLS_BUILDING_ID = 'bld-e';
@@ -91,6 +92,8 @@ export function TennisHallInterior3D({
       }),
     };
   }, []);
+
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   return (
     <group position={position}>
@@ -261,10 +264,11 @@ export function TennisHallInterior3D({
 
       {/* 7. Selection Highlight */}
       {selected && (
-        <lineSegments position={[0, floorY + 0.09, 0]}>
-          <edgesGeometry args={[new THREE.BoxGeometry(widthX + 0.06, 0.02, lengthZ + 0.06)]} />
-          <lineBasicMaterial color="#38bdf8" linewidth={2} />
-        </lineSegments>
+        <mesh position={[0, floorY + 0.09, 0]}>
+          <boxGeometry args={[widthX + 0.06, 0.02, lengthZ + 0.06]} />
+          <meshBasicMaterial visible={false} />
+          <Edges color="#38bdf8" lineWidth={2} />
+        </mesh>
       )}
     </group>
   );
@@ -331,6 +335,8 @@ export function EventHallInterior3D({
       }),
     };
   }, [woodPbr]);
+
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   return (
     <group position={position}>
@@ -415,10 +421,11 @@ export function EventHallInterior3D({
 
       {/* 5. Selection Highlight */}
       {selected && (
-        <lineSegments position={[0, floorY + 0.09, 0]}>
-          <edgesGeometry args={[new THREE.BoxGeometry(widthX + 0.06, 0.02, lengthZ + 0.06)]} />
-          <lineBasicMaterial color="#38bdf8" linewidth={2} />
-        </lineSegments>
+        <mesh position={[0, floorY + 0.09, 0]}>
+          <boxGeometry args={[widthX + 0.06, 0.02, lengthZ + 0.06]} />
+          <meshBasicMaterial visible={false} />
+          <Edges color="#38bdf8" lineWidth={2} />
+        </mesh>
       )}
     </group>
   );

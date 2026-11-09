@@ -1,4 +1,5 @@
-import { apiGet, apiPatch, apiPost } from '../api/apiClient';
+import { apiGet, apiPatch, apiPost, isBackendEnabled } from '../api/apiClient';
+import { getJsonStorageItem, getRawStorageItem, setJsonStorageItem } from '../storage/localStore';
 import type {
   AttendanceRecordItem,
   AttendanceScanResult,
@@ -90,47 +91,26 @@ const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
 ];
 
 function loadLocalSessions(): AttendanceSessionInfo[] {
-  if (typeof window === 'undefined') return INITIAL_DEMO_SESSIONS;
-  try {
-    const raw = localStorage.getItem(STORAGE_SESSIONS_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_SESSIONS_KEY, JSON.stringify(INITIAL_DEMO_SESSIONS));
-      return INITIAL_DEMO_SESSIONS;
-    }
-    return JSON.parse(raw);
-  } catch {
+  const raw = getRawStorageItem(STORAGE_SESSIONS_KEY);
+  if (!raw) {
+    setJsonStorageItem(STORAGE_SESSIONS_KEY, INITIAL_DEMO_SESSIONS);
     return INITIAL_DEMO_SESSIONS;
   }
+  return getJsonStorageItem<AttendanceSessionInfo[]>(STORAGE_SESSIONS_KEY, INITIAL_DEMO_SESSIONS);
 }
 
 function saveLocalSessions(sessions: AttendanceSessionInfo[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_SESSIONS_KEY, JSON.stringify(sessions));
-  } catch (err) {
-    console.warn('Failed to save attendance sessions to localStorage', err);
-  }
+  setJsonStorageItem(STORAGE_SESSIONS_KEY, sessions);
 }
 
 function loadLocalMyRecords(): StudentAttendanceRecord[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_MY_RECORDS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return getJsonStorageItem<StudentAttendanceRecord[]>(STORAGE_MY_RECORDS_KEY, []);
 }
 
 function saveLocalMyRecord(record: StudentAttendanceRecord) {
-  if (typeof window === 'undefined') return;
-  try {
-    const existing = loadLocalMyRecords().filter((r) => r.id !== record.id);
-    existing.unshift(record);
-    localStorage.setItem(STORAGE_MY_RECORDS_KEY, JSON.stringify(existing.slice(0, 50)));
-  } catch (err) {
-    console.warn('Failed to save my attendance record to localStorage', err);
-  }
+  const existing = loadLocalMyRecords().filter((r) => r.id !== record.id);
+  existing.unshift(record);
+  setJsonStorageItem(STORAGE_MY_RECORDS_KEY, existing.slice(0, 50));
 }
 
 /**
@@ -212,21 +192,27 @@ export function generateDeterministicQrSvg(payload: string): string {
 export async function listAttendanceSessions(
   status: 'open' | 'closed' | 'all' = 'all',
   roomId?: string,
+  token?: string | null,
 ): Promise<AttendanceSessionInfo[]> {
-  try {
-    const params = new URLSearchParams();
-    if (status !== 'all') params.set('status', status);
-    if (roomId) params.set('room_id', roomId);
-    const query = params.toString() ? `?${params.toString()}` : '';
+  if (isBackendEnabled) {
+    try {
+      const queryParams: Record<string, string | undefined> = {
+        status: status !== 'all' ? status : undefined,
+        room_id: roomId || undefined,
+      };
 
-    const res = await apiGet<{ count: number; sessions: AttendanceSessionInfo[] }>(
-      `/academic/attendance/sessions${query}`,
-    );
-    if (res?.sessions && Array.isArray(res.sessions)) {
-      return res.sessions;
+      const res = await apiGet<{ count: number; sessions: AttendanceSessionInfo[] }>(
+        '/academic/attendance/sessions',
+        queryParams,
+        undefined,
+        token,
+      );
+      if (res?.sessions && Array.isArray(res.sessions)) {
+        return res.sessions;
+      }
+    } catch {
+      // Fallback to local store when backend is unreachable
     }
-  } catch (err) {
-    console.warn('Backend attendance session list unreachable, using local store:', err);
   }
 
   // Fallback to local store
@@ -245,14 +231,22 @@ export async function listAttendanceSessions(
 /**
  * Get single attendance session summary with records
  */
-export async function getAttendanceSession(sessionId: string): Promise<AttendanceSessionInfo | null> {
-  try {
-    const res = await apiGet<AttendanceSessionInfo>(
-      `/academic/attendance/sessions/${sessionId}`,
-    );
-    if (res?.id) return res;
-  } catch (err) {
-    console.warn(`Failed to fetch session ${sessionId} from backend:`, err);
+export async function getAttendanceSession(
+  sessionId: string,
+  token?: string | null,
+): Promise<AttendanceSessionInfo | null> {
+  if (isBackendEnabled) {
+    try {
+      const res = await apiGet<AttendanceSessionInfo>(
+        `/academic/attendance/sessions/${sessionId}`,
+        undefined,
+        undefined,
+        token,
+      );
+      if (res?.id) return res;
+    } catch {
+      // Fallback to local store
+    }
   }
 
   const local = loadLocalSessions().find((s) => s.id === sessionId);
@@ -262,14 +256,22 @@ export async function getAttendanceSession(sessionId: string): Promise<Attendanc
 /**
  * Fetch rotating QR code token and SVG
  */
-export async function getAttendanceQr(sessionId: string): Promise<RotatingQrTokenData> {
-  try {
-    const res = await apiGet<RotatingQrTokenData>(
-      `/academic/attendance/sessions/${sessionId}/qr`,
-    );
-    if (res?.token) return res;
-  } catch (err) {
-    console.warn(`Failed to fetch live QR from backend for ${sessionId}:`, err);
+export async function getAttendanceQr(
+  sessionId: string,
+  token?: string | null,
+): Promise<RotatingQrTokenData> {
+  if (isBackendEnabled) {
+    try {
+      const res = await apiGet<RotatingQrTokenData>(
+        `/academic/attendance/sessions/${sessionId}/qr`,
+        undefined,
+        undefined,
+        token,
+      );
+      if (res?.token) return res;
+    } catch {
+      // Fallback to local simulated rotating token
+    }
   }
 
   // Local simulated rotating token calculation
@@ -294,38 +296,56 @@ export async function getAttendanceQr(sessionId: string): Promise<RotatingQrToke
   };
 }
 
+interface OpenAttendanceSessionResponse {
+  id: string;
+  meeting_id?: string | null;
+  room_id?: string | null;
+  opened_at: string;
+  token_step_seconds: number;
+  late_after_minutes: number;
+  expected_count: number;
+}
+
 /**
  * Open a new attendance session (Teacher/Admin)
  */
 export async function openAttendanceSession(
   params: OpenAttendanceSessionParams,
+  token?: string | null,
 ): Promise<AttendanceSessionInfo> {
-  try {
-    const res = await apiPost<any>('/academic/attendance/sessions', {
-      room_id: params.room_id,
-      meeting_id: params.meeting_id || null,
-      token_step_seconds: params.token_step_seconds ?? 20,
-      late_after_minutes: params.late_after_minutes ?? 20,
-      expected_count: params.expected_count ?? 30,
-    });
-    if (res?.id) {
-      return {
-        id: res.id,
-        meeting_id: res.meeting_id ?? null,
-        room_id: res.room_id ?? params.room_id,
-        opened_at: res.opened_at,
-        closed_at: null,
-        is_open: true,
-        token_step_seconds: res.token_step_seconds,
-        late_after_minutes: res.late_after_minutes,
-        expected_count: res.expected_count,
-        counts: { present: 0, late: 0, pending_review: 0, guest: 0, rejected: 0 },
-        total_scans: 0,
-        records: [],
-      };
+  if (isBackendEnabled) {
+    try {
+      const res = await apiPost<OpenAttendanceSessionResponse>(
+        '/academic/attendance/sessions',
+        {
+          room_id: params.room_id,
+          meeting_id: params.meeting_id || null,
+          token_step_seconds: params.token_step_seconds ?? 20,
+          late_after_minutes: params.late_after_minutes ?? 20,
+          expected_count: params.expected_count ?? 30,
+        },
+        undefined,
+        token,
+      );
+      if (res?.id) {
+        return {
+          id: res.id,
+          meeting_id: res.meeting_id ?? null,
+          room_id: res.room_id ?? params.room_id,
+          opened_at: res.opened_at,
+          closed_at: null,
+          is_open: true,
+          token_step_seconds: res.token_step_seconds,
+          late_after_minutes: res.late_after_minutes,
+          expected_count: res.expected_count,
+          counts: { present: 0, late: 0, pending_review: 0, guest: 0, rejected: 0 },
+          total_scans: 0,
+          records: [],
+        };
+      }
+    } catch {
+      // Fallback to local session creation
     }
-  } catch (err) {
-    console.warn('Failed to open attendance session on backend, creating local fallback:', err);
   }
 
   // Local demo fallback
@@ -357,32 +377,37 @@ export async function openAttendanceSession(
 export async function scanAttendanceQr(
   sessionId: string,
   params: ScanAttendanceParams,
+  token?: string | null,
 ): Promise<AttendanceScanResult> {
-  try {
-    const res = await apiPost<AttendanceScanResult>(
-      `/academic/attendance/sessions/${sessionId}/scan`,
-      {
-        token: params.token,
-        device_id: params.device_id || 'web-browser',
-        latitude: params.latitude,
-        longitude: params.longitude,
-        geofence_enabled: Boolean(params.geofence_enabled),
-      },
-    );
-    if (res?.record_id) {
-      // Save to student check-in history
-      saveLocalMyRecord({
-        id: res.record_id,
-        session_id: res.session_id,
-        room_id: null,
-        state: res.state,
-        scanned_at: res.scanned_at,
-        review_reason: res.review_reason,
-      });
-      return res;
+  if (isBackendEnabled) {
+    try {
+      const res = await apiPost<AttendanceScanResult>(
+        `/academic/attendance/sessions/${sessionId}/scan`,
+        {
+          token: params.token,
+          device_id: params.device_id || 'web-browser',
+          latitude: params.latitude,
+          longitude: params.longitude,
+          geofence_enabled: Boolean(params.geofence_enabled),
+        },
+        undefined,
+        token,
+      );
+      if (res?.record_id) {
+        // Save to student check-in history
+        saveLocalMyRecord({
+          id: res.record_id,
+          session_id: res.session_id,
+          room_id: null,
+          state: res.state,
+          scanned_at: res.scanned_at,
+          review_reason: res.review_reason,
+        });
+        return res;
+      }
+    } catch {
+      // Fallback local registration
     }
-  } catch (err) {
-    console.warn(`Backend scan failed for session ${sessionId}:`, err);
   }
 
   // Fallback local registration
@@ -441,15 +466,23 @@ export async function reviewAttendanceRecord(
   recordId: string,
   decision: 'present' | 'late' | 'rejected',
   note?: string,
+  token?: string | null,
 ): Promise<void> {
-  try {
-    await apiPatch(`/academic/attendance/records/${recordId}/review`, {
-      decision,
-      note,
-    });
-    return;
-  } catch (err) {
-    console.warn(`Backend review failed for record ${recordId}:`, err);
+  if (isBackendEnabled) {
+    try {
+      await apiPatch(
+        `/academic/attendance/records/${recordId}/review`,
+        {
+          decision,
+          note,
+        },
+        undefined,
+        token,
+      );
+      return;
+    } catch {
+      // Fallback local update
+    }
   }
 
   // Fallback local update
@@ -469,12 +502,17 @@ export async function reviewAttendanceRecord(
 /**
  * Close an active attendance session
  */
-export async function closeAttendanceSession(sessionId: string): Promise<void> {
-  try {
-    await apiPost(`/academic/attendance/sessions/${sessionId}/close`, {});
-    return;
-  } catch (err) {
-    console.warn(`Backend close session failed for ${sessionId}:`, err);
+export async function closeAttendanceSession(
+  sessionId: string,
+  token?: string | null,
+): Promise<void> {
+  if (isBackendEnabled) {
+    try {
+      await apiPost(`/academic/attendance/sessions/${sessionId}/close`, {}, undefined, token);
+      return;
+    } catch {
+      // Fallback local update
+    }
   }
 
   // Fallback local update
@@ -490,16 +528,23 @@ export async function closeAttendanceSession(sessionId: string): Promise<void> {
 /**
  * List the current student's check-in history
  */
-export async function listMyAttendanceRecords(): Promise<StudentAttendanceRecord[]> {
-  try {
-    const res = await apiGet<{ count: number; records: StudentAttendanceRecord[] }>(
-      '/academic/attendance/my-records',
-    );
-    if (res?.records && Array.isArray(res.records)) {
-      return res.records;
+export async function listMyAttendanceRecords(
+  token?: string | null,
+): Promise<StudentAttendanceRecord[]> {
+  if (isBackendEnabled) {
+    try {
+      const res = await apiGet<{ count: number; records: StudentAttendanceRecord[] }>(
+        '/academic/attendance/my-records',
+        undefined,
+        undefined,
+        token,
+      );
+      if (res?.records && Array.isArray(res.records)) {
+        return res.records;
+      }
+    } catch {
+      // Fallback to local records
     }
-  } catch (err) {
-    console.warn('Backend my-records unreachable, returning local records:', err);
   }
   return loadLocalMyRecords();
 }

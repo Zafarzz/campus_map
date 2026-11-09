@@ -363,6 +363,7 @@ export function SportsFacilities() {
   }, []);
 
   useEffect(() => () => disposeMergedMap(merged), [merged]);
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   return (
     <group>

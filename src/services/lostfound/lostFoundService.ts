@@ -1,5 +1,6 @@
 import type { CampusIndex } from '../../domain/campus/campusIndex';
 import { apiGet, apiPost, isBackendEnabled } from '../api/apiClient';
+import { getJsonStorageItem, setJsonStorageItem } from '../storage/localStore';
 import type {
   CreateLostFoundPayload,
   LostFoundClaim,
@@ -13,7 +14,6 @@ import type {
 
 const OFFLINE_LF_KEY = 'campus_offline_lostfound_items';
 const OFFLINE_CLAIMS_KEY = 'campus_offline_lostfound_claims';
-const memoryStore = new Map<string, string>();
 
 const INITIAL_DEMO_ITEMS: LostFoundItem[] = [
   {
@@ -261,71 +261,27 @@ export function navigateToLostFoundItemOnMap(
 }
 
 function isCleanItem(item: LostFoundItem): boolean {
-  if (item.id === '01a1af7a-853d-7f10-b89f-0643442c2492') return false;
-  const title = (item.title || '').toLowerCase();
+  if (!item || !item.id || !item.title) return false;
+  const title = item.title.toLowerCase();
   if (title.includes('test keychain')) return false;
-  if (title === 'i found a wallet' && (item.description || '').toLowerCase().includes('malika nizamitdinova')) {
-    return false;
-  }
   return true;
 }
 
 function getStoredOfflineItems(): LostFoundItem[] {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = window.localStorage.getItem(OFFLINE_LF_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as LostFoundItem[];
-        return parsed.filter(isCleanItem);
-      }
-    }
-  } catch {
-    // fallback
-  }
-  const memRaw = memoryStore.get(OFFLINE_LF_KEY);
-  if (memRaw) {
-    const parsed = JSON.parse(memRaw) as LostFoundItem[];
-    return parsed.filter(isCleanItem);
-  }
-  return INITIAL_DEMO_ITEMS;
+  const stored = getJsonStorageItem<LostFoundItem[] | null>(OFFLINE_LF_KEY, null);
+  return stored ? stored.filter(isCleanItem) : INITIAL_DEMO_ITEMS;
 }
 
 function saveStoredOfflineItems(items: LostFoundItem[]): void {
-  const json = JSON.stringify(items);
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(OFFLINE_LF_KEY, json);
-    }
-  } catch {
-    // fallback
-  }
-  memoryStore.set(OFFLINE_LF_KEY, json);
+  setJsonStorageItem(OFFLINE_LF_KEY, items);
 }
 
 function getStoredOfflineClaims(): LostFoundClaim[] {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = window.localStorage.getItem(OFFLINE_CLAIMS_KEY);
-      if (raw) return JSON.parse(raw) as LostFoundClaim[];
-    }
-  } catch {
-    // fallback
-  }
-  const memRaw = memoryStore.get(OFFLINE_CLAIMS_KEY);
-  if (memRaw) return JSON.parse(memRaw) as LostFoundClaim[];
-  return [];
+  return getJsonStorageItem<LostFoundClaim[]>(OFFLINE_CLAIMS_KEY, []);
 }
 
 function saveStoredOfflineClaims(claims: LostFoundClaim[]): void {
-  const json = JSON.stringify(claims);
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(OFFLINE_CLAIMS_KEY, json);
-    }
-  } catch {
-    // fallback
-  }
-  memoryStore.set(OFFLINE_CLAIMS_KEY, json);
+  setJsonStorageItem(OFFLINE_CLAIMS_KEY, claims);
 }
 
 export async function listLostFoundItems(

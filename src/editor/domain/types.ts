@@ -1,3 +1,4 @@
+import type { BuildingAppearance } from '../../domain/appearance/types';
 import type { RoomKind } from '../../domain/campus/types';
 import type { Vec2 } from '../../domain/geometry/types';
 
@@ -135,7 +136,7 @@ export type EditorBuilding = {
   floors: EditorFloor[];
   floorCount: number;
   appearancePreset?: string;
-  appearance?: any; // Partial<BuildingAppearance>
+  appearance?: Partial<BuildingAppearance>;
 };
 
 export type EditorOutdoorElement = {

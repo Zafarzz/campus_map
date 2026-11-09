@@ -649,7 +649,7 @@ export function GameScene() {
         {/* Evening / Sunset architectural accent lights on Fountain, Art Object, and Entrance Gate */}
         {atmosphere.enableNightLights && (
           <group>
-            <pointLight position={[-2.45, 5.5, 15.9]} intensity={45} distance={75} color="#38bdf8" />
+            <pointLight position={[0.0, 5.5, -23.1]} intensity={45} distance={75} color="#38bdf8" />
             <pointLight position={[106.5, 3.2, 15.9]} intensity={25} distance={35} color="#fde047" />
             <pointLight position={[130.0, 5.0, 15.9]} intensity={35} distance={45} color="#fef08a" />
           </group>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { mergeStaticGeometries } from './geometry/staticGeometryMerger';
 import { getInteriorWoodTextures } from './materials/pbrMaterials';
 
 export const LIBRARY_ROOM_ID = 'bld-d-f1-f101';
@@ -49,33 +50,7 @@ const BOOK_PALETTE = [
   '#d97706', // Gold spine
 ];
 
-function mergeLibraryGeometries(geoms: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-
-  for (const g of geoms) {
-    const nonIdx = g.index ? g.toNonIndexed() : g;
-    const pos = nonIdx.getAttribute('position');
-    const norm = nonIdx.getAttribute('normal');
-    for (let i = 0; i < pos.count; i++) {
-      positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
-      if (norm) {
-        normals.push(norm.getX(i), norm.getY(i), norm.getZ(i));
-      } else {
-        normals.push(0, 1, 0);
-      }
-    }
-    if (nonIdx !== g) nonIdx.dispose();
-    g.dispose();
-  }
-
-  const merged = new THREE.BufferGeometry();
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  return merged;
-}
-
-const sharedBookcaseFrameGeo = (() => {
+export const sharedBookcaseFrameGeo = (() => {
   const [bw, bh, bd] = LIBRARY_LAYOUT.bookcaseSize;
   const parts: THREE.BufferGeometry[] = [];
 
@@ -97,7 +72,7 @@ const sharedBookcaseFrameGeo = (() => {
     parts.push(shelf);
   }
 
-  return mergeLibraryGeometries(parts);
+  return mergeStaticGeometries(parts);
 })();
 
 const sharedBookUnitGeo = new THREE.BoxGeometry(0.24, 1.0, 0.22);

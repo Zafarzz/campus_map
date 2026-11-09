@@ -29,37 +29,109 @@ const BACKEND_REFRESH_MS = 10_000;
 
 export type Selection = { buildingId?: string; floorId?: string; roomId?: string };
 
-type MapContextValue = {
+export type CampusDataContextValue = {
   campus: Campus;
   index: CampusIndex;
   geometry: CampusGeometry;
-  lessons: Lesson[];
-  weekLessons: ReadonlyMap<WeekdayIndex, Lesson[]>;
-  catalog: TimetableCatalog;
-  roomStates: Map<string, RoomScheduleState>;
-  now: Date;
+  showReference: boolean;
+  setShowReference: (v: boolean) => void;
+};
 
+export type SelectionContextValue = {
   selection: Selection;
   selectBuilding: (buildingId: string) => void;
   selectFloor: (floorId: string) => void;
   selectRoom: (roomId: string) => void;
   clearSelection: () => void;
+};
 
+export type TimeOccupancyContextValue = {
+  lessons: Lesson[];
+  weekLessons: ReadonlyMap<WeekdayIndex, Lesson[]>;
+  catalog: TimetableCatalog;
+  roomStates: Map<string, RoomScheduleState>;
+  now: Date;
   time: TimeMode;
   setTime: (time: TimeMode) => void;
-
-  showReference: boolean;
-  setShowReference: (v: boolean) => void;
-
   scheduleLoading?: boolean;
 };
 
+type MapContextValue = CampusDataContextValue & SelectionContextValue & TimeOccupancyContextValue;
+
 const MapContext = createContext<MapContextValue | null>(null);
+const CampusDataContext = createContext<CampusDataContextValue | null>(null);
+const SelectionContext = createContext<SelectionContextValue | null>(null);
+const TimeOccupancyContext = createContext<TimeOccupancyContextValue | null>(null);
 
 export function useMap(): MapContextValue {
   const ctx = useContext(MapContext);
   if (!ctx) throw new Error('useMap must be used inside <MapProvider>');
   return ctx;
+}
+
+export function useCampusData(): CampusDataContextValue {
+  const ctx = useContext(CampusDataContext);
+  if (!ctx) throw new Error('useCampusData must be used inside <MapProvider>');
+  return ctx;
+}
+
+export function useMapSelection(): SelectionContextValue {
+  const ctx = useContext(SelectionContext);
+  if (!ctx) throw new Error('useMapSelection must be used inside <MapProvider>');
+  return ctx;
+}
+
+export function useMapTime(): TimeOccupancyContextValue {
+  const ctx = useContext(TimeOccupancyContext);
+  if (!ctx) throw new Error('useMapTime must be used inside <MapProvider>');
+  return ctx;
+}
+
+function areLessonsEqual(a: Lesson[], b: Lesson[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const la = a[i];
+    const lb = b[i];
+    if (
+      la.id !== lb.id ||
+      la.roomId !== lb.roomId ||
+      la.startsAt !== lb.startsAt ||
+      la.endsAt !== lb.endsAt ||
+      la.subject !== lb.subject ||
+      la.teacher !== lb.teacher ||
+      la.group !== lb.group ||
+      la.cancelled !== lb.cancelled
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areCatalogsEqual(a: TimetableCatalog, b: TimetableCatalog): boolean {
+  if (a === b) return true;
+  return (
+    a.subjects.length === b.subjects.length &&
+    a.professors.length === b.professors.length &&
+    a.groups.length === b.groups.length
+  );
+}
+
+function areCampusesEqual(a: Campus, b: Campus): boolean {
+  if (a === b) return true;
+  if (a.id !== b.id || a.name !== b.name || a.buildings.length !== b.buildings.length) return false;
+  for (let i = 0; i < a.buildings.length; i++) {
+    const ba = a.buildings[i];
+    const bb = b.buildings[i];
+    if (ba.id !== bb.id || ba.name !== bb.name || ba.floors.length !== bb.floors.length) {
+      return false;
+    }
+    for (let j = 0; j < ba.floors.length; j++) {
+      if (ba.floors[j].rooms.length !== bb.floors[j].rooms.length) return false;
+    }
+  }
+  return true;
 }
 
 type LoadedCampus = { campus: Campus; index: CampusIndex; geometry: CampusGeometry };
@@ -86,7 +158,7 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
       .then((campus) => {
         setLoadingStage('Preparing 3D building geometry & floors...');
         setLoaded((prev) =>
-          prev && JSON.stringify(prev.campus) === JSON.stringify(campus)
+          prev && areCampusesEqual(prev.campus, campus)
             ? prev
             : { campus, index: createCampusIndex(campus), geometry: geometryProvider.build(campus) },
         );
@@ -112,7 +184,7 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
       loadLessonsForDate(loaded.campus, dateKey)
         .then((l) => {
           if (!alive) return;
-          setLessons((prev) => (JSON.stringify(prev) === JSON.stringify(l) ? prev : l));
+          setLessons((prev) => (areLessonsEqual(prev, l) ? prev : l));
           setScheduleLoading(false);
         })
         .catch(() => {
@@ -144,7 +216,7 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
       });
       loadTimetableCatalog().then((cat) => {
         if (!alive) return;
-        setCatalog((prev) => (JSON.stringify(prev) === JSON.stringify(cat) ? prev : cat));
+        setCatalog((prev) => (areCatalogsEqual(prev, cat) ? prev : cat));
       });
     };
     refreshWeekAndCatalog();
@@ -155,6 +227,7 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
     };
   }, [loaded, weekMondayKey]);
 
+  const nowMs = now.getTime();
   const roomStates = useMemo(
     () =>
       loaded
@@ -162,9 +235,9 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
             upcomingWindowMinutes: mapConfig.schedule.upcomingWindowMinutes,
           })
         : new Map<string, RoomScheduleState>(),
-    // `now` changes identity every render in simulated mode; depend on its value.
+    // `now` changes identity every render in simulated mode; depend on its timestamp value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [loaded, lessons, now.getTime()],
+    [loaded, lessons, nowMs],
   );
 
   const selectBuilding = useCallback(
@@ -200,6 +273,58 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
 
   const clearSelection = useCallback(() => setSelection({}), []);
 
+  const campusDataValue = useMemo<CampusDataContextValue | null>(
+    () =>
+      loaded
+        ? {
+            campus: loaded.campus,
+            index: loaded.index,
+            geometry: loaded.geometry,
+            showReference,
+            setShowReference,
+          }
+        : null,
+    [loaded, showReference],
+  );
+
+  const selectionValue = useMemo<SelectionContextValue>(
+    () => ({
+      selection,
+      selectBuilding,
+      selectFloor,
+      selectRoom,
+      clearSelection,
+    }),
+    [selection, selectBuilding, selectFloor, selectRoom, clearSelection],
+  );
+
+  const timeValue = useMemo<TimeOccupancyContextValue>(
+    () => ({
+      lessons,
+      weekLessons,
+      catalog,
+      roomStates,
+      now,
+      time,
+      setTime,
+      scheduleLoading,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lessons, weekLessons, catalog, roomStates, nowMs, time, scheduleLoading],
+  );
+
+  const combinedValue = useMemo<MapContextValue | null>(
+    () =>
+      campusDataValue
+        ? {
+            ...campusDataValue,
+            ...selectionValue,
+            ...timeValue,
+          }
+        : null,
+    [campusDataValue, selectionValue, timeValue],
+  );
+
   if (loadError) {
     return (
       <div className="campus-init-loader" role="alert">
@@ -214,28 +339,17 @@ export function MapProvider({ children, fallback }: { children: ReactNode; fallb
     );
   }
 
-  if (!loaded) {
+  if (!loaded || !campusDataValue || !combinedValue) {
     return <>{fallback ?? <div className="loading">{loadingStage}</div>}</>;
   }
 
-  const value: MapContextValue = {
-    ...loaded,
-    lessons,
-    weekLessons,
-    catalog,
-    roomStates,
-    now,
-    selection,
-    selectBuilding,
-    selectFloor,
-    selectRoom,
-    clearSelection,
-    time,
-    setTime,
-    showReference,
-    setShowReference,
-    scheduleLoading,
-  };
-
-  return <MapContext.Provider value={value}>{children}</MapContext.Provider>;
+  return (
+    <CampusDataContext.Provider value={campusDataValue}>
+      <SelectionContext.Provider value={selectionValue}>
+        <TimeOccupancyContext.Provider value={timeValue}>
+          <MapContext.Provider value={combinedValue}>{children}</MapContext.Provider>
+        </TimeOccupancyContext.Provider>
+      </SelectionContext.Provider>
+    </CampusDataContext.Provider>
+  );
 }

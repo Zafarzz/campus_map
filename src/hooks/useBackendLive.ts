@@ -6,6 +6,7 @@ import {
   pingBackend,
   type BuildVersionInfo,
 } from '../services/api/apiClient';
+import { isEditorRoute, isGameRoute } from './useAppRoute';
 
 export type BusynessPlace = {
   place_id: string;
@@ -163,15 +164,7 @@ export function toCampusIsoMinute(d: Date): string {
 
 function shouldDeferAutoReload(nextBuildId: string): boolean {
   if (typeof window === 'undefined') return true;
-  const { pathname, hash } = window.location;
-  if (
-    pathname === '/editor' ||
-    pathname.startsWith('/editor/') ||
-    hash.startsWith('#/editor') ||
-    pathname === '/game' ||
-    pathname.startsWith('/game/') ||
-    hash.startsWith('#/game')
-  ) {
+  if (isEditorRoute() || isGameRoute()) {
     return true;
   }
   try {
