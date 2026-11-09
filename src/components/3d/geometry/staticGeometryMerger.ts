@@ -83,6 +83,8 @@ export function mergeBufferGeometries(
   return merged;
 }
 
+export const mergeStaticGeometries = mergeBufferGeometries;
+
 /**
  * Declarative builder for accumulating static box/cylinder/sphere/custom geometries by material key
  * and compiling them into one merged BufferGeometry per material key.

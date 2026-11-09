@@ -245,19 +245,11 @@ export function CrowdedPlacesView({ onNavigateToMap }: CrowdedPlacesViewProps) {
             const levelStyle = LEVEL_COLORS[place.level] || LEVEL_COLORS.moderate;
 
             return (
-              <div
+              <article
                 key={place.place_id}
                 className={`crowd-hub-card${isSelected ? ' is-selected' : ''}`}
-                role="button"
-                tabIndex={0}
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleLocatePlace(place)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleLocatePlace(place);
-                  }
-                }}
               >
                 <div className="crowd-hub-card__header">
                   <div className="crowd-hub-card__title-box">
@@ -319,7 +311,7 @@ export function CrowdedPlacesView({ onNavigateToMap }: CrowdedPlacesViewProps) {
                     <span>Locate in 3D</span>
                   </button>
                 </div>
-              </div>
+              </article>
             );
           })
         )}

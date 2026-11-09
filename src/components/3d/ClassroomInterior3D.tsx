@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { mergeStaticGeometries } from './geometry/staticGeometryMerger';
 import { getInteriorWoodTextures } from './materials/pbrMaterials';
 
 export type ClassroomInteriorProps = {
@@ -315,32 +316,6 @@ function getSharedClassroomMaterials(): SharedClassroomMaterials {
   return sharedMaterials;
 }
 
-function mergeStaticGeometries(geoms: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-
-  for (const g of geoms) {
-    const nonIdx = g.index ? g.toNonIndexed() : g;
-    const pos = nonIdx.getAttribute('position');
-    const norm = nonIdx.getAttribute('normal');
-    for (let i = 0; i < pos.count; i++) {
-      positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
-      if (norm) {
-        normals.push(norm.getX(i), norm.getY(i), norm.getZ(i));
-      } else {
-        normals.push(0, 1, 0);
-      }
-    }
-    if (nonIdx !== g) nonIdx.dispose();
-    g.dispose();
-  }
-
-  const merged = new THREE.BufferGeometry();
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  return merged;
-}
-
 // Shared unit primitives
 const sharedUnitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
 const sharedUnitPlaneGeo = new THREE.PlaneGeometry(1, 1);
@@ -352,7 +327,7 @@ const sharedUnitPlaneGeo = new THREE.PlaneGeometry(1, 1);
  * 2. Black steel metalwork: Leg frames, foot rails, cable grommets, chair legs.
  * 3. Ergonomic black seats: 2 contoured seats + 2 curved backrests.
  */
-const sharedBoothUnitGeos = (() => {
+export const sharedBoothUnitGeos = (() => {
   // 1. Sonoma Oak woodwork
   const woodParts: THREE.BufferGeometry[] = [];
 

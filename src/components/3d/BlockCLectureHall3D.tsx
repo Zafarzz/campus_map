@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
 import { mapConfig } from '../../config/mapConfig';
@@ -164,6 +164,9 @@ export function BlockCLectureHall3D({
       }),
     };
   }, [woodPbr, screenTexture]);
+
+  useEffect(() => () => screenTexture?.dispose(), [screenTexture]);
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   // Front presentation wall is at North (negative Z).
   // Seating steps rise toward South (positive Z).

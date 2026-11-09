@@ -1,9 +1,10 @@
 import { sortedFloors } from '../../domain/campus/campusIndex';
-import { useMap } from '../../state/MapProvider';
+import { useCampusData, useMapSelection } from '../../state/MapProvider';
 
 /** Vertical floor switcher shown over the map when a building is selected. */
 export function FloorSelector() {
-  const { index, selection, selectFloor, clearSelection } = useMap();
+  const { index } = useCampusData();
+  const { selection, selectFloor, clearSelection } = useMapSelection();
   const building = selection.buildingId ? index.buildings.get(selection.buildingId) : undefined;
   if (!building) return null;
   const floors = sortedFloors(building).reverse(); // top floor first

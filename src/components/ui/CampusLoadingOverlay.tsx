@@ -1,6 +1,6 @@
 import { useProgress } from '@react-three/drei';
-import { useEffect, useState } from 'react';
-import { useMap } from '../../state/MapProvider';
+import { useEffect, useRef, useState } from 'react';
+import { useMapSelection } from '../../state/MapProvider';
 
 /**
  * Unified loading and status feedback for the 3D Campus Platform.
@@ -35,21 +35,21 @@ export function InitialCampusLoader({ stageMessage = 'Initializing campus...' }:
 
 export function SceneActivityIndicator() {
   const { active, progress, item, loaded, total } = useProgress();
-  const { selection } = useMap();
+  const { selection } = useMapSelection();
   const [transitionMessage, setTransitionMessage] = useState<string | null>(null);
-  const [prevBuildingId, setPrevBuildingId] = useState<string | undefined>(selection.buildingId);
-  const [prevFloorId, setPrevFloorId] = useState<string | undefined>(selection.floorId);
+  const prevBuildingIdRef = useRef<string | undefined>(selection.buildingId);
+  const prevFloorIdRef = useRef<string | undefined>(selection.floorId);
 
   useEffect(() => {
     let message: string | null = null;
-    if (selection.buildingId !== prevBuildingId) {
-      setPrevBuildingId(selection.buildingId);
-      setPrevFloorId(selection.floorId);
+    if (selection.buildingId !== prevBuildingIdRef.current) {
+      prevBuildingIdRef.current = selection.buildingId;
+      prevFloorIdRef.current = selection.floorId;
       if (selection.buildingId) {
         message = 'Loading building interior...';
       }
-    } else if (selection.floorId !== prevFloorId) {
-      setPrevFloorId(selection.floorId);
+    } else if (selection.floorId !== prevFloorIdRef.current) {
+      prevFloorIdRef.current = selection.floorId;
       if (selection.floorId) {
         message = 'Switching floor...';
       }
@@ -62,7 +62,7 @@ export function SceneActivityIndicator() {
       }, 420);
       return () => window.clearTimeout(timer);
     }
-  }, [selection.buildingId, selection.floorId, prevBuildingId, prevFloorId]);
+  }, [selection.buildingId, selection.floorId]);
 
   if (!active && !transitionMessage) return null;
 

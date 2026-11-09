@@ -69,6 +69,13 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
     keys: new Set<string>(),
     drag: false,
     prevYaw: 0,
+    // pre-allocated scratch vectors for per-frame useFrame / freeFlightStep
+    scratchPos: new THREE.Vector3(),
+    scratchTgt: new THREE.Vector3(),
+    scratchFwd: new THREE.Vector3(),
+    scratchRight: new THREE.Vector3(),
+    scratchDesired: new THREE.Vector3(),
+    scratchUp: new THREE.Vector3(0, 1, 0),
   });
 
   // ---- recording bridge: copy the WebGL frame right after every render -------------------
@@ -236,7 +243,7 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
       c.enabled = !wantsLock;
       if (!wantsLock) {
         // leaving a driven state: drop banking so the horizon is level again
-        if (st.driving) st.look = { target: c.getTarget(new THREE.Vector3()), roll: 0 };
+        if (st.driving) st.look = { target: c.getTarget(st.scratchTgt), roll: 0 };
         st.bank = 0;
       }
     }
@@ -258,8 +265,8 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
     if (st.freeActive) {
       st.freeActive = false;
       // continue user navigation from where the flight ended
-      const fwd = camera.getWorldDirection(new THREE.Vector3());
-      const t = camera.position.clone().addScaledVector(fwd, 60);
+      const fwd = camera.getWorldDirection(st.scratchFwd);
+      const t = st.scratchTgt.copy(camera.position).addScaledVector(fwd, 60);
       void c.setLookAt(camera.position.x, camera.position.y, camera.position.z, t.x, t.y, t.z, false);
       st.look = { target: t, roll: 0 };
     }
@@ -292,8 +299,8 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
       }
       const pose = poseAt(runtime.time);
       if (pose) {
-        const pos = new THREE.Vector3(...pose.position);
-        const tgt = new THREE.Vector3(...pose.target);
+        const pos = st.scratchPos.set(pose.position[0], pose.position[1], pose.position[2]);
+        const tgt = st.scratchTgt.set(pose.target[0], pose.target[1], pose.target[2]);
         if (st.blend) {
           st.blend.t += dt / BLEND_SECONDS;
           const k = smoothstep(Math.min(1, st.blend.t));
@@ -321,7 +328,11 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
           : 0;
         st.bank = THREE.MathUtils.damp(st.bank, bankTarget, 3, dt);
         roll += st.bank;
-        st.prevPos = pos.clone();
+        if (!st.prevPos) {
+          st.prevPos = pos.clone();
+        } else {
+          st.prevPos.copy(pos);
+        }
         void c.setLookAt(pos.x, pos.y, pos.z, tgt.x, tgt.y, tgt.z, false);
         st.look = { target: tgt, roll };
       }
@@ -338,7 +349,7 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
         const [px, py, pz] = pose.position;
         const [tx, ty, tz] = pose.target;
         void c.setLookAt(px, py, pz, tx, ty, tz, req === 'smooth');
-        st.look = { target: new THREE.Vector3(tx, ty, tz), roll: req === 'snap' ? THREE.MathUtils.degToRad(pose.roll) : 0 };
+        st.look = { target: st.scratchTgt.set(tx, ty, tz), roll: req === 'snap' ? THREE.MathUtils.degToRad(pose.roll) : 0 };
       }
     }
   }, -2);
@@ -361,14 +372,15 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
     st.yaw = THREE.MathUtils.damp(st.yaw, st.yawT, 12, dt);
     st.pitch = THREE.MathUtils.damp(st.pitch, st.pitchT, 12, dt);
     const cp = Math.cos(st.pitch);
-    const fwd = new THREE.Vector3(Math.sin(st.yaw) * cp, Math.sin(st.pitch), -Math.cos(st.yaw) * cp);
-    const right = new THREE.Vector3(Math.cos(st.yaw), 0, Math.sin(st.yaw));
+    const fwd = st.scratchFwd.set(Math.sin(st.yaw) * cp, Math.sin(st.pitch), -Math.cos(st.yaw) * cp);
+    const right = st.scratchRight.set(Math.cos(st.yaw), 0, Math.sin(st.yaw));
     const k = st.keys;
     const axis = (pos: string, neg: string) => (k.has(pos) ? 1 : 0) - (k.has(neg) ? 1 : 0);
-    const desired = new THREE.Vector3()
+    const desired = st.scratchDesired
+      .set(0, 0, 0)
       .addScaledVector(fwd, axis('KeyW', 'KeyS') + axis('ArrowUp', 'ArrowDown'))
       .addScaledVector(right, axis('KeyD', 'KeyA') + axis('ArrowRight', 'ArrowLeft'))
-      .addScaledVector(new THREE.Vector3(0, 1, 0), axis('KeyE', 'KeyQ'));
+      .addScaledVector(st.scratchUp, axis('KeyE', 'KeyQ'));
     if (desired.lengthSq() > 0) desired.normalize();
     const fast = k.has('ShiftLeft') || k.has('ShiftRight') ? 3 : 1;
     desired.multiplyScalar(FREE_BASE_SPEED * st.speedMul * speedSetting * fast);
@@ -385,7 +397,7 @@ export function CinematicCameraController({ geometry }: { geometry: CampusGeomet
       ? THREE.MathUtils.clamp(-st.turnRate * 0.18, -MAX_BANK, MAX_BANK)
       : 0;
     st.bank = THREE.MathUtils.damp(st.bank, bankTarget, 3, dt);
-    const tgt = st.pos.clone().addScaledVector(fwd, 50);
+    const tgt = st.scratchTgt.copy(st.pos).addScaledVector(fwd, 50);
     void c.setLookAt(st.pos.x, st.pos.y, st.pos.z, tgt.x, tgt.y, tgt.z, false);
     st.look = { target: tgt, roll: st.bank };
   }

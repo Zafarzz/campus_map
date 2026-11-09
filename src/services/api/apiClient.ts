@@ -75,87 +75,98 @@ async function tryRefreshAccessToken(expiredToken?: string | null): Promise<stri
   return null;
 }
 
-/** GET `${base}/api/v1${path}` and parse JSON. Throws `ApiError` on network or HTTP failure. */
-export async function apiGet<T>(
+type ApiErrorPayload = {
+  error?: {
+    message?: string;
+    details?: {
+      errors?: Array<{ msg?: string; message?: string }>;
+      violations?: Array<{ message?: string; rule?: string }>;
+    };
+  };
+  detail?: string | Array<{ msg?: string }>;
+};
+
+async function parseApiErrorMessage(res: Response, path: string): Promise<string> {
+  const fallback = `HTTP ${res.status} for ${path}`;
+  try {
+    const errJson = (await res.json()) as ApiErrorPayload;
+    const pydanticMsg =
+      errJson?.error?.details?.errors?.[0]?.msg || errJson?.error?.details?.errors?.[0]?.message;
+    const policyMsg = errJson?.error?.details?.violations?.[0]?.message;
+    if (pydanticMsg) return pydanticMsg;
+    if (policyMsg) return policyMsg;
+    if (errJson?.error?.message) return errJson.error.message;
+    if (typeof errJson?.detail === 'string') return errJson.detail;
+    if (Array.isArray(errJson?.detail) && errJson.detail[0]?.msg) return errJson.detail[0].msg;
+  } catch {
+    // keep fallback message when response body is not JSON
+  }
+  return fallback;
+}
+
+function resolveEffectiveToken(token?: string | null): string | null {
+  if (token) return token;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      return window.localStorage.getItem('campus_auth_token');
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function request<T>(
+  method: 'GET' | 'PATCH' | 'POST',
   path: string,
-  params?: Record<string, string | number | undefined>,
-  signal?: AbortSignal,
-  token?: string | null,
+  options: {
+    params?: Record<string, string | number | undefined>;
+    body?: unknown;
+    signal?: AbortSignal;
+    token?: string | null;
+    parseDetailedError?: boolean;
+  } = {},
 ): Promise<T> {
   if (!isBackendEnabled) throw new ApiError('Backend integration is disabled');
-  const query = params
-    ? Object.entries(params)
+
+  const query = options.params
+    ? Object.entries(options.params)
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
         .join('&')
     : '';
   const url = `${explicitBase}${API_PREFIX}${path}${query ? `?${query}` : ''}`;
+
   const headers: Record<string, string> = { Accept: 'application/json' };
-  const effectiveToken =
-    token ||
-    (typeof window !== 'undefined' && window.localStorage
-      ? window.localStorage.getItem('campus_auth_token')
-      : null);
+  if (method !== 'GET') {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const effectiveToken = resolveEffectiveToken(options.token);
   if (effectiveToken) {
     headers.Authorization = `Bearer ${effectiveToken}`;
   }
+
+  const serializedBody =
+    method !== 'GET' && options.body !== undefined ? JSON.stringify(options.body) : undefined;
+
   let res: Response;
   try {
-    res = await fetch(url, { headers, signal });
+    res = await fetch(url, {
+      method: method === 'GET' ? undefined : method,
+      headers,
+      body: serializedBody,
+      signal: options.signal,
+    });
     if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
       const refreshed = await tryRefreshAccessToken(effectiveToken);
       if (refreshed) {
         headers.Authorization = `Bearer ${refreshed}`;
-        res = await fetch(url, { headers, signal });
-      }
-    }
-  } catch (err) {
-    throw new ApiError(err instanceof Error ? err.message : 'Network error');
-  }
-  if (!res.ok) throw new ApiError(`HTTP ${res.status} for ${path}`, res.status);
-  return (await res.json()) as T;
-}
-
-/** POST `${base}/api/v1${path}` with JSON payload. Throws `ApiError` with backend message on failure. */
-export async function apiPatch<T>(
-  path: string,
-  body?: unknown,
-  signal?: AbortSignal,
-  token?: string | null,
-): Promise<T> {
-  if (!isBackendEnabled) throw new ApiError('Backend integration is disabled');
-  const url = `${explicitBase}${API_PREFIX}${path}`;
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-  const effectiveToken =
-    token ||
-    (typeof window !== 'undefined' && window.localStorage
-      ? window.localStorage.getItem('campus_auth_token')
-      : null);
-  if (effectiveToken) {
-    headers.Authorization = `Bearer ${effectiveToken}`;
-  }
-
-  const serializedBody = body !== undefined ? JSON.stringify(body) : undefined;
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: 'PATCH',
-      headers,
-      body: serializedBody,
-      signal,
-    });
-    if (res.status === 401) {
-      const refreshed = await tryRefreshAccessToken(effectiveToken);
-      if (refreshed) {
-        headers.Authorization = `Bearer ${refreshed}`;
         res = await fetch(url, {
-          method: 'PATCH',
+          method: method === 'GET' ? undefined : method,
           headers,
           body: serializedBody,
-          signal,
+          signal: options.signal,
         });
       }
     }
@@ -164,18 +175,33 @@ export async function apiPatch<T>(
   }
 
   if (!res.ok) {
-    let errorMsg = `HTTP ${res.status} for ${path}`;
-    try {
-      const errJson = (await res.json()) as any;
-      if (errJson?.error?.message) errorMsg = errJson.error.message;
-      else if (typeof errJson?.detail === 'string') errorMsg = errJson.detail;
-    } catch {
-      // keep fallback
-    }
+    const errorMsg = options.parseDetailedError
+      ? await parseApiErrorMessage(res, path)
+      : `HTTP ${res.status} for ${path}`;
     throw new ApiError(errorMsg, res.status);
   }
 
   return (await res.json()) as T;
+}
+
+/** GET `${base}/api/v1${path}` and parse JSON. Throws `ApiError` on network or HTTP failure. */
+export async function apiGet<T>(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+  token?: string | null,
+): Promise<T> {
+  return request<T>('GET', path, { params, signal, token, parseDetailedError: false });
+}
+
+/** PATCH `${base}/api/v1${path}` with JSON payload. Throws `ApiError` with backend message on failure. */
+export async function apiPatch<T>(
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+  token?: string | null,
+): Promise<T> {
+  return request<T>('PATCH', path, { body, signal, token, parseDetailedError: true });
 }
 
 export async function apiPost<T>(
@@ -184,80 +210,7 @@ export async function apiPost<T>(
   signal?: AbortSignal,
   token?: string | null,
 ): Promise<T> {
-  if (!isBackendEnabled) throw new ApiError('Backend integration is disabled');
-  const url = `${explicitBase}${API_PREFIX}${path}`;
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-  const effectiveToken =
-    token ||
-    (typeof window !== 'undefined' && window.localStorage
-      ? window.localStorage.getItem('campus_auth_token')
-      : null);
-  if (effectiveToken) {
-    headers.Authorization = `Bearer ${effectiveToken}`;
-  }
-
-  const serializedBody = body !== undefined ? JSON.stringify(body) : undefined;
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: serializedBody,
-      signal,
-    });
-    if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
-      const refreshed = await tryRefreshAccessToken(effectiveToken);
-      if (refreshed) {
-        headers.Authorization = `Bearer ${refreshed}`;
-        res = await fetch(url, {
-          method: 'POST',
-          headers,
-          body: serializedBody,
-          signal,
-        });
-      }
-    }
-  } catch (err) {
-    throw new ApiError(err instanceof Error ? err.message : 'Network error');
-  }
-
-  if (!res.ok) {
-    let errorMsg = `HTTP ${res.status} for ${path}`;
-    try {
-      const errJson = (await res.json()) as {
-        error?: {
-          message?: string;
-          details?: {
-            errors?: Array<{ msg?: string; message?: string }>;
-            violations?: Array<{ message?: string; rule?: string }>;
-          };
-        };
-        detail?: string | Array<{ msg?: string }>;
-      };
-      const pydanticMsg =
-        errJson?.error?.details?.errors?.[0]?.msg || errJson?.error?.details?.errors?.[0]?.message;
-      const policyMsg = errJson?.error?.details?.violations?.[0]?.message;
-      if (pydanticMsg) {
-        errorMsg = pydanticMsg;
-      } else if (policyMsg) {
-        errorMsg = policyMsg;
-      } else if (errJson?.error?.message) {
-        errorMsg = errJson.error.message;
-      } else if (typeof errJson?.detail === 'string') {
-        errorMsg = errJson.detail;
-      } else if (Array.isArray(errJson?.detail) && errJson.detail[0]?.msg) {
-        errorMsg = errJson.detail[0].msg;
-      }
-    } catch {
-      // keep fallback errorMsg
-    }
-    throw new ApiError(errorMsg, res.status);
-  }
-
-  return (await res.json()) as T;
+  return request<T>('POST', path, { body, signal, token, parseDetailedError: true });
 }
 
 /** Liveness probe (`/healthz` lives at the root, not under the API prefix). */

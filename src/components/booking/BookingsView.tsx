@@ -144,7 +144,10 @@ export const BOOKABLE_BUILDINGS: readonly BookableBuildingOption[] = [
   },
 ];
 
+import { DEFAULT_BUILDING_LABELS } from '../../domain/campus/selectors';
+
 const BUILDING_NAMES: Record<string, string> = {
+  ...DEFAULT_BUILDING_LABELS,
   'bld-h': 'Block A (Engineering & Tech)',
   'bld-g': 'Block B (Architecture & Science)',
   'bld-i': 'Block C (Amphitheater & Cafeteria)',

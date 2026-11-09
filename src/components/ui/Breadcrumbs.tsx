@@ -1,8 +1,9 @@
-import { useMap } from '../../state/MapProvider';
+import { useCampusData, useMapSelection } from '../../state/MapProvider';
 
 /** Campus › Building › Floor › Room — every level is clickable with clear visual hierarchy. */
 export function Breadcrumbs() {
-  const { index, selection, clearSelection, selectBuilding, selectFloor } = useMap();
+  const { index } = useCampusData();
+  const { selection, clearSelection, selectBuilding, selectFloor } = useMapSelection();
   const building = selection.buildingId ? index.buildings.get(selection.buildingId) : undefined;
   const floor = selection.floorId ? index.floors.get(selection.floorId)?.floor : undefined;
   const room = selection.roomId ? index.rooms.get(selection.roomId)?.room : undefined;

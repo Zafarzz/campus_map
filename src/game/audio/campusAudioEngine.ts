@@ -13,6 +13,8 @@ export interface AudioListenerState {
   timeOfDay: TimeOfDayPresetId;
 }
 
+export const FOUNTAIN_AUDIO_CENTER: readonly [number, number] = [0.0, -23.1];
+
 /**
  * Determines the walkable surface material under the player at (x, y, z)
  * so footsteps sound distinct on stone/asphalt pavement, grass lawns,
@@ -45,7 +47,7 @@ export function detectFootstepSurface(
   const isNearFountain1 =
     Math.abs(x - fountainX) <= outerHalfLen && Math.abs(z - fountainZ) <= outerHalfWid;
   const isNearFountain2 =
-    Math.abs(x - 5.5) <= outerHalfLen && Math.abs(z - (-23.1)) <= outerHalfWid;
+    Math.abs(x - 0.0) <= outerHalfLen && Math.abs(z - (-23.1)) <= outerHalfWid;
   if (y > 0.25 && (isNearFountain1 || isNearFountain2)) {
     return 'wood';
   }
@@ -330,9 +332,9 @@ export class CampusAudioEngine {
 
     const now = this.ctx.currentTime;
 
-    // Fountain center at [-2.45, 0, 15.9]
-    const fx = -2.45;
-    const fz = 15.9;
+    // Grand Campus Fountain center at [0.0, 0, -23.1]
+    const fx = 0.0;
+    const fz = -23.1;
     const dx = fx - state.x;
     const dz = fz - state.z;
     const distToFountain = Math.hypot(dx, dz);

@@ -48,7 +48,10 @@ const CATEGORIES = [
   { id: 'other', label: 'Other Items' },
 ];
 
+import { DEFAULT_BUILDING_LABELS } from '../../domain/campus/selectors';
+
 const BUILDINGS: Record<string, string> = {
+  ...DEFAULT_BUILDING_LABELS,
   'bld-h': 'Block A (Engineering & Tech)',
   'bld-g': 'Block B (Architecture & Science)',
   'bld-i': 'Block C (Amphitheater & Cafeteria)',
@@ -537,20 +540,12 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                 : buildingLabel;
 
               return (
-                <div
+                <article
                   key={item.id}
                   className="lf-card"
-                  role="button"
-                  tabIndex={0}
                   style={{ cursor: 'pointer' }}
                   title={`Click to view ${locationDisplay} on 3D map`}
                   onClick={() => handleLocateItem(item)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleLocateItem(item);
-                    }
-                  }}
                 >
                   <div className="lf-card__top">
                     <span
@@ -690,7 +685,7 @@ export function LostFoundView({ onBackToMap }: LostFoundViewProps) {
                       </button>
                     )}
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

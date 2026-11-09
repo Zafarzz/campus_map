@@ -595,6 +595,9 @@ export function AmphitheaterHall({
       {merged.metalFrame && (
         <mesh geometry={merged.metalFrame} material={materials.metalFrame} raycast={NO_RAYCAST} />
       )}
+      {merged.handrailSteel && (
+        <mesh geometry={merged.handrailSteel} material={materials.metalFrame} raycast={NO_RAYCAST} />
+      )}
       {merged.goldAccent && (
         <mesh geometry={merged.goldAccent} material={materials.goldAccent} raycast={NO_RAYCAST} />
       )}

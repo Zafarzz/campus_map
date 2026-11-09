@@ -1,8 +1,8 @@
 import { apiGet, apiPost, isBackendEnabled } from '../api/apiClient';
+import { getJsonStorageItem, setJsonStorageItem } from '../storage/localStore';
 import type { BookableResource, Booking, CreateBookingPayload } from './bookingTypes';
 
 const OFFLINE_BOOKINGS_KEY = 'campus_offline_bookings';
-const memoryStore = new Map<string, string>();
 
 const DEMO_BOOKABLE_RESOURCES: BookableResource[] = [
   {
@@ -112,29 +112,11 @@ const DEMO_BOOKABLE_RESOURCES: BookableResource[] = [
 ];
 
 function getStoredOfflineBookings(): Booking[] {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = window.localStorage.getItem(OFFLINE_BOOKINGS_KEY);
-      if (raw) return JSON.parse(raw) as Booking[];
-    }
-  } catch {
-    // fallback
-  }
-  const memRaw = memoryStore.get(OFFLINE_BOOKINGS_KEY);
-  if (memRaw) return JSON.parse(memRaw) as Booking[];
-  return [];
+  return getJsonStorageItem<Booking[]>(OFFLINE_BOOKINGS_KEY, []);
 }
 
 function saveStoredOfflineBookings(bookings: Booking[]): void {
-  const json = JSON.stringify(bookings);
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(OFFLINE_BOOKINGS_KEY, json);
-    }
-  } catch {
-    // fallback
-  }
-  memoryStore.set(OFFLINE_BOOKINGS_KEY, json);
+  setJsonStorageItem(OFFLINE_BOOKINGS_KEY, bookings);
 }
 
 export function isExcludedFromBooking(r: Partial<BookableResource>): boolean {

@@ -213,21 +213,21 @@ export function getAsphaltRoadTextures(
     diffCtx.fill();
   }
 
-  for (let i = 0; i < 3600; i++) {
+  for (let i = 0; i < 1200; i++) {
     const x = Math.floor(rand() * size);
     const y = Math.floor(rand() * size);
     const v = 185 + Math.floor(rand() * 55);
     diffCtx.fillStyle = `rgb(${v}, ${v + 2}, ${v + 5})`;
-    diffCtx.fillRect(x, y, 2, 2);
+    diffCtx.fillRect(x, y, 3, 3);
 
     const nx = 116 + Math.floor(rand() * 24);
     const ny = 116 + Math.floor(rand() * 24);
     normCtx.fillStyle = `rgb(${nx}, ${ny}, 255)`;
-    normCtx.fillRect(x, y, 2, 2);
+    normCtx.fillRect(x, y, 3, 3);
 
     const rv = 205 + Math.floor(rand() * 40);
     roughCtx.fillStyle = `rgb(${rv}, ${rv}, ${rv})`;
-    roughCtx.fillRect(x, y, 2, 2);
+    roughCtx.fillRect(x, y, 3, 3);
   }
 
   const set: ProceduralPBRTextureSet = {
@@ -419,7 +419,9 @@ export function getGranitePlinthTextures(
   repeatY = 1,
 ): ProceduralPBRTextureSet | null {
   if (!isBrowserCanvasAvailable()) return null;
-  const cacheKey = `granite_plinth_${repeatX}_${repeatY}`;
+  const normRepeatX = repeatX >= 1 ? 4 : repeatX;
+  const normRepeatY = repeatY >= 1 ? 1 : repeatY;
+  const cacheKey = `granite_plinth_${normRepeatX}_${normRepeatY}`;
   const existing = textureCache.get(cacheKey);
   if (existing) return existing;
 
@@ -443,17 +445,17 @@ export function getGranitePlinthTextures(
   };
 
   // Crystalline granite mineral speckles & micro-normals
-  for (let i = 0; i < 1800; i++) {
+  for (let i = 0; i < 800; i++) {
     const x = Math.floor(rand() * size);
     const y = Math.floor(rand() * size);
     const v = 195 + Math.floor(rand() * 52);
     diffCtx.fillStyle = `rgb(${v}, ${v}, ${v + 3})`;
-    diffCtx.fillRect(x, y, 2, 2);
+    diffCtx.fillRect(x, y, 3, 3);
 
     const nx = 118 + Math.floor(rand() * 20);
     const ny = 118 + Math.floor(rand() * 20);
     normCtx.fillStyle = `rgb(${nx}, ${ny}, 255)`;
-    normCtx.fillRect(x, y, 2, 2);
+    normCtx.fillRect(x, y, 3, 3);
   }
 
   // Heavy rusticated plinth courses (4 rows x 2 cols)
@@ -478,9 +480,9 @@ export function getGranitePlinthTextures(
   }
 
   const set: ProceduralPBRTextureSet = {
-    map: configureRepeatingTexture(diffC, repeatX, repeatY, true),
-    normalMap: configureRepeatingTexture(normC, repeatX, repeatY, false),
-    roughnessMap: configureRepeatingTexture(roughC, repeatX, repeatY, false),
+    map: configureRepeatingTexture(diffC, normRepeatX, normRepeatY, true),
+    normalMap: configureRepeatingTexture(normC, normRepeatX, normRepeatY, false),
+    roughnessMap: configureRepeatingTexture(roughC, normRepeatX, normRepeatY, false),
   };
   textureCache.set(cacheKey, set);
   return set;
@@ -561,7 +563,10 @@ export function getInteriorWoodTextures(
   repeatY = 2,
 ): ProceduralPBRTextureSet | null {
   if (!isBrowserCanvasAvailable()) return null;
-  const cacheKey = `wood_${repeatX}_${repeatY}`;
+  // Consolidate interior wood callers into a single shared PBR texture set to save VRAM and canvas work
+  const normRepeatX = repeatX >= 1 ? 4 : repeatX;
+  const normRepeatY = repeatY >= 1 ? 4 : repeatY;
+  const cacheKey = `wood_${normRepeatX}_${normRepeatY}`;
   const existing = textureCache.get(cacheKey);
   if (existing) return existing;
 
@@ -613,9 +618,9 @@ export function getInteriorWoodTextures(
   }
 
   const set: ProceduralPBRTextureSet = {
-    map: configureRepeatingTexture(diffC, repeatX, repeatY, true),
-    normalMap: configureRepeatingTexture(normC, repeatX, repeatY, false),
-    roughnessMap: configureRepeatingTexture(roughC, repeatX, repeatY, false),
+    map: configureRepeatingTexture(diffC, normRepeatX, normRepeatY, true),
+    normalMap: configureRepeatingTexture(normC, normRepeatX, normRepeatY, false),
+    roughnessMap: configureRepeatingTexture(roughC, normRepeatX, normRepeatY, false),
   };
   textureCache.set(cacheKey, set);
   return set;

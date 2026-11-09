@@ -88,50 +88,6 @@ function isInsideBuildingMargin(
 }
 
 /**
- * Compound multi-puff cumulus cloud geometry with sunlit top and soft sky-blue base vertex colors.
- */
-const cumulusCloudGeo = (() => {
-  const puffs: [number, number, number, number, number, number][] = [
-    [0.0, 0.22, 0.0, 0.48, 0.55, 0.48],
-    [-0.42, 0.05, 0.08, 0.38, 0.42, 0.38],
-    [0.44, 0.08, -0.05, 0.4, 0.45, 0.38],
-    [-0.2, 0.14, -0.25, 0.35, 0.38, 0.35],
-    [0.22, 0.12, 0.24, 0.36, 0.4, 0.36],
-    [-0.68, -0.06, -0.04, 0.28, 0.3, 0.28],
-    [0.7, -0.04, 0.06, 0.28, 0.32, 0.28],
-  ];
-
-  const positions: number[] = [];
-  const colors: number[] = [];
-
-  for (const [px, py, pz, sx, sy, sz] of puffs) {
-    const g = new THREE.IcosahedronGeometry(1, 2);
-    g.scale(sx, sy, sz);
-    g.translate(px, py, pz);
-    const nonIdx = g.index ? g.toNonIndexed() : g;
-    const pos = nonIdx.getAttribute('position');
-    for (let i = 0; i < pos.count; i++) {
-      const vx = pos.getX(i);
-      const vy = pos.getY(i);
-      const vz = pos.getZ(i);
-      positions.push(vx, vy, vz);
-      // Smooth sky-lit gradient: pure sunlit white at top, soft atmospheric sky-blue at base
-      const t = Math.min(1, Math.max(0, (vy + 0.35) / 0.95));
-      const r = 0.87 + t * 0.13;
-      const gr = 0.93 + t * 0.07;
-      const b = 0.98 + t * 0.02;
-      colors.push(r, gr, b);
-    }
-  }
-
-  const merged = new THREE.BufferGeometry();
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  merged.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  merged.computeVertexNormals();
-  return merged;
-})();
-
-/**
  * V-winged soaring bird silhouette geometry.
  */
 const soaringBirdGeo = (() => {
@@ -207,6 +163,7 @@ export function computeCampusStreetLamps(geometry: CampusGeometry): StreetLampSp
 
 /**
  * Computes deterministic park bench and waste bin placements along promenades and courtyards.
+ * Excludes coordinates already rendered by high-detail SiteFurniture.tsx to avoid overlapping meshes.
  */
 export function computeCampusBenchesAndBins(geometry: CampusGeometry): BenchSpec[] {
   const candidates: BenchSpec[] = [
@@ -221,12 +178,6 @@ export function computeCampusBenchesAndBins(geometry: CampusGeometry): BenchSpec
     // Block A Front Pedestrian Avenue
     { x: 8.0, z: 78.0, rotY: 0, hasBin: true },
     { x: -10.0, z: 78.0, rotY: 0, hasBin: false },
-    // Amphitheater Gathering Plaza
-    { x: 22.0, z: 83.5, rotY: 0, hasBin: true },
-    { x: 32.0, z: 83.5, rotY: 0, hasBin: false },
-    // Dormitory Quadrangle
-    { x: -55.5, z: 104.0, rotY: 0, hasBin: true },
-    { x: -55.5, z: 114.0, rotY: Math.PI, hasBin: false },
     // North Academic Walkway
     { x: -14.0, z: -104.0, rotY: 0, hasBin: true },
     { x: -30.0, z: -104.0, rotY: 0, hasBin: false },
@@ -237,11 +188,10 @@ export function computeCampusBenchesAndBins(geometry: CampusGeometry): BenchSpec
 
 /**
  * Computes deterministic campus wayfinding totems at key pedestrian intersections.
+ * Excludes main entrance totem [99.5, -14.0] already rendered with full signage in SiteFurniture.tsx.
  */
 export function computeCampusTotems(geometry: CampusGeometry): TotemSpec[] {
   const candidates: TotemSpec[] = [
-    // Main Entrance plaza (matching calibrated SiteFurniture totem location)
-    { x: 99.5, z: -14.0, rotY: -Math.PI / 2 },
     // North-South Pedestrian Avenue intersections
     { x: 88.5, z: 0.0, rotY: -Math.PI / 2 },
     { x: 88.5, z: 96.0, rotY: -Math.PI / 2 },
@@ -286,12 +236,6 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
     const totems = useMemo(() => allTotems.slice(0, Math.round(allTotems.length * propRatio)), [allTotems, propRatio]);
     const bins = useMemo(() => benches.filter((b) => b.hasBin), [benches]);
 
-    // Outer perimeter trees removed per user request: "убери также пустые зоны за пределами кампуса"
-    const horizonTrees = useMemo(
-      () => [] as { x: number; z: number; scaleXZ: number; scaleY: number }[],
-      [],
-    );
-
     // Instanced refs
     const poleMeshRef = useRef<THREE.InstancedMesh>(null);
     const armMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -302,10 +246,7 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
     const binMeshRef = useRef<THREE.InstancedMesh>(null);
     const totemBodyRef = useRef<THREE.InstancedMesh>(null);
     const totemHeaderRef = useRef<THREE.InstancedMesh>(null);
-    const horizonCanopyRef = useRef<THREE.InstancedMesh>(null);
-    const horizonTrunkRef = useRef<THREE.InstancedMesh>(null);
     const birdsRef = useRef<THREE.InstancedMesh>(null);
-    const cloudsGroupRef = useRef<THREE.Group>(null);
 
     // Populate static instanced meshes
     useLayoutEffect(() => {
@@ -397,48 +338,13 @@ export const CampusEnvironmentDetail: React.FC<CampusEnvironmentDetailProps> = R
       }
     }, [lamps, benches, bins, totems, campusPropsEnabled, quality]);
 
-    // Populate Horizon Tree Ring
-    useLayoutEffect(() => {
-      if (!skyLifeEnabled || quality === 'original') return;
-      if (!horizonCanopyRef.current || !horizonTrunkRef.current) return;
-
-      const dummy = new THREE.Object3D();
-      const color = new THREE.Color();
-      horizonTrees.forEach((t, i) => {
-        dummy.position.set(t.x, t.scaleY * 0.42, t.z);
-        dummy.rotation.set(0, (i * 1.1) % Math.PI, 0);
-        dummy.scale.set(t.scaleXZ * 0.22, t.scaleY * 0.85, t.scaleXZ * 0.22);
-        dummy.updateMatrix();
-        horizonTrunkRef.current!.setMatrixAt(i, dummy.matrix);
-
-        dummy.position.set(t.x, t.scaleY * 1.15, t.z);
-        dummy.scale.set(t.scaleXZ, t.scaleY * 0.82, t.scaleXZ);
-        dummy.updateMatrix();
-        horizonCanopyRef.current!.setMatrixAt(i, dummy.matrix);
-
-        const hueShift = ((i % 5) - 2) * 0.012;
-        color.setHSL(0.28 + hueShift, 0.38, 0.36 + (i % 3) * 0.03);
-        horizonCanopyRef.current!.setColorAt(i, color);
-      });
-      horizonTrunkRef.current.instanceMatrix.needsUpdate = true;
-      horizonCanopyRef.current.instanceMatrix.needsUpdate = true;
-      if (horizonCanopyRef.current.instanceColor) {
-        horizonCanopyRef.current.instanceColor.needsUpdate = true;
-      }
-    }, [horizonTrees, skyLifeEnabled, quality]);
-
-    // Animate drifting clouds & soaring birds
+    // Animate soaring birds
     const birdDummy = useMemo(() => new THREE.Object3D(), []);
     const birdCount = quality === 'high' ? 18 : quality === 'medium' ? 12 : 6;
 
     useFrame(({ clock }) => {
       if (!skyLifeEnabled || quality === 'original') return;
       const t = clock.getElapsedTime() * (windEnabled ? Math.max(0.3, windSpeed) : 0.5);
-
-      // Drift cloud ring gently across the sky
-      if (cloudsGroupRef.current) {
-        cloudsGroupRef.current.rotation.y = t * 0.008;
-      }
 
       // Soaring bird flocks in wide lazy circles above the central courtyard
       if (birdsRef.current) {

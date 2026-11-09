@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
 import { mapConfig } from '../../config/mapConfig';
+import { disposeMergedMap, mergeStaticGeometries } from './geometry/staticGeometryMerger';
 import { getInteriorWoodTextures } from './materials/pbrMaterials';
 
 export const CANTEEN_ROOM_ID = 'room-canteen';
@@ -23,35 +24,11 @@ export type BlockCCanteenInterior3DProps = {
 };
 
 /**
- * Merges an array of THREE.BufferGeometry objects into a single BufferGeometry.
- * Ensures high performance and minimal draw calls.
+ * Merges an array of THREE.BufferGeometry objects into a single BufferGeometry
+ * while preserving position, normal, and uv attributes.
  */
 function mergeCanteenGeometries(geoms: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-
-  for (const g of geoms) {
-    const nonIdx = g.index ? g.toNonIndexed() : g;
-    const pos = nonIdx.getAttribute('position');
-    const norm = nonIdx.getAttribute('normal');
-    if (pos) {
-      for (let i = 0; i < pos.count; i++) {
-        positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
-        if (norm) {
-          normals.push(norm.getX(i), norm.getY(i), norm.getZ(i));
-        } else {
-          normals.push(0, 1, 0);
-        }
-      }
-    }
-    if (nonIdx !== g) nonIdx.dispose();
-    g.dispose();
-  }
-
-  const merged = new THREE.BufferGeometry();
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  return merged;
+  return mergeStaticGeometries(geoms);
 }
 
 /**
@@ -659,6 +636,20 @@ export function BlockCCanteenInterior3D({
       woodFloor: woodFloorGeo,
     };
   }, [widthX, heightY, lengthZ, floorY, ceilingY, halfW, halfL]);
+
+  useEffect(
+    () => () => {
+      disposeMergedMap(mergedGeometries);
+    },
+    [mergedGeometries],
+  );
+
+  useEffect(
+    () => () => {
+      Object.values(materials).forEach((m) => m.dispose());
+    },
+    [materials],
+  );
 
   return (
     <group position={position}>

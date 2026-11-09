@@ -13,6 +13,7 @@ import {
   getStoredToken,
   getStoredUser,
   loginUser,
+  mapAuthResponseToUserProfile,
 } from '../services/auth/authService';
 
 export type AuthModalMode = 'login' | 'reset' | 'set_new_password' | 'profile';
@@ -126,23 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (payload: LoginPayload): Promise<AuthResponse> => {
     const res = await loginUser(payload);
     setToken(res.access_token);
-    const profile: UserProfile = {
-      user_id: res.user_id,
-      account_type: res.account_type,
-      is_admin: res.is_admin,
-      email: res.email,
-      student_id: res.student_id,
-      display_name: res.display_name,
-      first_name: res.first_name,
-      last_name: res.last_name,
-      fathers_name: res.fathers_name,
-      department: res.department,
-      group_no: res.group_no,
-      must_change_password: res.must_change_password,
-      roles: res.roles,
-      effective_roles: res.effective_roles,
-    };
-    setUser(profile);
+    setUser(mapAuthResponseToUserProfile(res));
 
     if (res.must_change_password) {
       setAuthModalMode('set_new_password');
@@ -157,23 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const changePassword = useCallback(async (payload: ChangePasswordPayload): Promise<AuthResponse> => {
     const res = await changePasswordUser(payload, token);
     setToken(res.access_token);
-    const updatedProfile: UserProfile = {
-      user_id: res.user_id,
-      account_type: res.account_type,
-      is_admin: res.is_admin,
-      email: res.email,
-      student_id: res.student_id,
-      display_name: res.display_name,
-      first_name: res.first_name,
-      last_name: res.last_name,
-      fathers_name: res.fathers_name,
-      department: res.department,
-      group_no: res.group_no,
-      must_change_password: false,
-      roles: res.roles,
-      effective_roles: res.effective_roles,
-    };
-    setUser(updatedProfile);
+    setUser(mapAuthResponseToUserProfile(res, { must_change_password: false }));
     setIsAuthModalOpen(false);
     return res;
   }, [token]);

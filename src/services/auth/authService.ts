@@ -1,4 +1,11 @@
 import { apiGet, apiPost } from '../api/apiClient';
+import {
+  getJsonStorageItem,
+  getRawStorageItem,
+  removeRawStorageItem,
+  setJsonStorageItem,
+  setRawStorageItem,
+} from '../storage/localStore';
 import type {
   AuthResponse,
   ChangePasswordPayload,
@@ -137,63 +144,45 @@ export function validatePasswordStrength(
   };
 }
 
-const memoryStore = new Map<string, string>();
-
-function getStorageItem(key: string): string | null {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(key);
-    }
-  } catch {
-    // fallback
-  }
-  return memoryStore.get(key) ?? null;
-}
-
-function setStorageItem(key: string, value: string): void {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, value);
-    }
-  } catch {
-    // fallback
-  }
-  memoryStore.set(key, value);
-}
-
-function removeStorageItem(key: string): void {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // fallback
-  }
-  memoryStore.delete(key);
+export function mapAuthResponseToUserProfile(
+  res: AuthResponse,
+  overrides?: Partial<UserProfile>,
+): UserProfile {
+  return {
+    user_id: res.user_id,
+    account_type: res.account_type,
+    is_admin: res.is_admin,
+    email: res.email,
+    student_id: res.student_id,
+    display_name: res.display_name,
+    first_name: res.first_name,
+    last_name: res.last_name,
+    fathers_name: res.fathers_name,
+    department: res.department,
+    group_no: res.group_no,
+    must_change_password: res.must_change_password,
+    roles: res.roles,
+    effective_roles: res.effective_roles,
+    ...overrides,
+  };
 }
 
 export function getStoredToken(): string | null {
-  return getStorageItem(TOKEN_KEY);
+  return getRawStorageItem(TOKEN_KEY);
 }
 
 export function getStoredUser(): UserProfile | null {
-  const raw = getStorageItem(USER_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as UserProfile;
-  } catch {
-    return null;
-  }
+  return getJsonStorageItem<UserProfile | null>(USER_KEY, null);
 }
 
 export function storeSession(token: string, user: UserProfile): void {
-  setStorageItem(TOKEN_KEY, token);
-  setStorageItem(USER_KEY, JSON.stringify(user));
+  setRawStorageItem(TOKEN_KEY, token);
+  setJsonStorageItem(USER_KEY, user);
 }
 
 export function clearSession(): void {
-  removeStorageItem(TOKEN_KEY);
-  removeStorageItem(USER_KEY);
+  removeRawStorageItem(TOKEN_KEY);
+  removeRawStorageItem(USER_KEY);
 }
 
 export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
@@ -209,24 +198,8 @@ export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
       login: ident,
       password: payload.password,
     });
-    
-    const userProfile: UserProfile = {
-      user_id: res.user_id,
-      account_type: res.account_type,
-      is_admin: res.is_admin,
-      email: res.email,
-      student_id: res.student_id,
-      display_name: res.display_name,
-      first_name: res.first_name,
-      last_name: res.last_name,
-      fathers_name: res.fathers_name,
-      department: res.department,
-      group_no: res.group_no,
-      must_change_password: res.must_change_password,
-      roles: res.roles,
-      effective_roles: res.effective_roles,
-    };
 
+    const userProfile = mapAuthResponseToUserProfile(res);
     storeSession(res.access_token, userProfile);
     return res;
   } catch (err: unknown) {
@@ -287,23 +260,7 @@ export async function changePasswordUser(
     currentToken,
   );
 
-  const updatedProfile: UserProfile = {
-    user_id: res.user_id,
-    account_type: res.account_type,
-    is_admin: res.is_admin,
-    email: res.email,
-    student_id: res.student_id,
-    display_name: res.display_name,
-    first_name: res.first_name,
-    last_name: res.last_name,
-    fathers_name: res.fathers_name,
-    department: res.department,
-    group_no: res.group_no,
-    must_change_password: false,
-    roles: res.roles,
-    effective_roles: res.effective_roles,
-  };
-
+  const updatedProfile = mapAuthResponseToUserProfile(res, { must_change_password: false });
   storeSession(res.access_token, updatedProfile);
   return res;
 }

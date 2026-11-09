@@ -15,6 +15,25 @@ export default defineConfig(({ mode }) => {
       react(),
       basicSsl()
     ],
+    build: {
+      rolldownOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (
+              id.includes('node_modules/three/') ||
+              id.includes('node_modules/@react-three/') ||
+              id.includes('node_modules/three-stdlib/')
+            ) {
+              return 'three-vendor';
+            }
+            return undefined;
+          },
+        },
+      },
+    },
+    test: {
+      isolate: false,
+    },
     server: {
       host: true, // Listen on all network interfaces
       https: true,

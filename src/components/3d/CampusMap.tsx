@@ -10,7 +10,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Suspense, useEffect } from 'react';
 import * as THREE from 'three';
 import { mapConfig } from '../../config/mapConfig';
-import { useMap } from '../../state/MapProvider';
+import { useCampusData, useMapSelection } from '../../state/MapProvider';
 import { CameraPathEditor } from '../../cinematic/CameraPathEditor';
 import { CinematicCameraController } from '../../cinematic/CinematicCameraController';
 import { CameraController, cameraFraming } from './CameraController';
@@ -85,7 +85,8 @@ function RendererExposure({ exposure }: { exposure: number }) {
  * plus CampusEnvironmentDetail (street lamps, benches, bins, totems, horizon ring, sky life).
  */
 export function CampusMap() {
-  const { geometry, selection, showReference } = useMap();
+  const { geometry, showReference } = useCampusData();
+  const { selection } = useMapSelection();
   const [initialPosition] = cameraFraming(geometry, {});
   const tuning = useVisualTuning();
 
@@ -95,7 +96,7 @@ export function CampusMap() {
       camera={{ position: initialPosition, fov: mapConfig.camera.fov, near: 0.2, far: 2000 }}
       dpr={[1, 1.5]}
       gl={{
-        preserveDrawingBuffer: true,
+        preserveDrawingBuffer: false,
         powerPreference: 'high-performance',
         logarithmicDepthBuffer: true,
         antialias: true,

@@ -27,6 +27,7 @@ const TEACHING_DAY_NAMES: Record<WeekdayIndex, string> = {
 export function SearchBox() {
   const { index, lessons, weekLessons, catalog, now, time, setTime, selectRoom } = useMap();
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
   const results = useMemo(() => search(query, index, lessons), [query, index, lessons]);
 
   const jsDay = now.getDay();
@@ -43,6 +44,30 @@ export function SearchBox() {
       catalog,
     });
   }, [query, results.length, currentDayName, currentWeekday, weekLessons, catalog]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!query.trim()) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (results.length > 0) {
+        setActiveIndex((prev) => (prev + 1) % results.length);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (results.length > 0) {
+        setActiveIndex((prev) => (prev <= 0 ? results.length - 1 : prev - 1));
+      }
+    } else if (e.key === 'Enter' && activeIndex >= 0 && activeIndex < results.length) {
+      e.preventDefault();
+      selectRoom(results[activeIndex].roomId);
+      setQuery('');
+      setActiveIndex(-1);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setQuery('');
+      setActiveIndex(-1);
+    }
+  };
 
   return (
     <div className="search">
@@ -67,14 +92,29 @@ export function SearchBox() {
           className="search__input"
           placeholder="Search room, subject, professor, group…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setActiveIndex(-1);
+          }}
+          onKeyDown={handleKeyDown}
+          role="combobox"
+          aria-expanded={Boolean(query.trim())}
+          aria-controls="campus-search-results"
+          aria-activedescendant={
+            activeIndex >= 0 && results[activeIndex]
+              ? `search-opt-${results[activeIndex].key}`
+              : undefined
+          }
           aria-label="Search room, subject, professor, or group"
         />
         {query && (
           <button
             type="button"
             className="search__clear"
-            onClick={() => setQuery('')}
+            onClick={() => {
+              setQuery('');
+              setActiveIndex(-1);
+            }}
             aria-label="Clear search"
             title="Clear search"
           >
@@ -84,7 +124,7 @@ export function SearchBox() {
       </div>
 
       {query.trim() && (
-        <ul className="search__results" role="listbox">
+        <ul id="campus-search-results" className="search__results" role="listbox">
           {results.length === 0 && emptyDiagnosis && (
             <li className="search__empty" role="status">
               <div className="search__empty-title">{emptyDiagnosis.title}</div>
@@ -114,14 +154,20 @@ export function SearchBox() {
               )}
             </li>
           )}
-          {results.map((r) => (
-            <li key={r.key}>
+          {results.map((r, idx) => (
+            <li
+              key={r.key}
+              id={`search-opt-${r.key}`}
+              role="option"
+              aria-selected={idx === activeIndex}
+            >
               <button
                 type="button"
-                className="search__result"
+                className={`search__result${idx === activeIndex ? ' is-active' : ''}`}
                 onClick={() => {
                   selectRoom(r.roomId);
                   setQuery('');
+                  setActiveIndex(-1);
                 }}
               >
                 <span className="search__title">

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
 import { mapConfig } from '../../config/mapConfig';
@@ -32,6 +32,8 @@ export function LobbyInterior3D({ position, size, selected }: LobbyInteriorProps
       }),
     };
   }, []);
+
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
   return (
     <group position={position}>

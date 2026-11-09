@@ -1,3 +1,8 @@
+import {
+  HAS_EDITOR_DRAFT_KEY,
+  LS_EDITOR_DRAFT_KEY,
+  setRawStorageItem,
+} from '../../services/storage/localStore';
 import { createInitialDocument } from '../domain/adapter';
 import type { CampusVersion, EditorDocument, VersionType } from '../domain/types';
 import { initAttachmentStorage } from './attachmentStorage';
@@ -8,7 +13,7 @@ const STORE_DRAFTS = 'drafts';
 const STORE_VERSIONS = 'versions';
 
 const DRAFT_KEY = 'current_draft_v10';
-const LS_DRAFT_KEY = 'campus_map_draft_v10';
+const LS_DRAFT_KEY = LS_EDITOR_DRAFT_KEY;
 const LS_VERSIONS_KEY = 'campus_map_versions_v10';
 
 // In-memory fallback if neither IDB nor localStorage are available
@@ -54,11 +59,11 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export function cloneDocument(doc: EditorDocument): EditorDocument {
+export function cloneDocument<T = EditorDocument>(doc: T): T {
   if (typeof structuredClone === 'function') {
     return structuredClone(doc);
   }
-  return JSON.parse(JSON.stringify(doc)) as EditorDocument;
+  return JSON.parse(JSON.stringify(doc)) as T;
 }
 
 /**
@@ -107,8 +112,9 @@ export async function saveDraft(doc: EditorDocument): Promise<void> {
   const cloned = cloneDocument(doc);
   cloned.lastModified = new Date().toISOString();
 
-  // Save to memory
+  // Save to memory and mark draft presence for fast cold-start check
   memoryDraft = cloneDocument(cloned);
+  setRawStorageItem(HAS_EDITOR_DRAFT_KEY, '1');
 
   // Save to localStorage
   if (isLocalStorageAvailable()) {
@@ -327,4 +333,22 @@ export async function resetToDefaults(): Promise<{ doc: EditorDocument; versions
   );
   const versions = await loadVersions();
   return { doc, versions: [initialVer, ...versions] };
+}
+
+/**
+ * Clears in-memory and localStorage draft state (used by test teardown).
+ */
+export function clearDraftStorage(): void {
+  memoryDraft = null;
+  memoryVersions = [];
+  setRawStorageItem(HAS_EDITOR_DRAFT_KEY, '');
+  if (isLocalStorageAvailable()) {
+    try {
+      window.localStorage.removeItem(LS_DRAFT_KEY);
+      window.localStorage.removeItem(LS_VERSIONS_KEY);
+      window.localStorage.removeItem(HAS_EDITOR_DRAFT_KEY);
+    } catch {
+      // Ignore
+    }
+  }
 }

@@ -13,8 +13,19 @@ import type {
   EditorTool,
   SemanticChange,
 } from '../domain/types';
+import {
+  HANDLE_CURSORS,
+  INDOOR_STYLES,
+  OUTDOOR_STYLES,
+  type HandleType,
+} from './canvasConstants';
+import {
+  EditorCanvasHeaderOverlay,
+  EditorCanvasStatusBar,
+  InlineRoomRenamePopover,
+} from './EditorCanvasOverlays';
 
-export type HandleType = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+export type { HandleType };
 
 interface DragState {
   type: 'move' | 'resize' | 'vertex' | 'draw-rect' | 'marquee';
@@ -94,46 +105,13 @@ interface EditorCanvasProps {
   onAddFloor?: (buildingId: string) => void;
   onDuplicateSelected?: () => void;
   onDeleteSelected?: () => void;
+  onMoveMultiSelection?: (
+    delta: [dx: number, dz: number],
+    selectedIds: string[],
+    actionName: string,
+  ) => void;
   onRevertChange?: (change: SemanticChange) => void;
 }
-
-const INDOOR_STYLES: Record<
-  string,
-  { fill: string; border: string; text: string; badge: string }
-> = {
-  classroom: { fill: '#eff6ff', border: '#3b82f6', text: '#1e3a8a', badge: 'Room' },
-  room: { fill: '#eff6ff', border: '#3b82f6', text: '#1e3a8a', badge: 'Room' },
-  lab: { fill: '#ecfdf5', border: '#10b981', text: '#065f46', badge: 'Lab' },
-  office: { fill: '#fffbeb', border: '#f59e0b', text: '#92400e', badge: 'Office' },
-  hall: { fill: '#eef2ff', border: '#6366f1', text: '#312e81', badge: 'Hall' },
-  lobby: { fill: '#f5f3ff', border: '#8b5cf6', text: '#4c1d95', badge: 'Lobby' },
-  corridor: { fill: '#f1f5f9', border: '#64748b', text: '#334155', badge: 'Corridor' },
-  stairs: { fill: '#fef3c7', border: '#d97706', text: '#78350f', badge: '🪜 Stairs' },
-  elevator: { fill: '#fae8ff', border: '#c026d3', text: '#701a75', badge: '🛗 Lift' },
-  door: { fill: '#dcfce7', border: '#16a34a', text: '#14532d', badge: '🚪 Door' },
-  window: { fill: '#e0f2fe', border: '#0284c7', text: '#0c4a6e', badge: '🪟 Win' },
-  entrance: { fill: '#bbf7d0', border: '#15803d', text: '#14532d', badge: '🚩 Entrance' },
-  exit: { fill: '#fee2e2', border: '#dc2626', text: '#7f1d1d', badge: '🏃 Exit' },
-  wall: { fill: '#475569', border: '#1e293b', text: '#ffffff', badge: 'Wall' },
-  partition: { fill: '#94a3b8', border: '#475569', text: '#0f172a', badge: 'Partition' },
-  custom: { fill: '#f3f4f6', border: '#4b5563', text: '#1f2937', badge: 'Custom' },
-  other: { fill: '#f1f5f9', border: '#64748b', text: '#334155', badge: 'Space' },
-};
-
-const OUTDOOR_STYLES: Record<
-  string,
-  { fill: string; border: string; text: string; icon: string }
-> = {
-  lawn: { fill: '#dcfce7', border: '#22c55e', text: '#14532d', icon: '🌿' },
-  tree: { fill: '#bbf7d0', border: '#16a34a', text: '#14532d', icon: '🌳' },
-  path: { fill: '#e2e8f0', border: '#64748b', text: '#1e293b', icon: '🚶' },
-  walkway: { fill: '#ede9fe', border: '#7c3aed', text: '#4c1d95', icon: '🌉' },
-  road: { fill: '#cbd5e1', border: '#475569', text: '#0f172a', icon: '🛣️' },
-  plaza: { fill: '#fef3c7', border: '#d97706', text: '#78350f', icon: '🏟️' },
-  fountain: { fill: '#e0f2fe', border: '#0284c7', text: '#0c4a6e', icon: '⛲' },
-  entrance: { fill: '#f1f5f9', border: '#0f172a', text: '#0f172a', icon: '⛩️' },
-  custom: { fill: '#f3f4f6', border: '#6b7280', text: '#1f2937', icon: '📍' },
-};
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   doc,
@@ -162,6 +140,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onAddFloor,
   onDuplicateSelected,
   onDeleteSelected,
+  onMoveMultiSelection,
   onRevertChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -579,6 +558,47 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
               'Reshape outdoor polygon/path',
             );
           }
+        } else if (dragState.targetType === 'multi' && selection.selectedIds?.length) {
+          const dx = Number((dragPreview.center[0] - dragState.initialCenter[0]).toFixed(2));
+          const dz = Number((dragPreview.center[1] - dragState.initialCenter[1]).toFixed(2));
+          if (onMoveMultiSelection) {
+            onMoveMultiSelection(
+              [dx, dz],
+              selection.selectedIds,
+              `Move ${selection.selectedIds.length} selected objects`,
+            );
+          } else if (dragState.multiInitial) {
+            if (selection.buildingId && selection.floorId) {
+              for (const rm of dragState.multiInitial.rooms) {
+                const targetRm = selectedFloor?.rooms.find((r) => r.id === rm.id);
+                if (targetRm) {
+                  onUpdateRoomGeometry(
+                    selection.buildingId,
+                    selection.floorId,
+                    rm.id,
+                    [
+                      Number((rm.localCenter[0] + dx).toFixed(2)),
+                      Number((rm.localCenter[1] + dz).toFixed(2)),
+                    ],
+                    targetRm.size,
+                    'Move indoor elements',
+                  );
+                }
+              }
+            } else {
+              for (const bld of dragState.multiInitial.buildings) {
+                onUpdateBuildingFootprint(
+                  bld.id,
+                  [
+                    Number((bld.center[0] + dx).toFixed(2)),
+                    Number((bld.center[1] + dz).toFixed(2)),
+                  ],
+                  bld.size,
+                  'Move buildings',
+                );
+              }
+            }
+          }
         } else if (dragState.targetType === 'building') {
           onUpdateBuildingFootprint(
             dragState.targetId,
@@ -622,6 +642,43 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const startWorld = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+
+    const isPartOfMulti =
+      selection.type === 'multi' &&
+      selection.selectedIds &&
+      selection.selectedIds.length > 1 &&
+      selection.selectedIds.includes(targetId);
+
+    if (isPartOfMulti && selection.selectedIds) {
+      const idSet = new Set(selection.selectedIds);
+      const multiInitial: NonNullable<DragState['multiInitial']> = {
+        rooms: (selectedFloor?.rooms ?? [])
+          .filter((r) => idSet.has(r.id))
+          .map((r) => ({ id: r.id, localCenter: [...r.localCenter] as Vec2 })),
+        buildings: doc.buildings
+          .filter((b) => idSet.has(b.id))
+          .map((b) => ({
+            id: b.id,
+            center: [...b.footprint.center] as Vec2,
+            size: [...b.footprint.size] as [number, number],
+          })),
+        outdoor: (doc.outdoorElements ?? [])
+          .filter((o) => idSet.has(o.id))
+          .map((o) => ({ id: o.id, center: [...o.center] as Vec2 })),
+      };
+
+      setDragState({
+        type: 'move',
+        targetType: 'multi',
+        targetId,
+        startPointer: { worldX: startWorld.wx, worldZ: startWorld.wz },
+        initialCenter,
+        initialSize,
+        multiInitial,
+      });
+      setDragPreview({ center: initialCenter, size: initialSize });
+      return;
+    }
 
     setDragState({
       type: 'move',
@@ -713,17 +770,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       w: [cx - w / 2, cz],
     };
 
-    const cursors: Record<HandleType, string> = {
-      nw: 'nwse-resize',
-      n: 'ns-resize',
-      ne: 'nesw-resize',
-      e: 'ew-resize',
-      se: 'nwse-resize',
-      s: 'ns-resize',
-      sw: 'nesw-resize',
-      w: 'ew-resize',
-    };
-
     return (Object.entries(handlePositions) as [HandleType, [number, number]][]).map(
       ([handle, [hx, hz]]) => {
         const { sx, sy } = worldToScreen(hx, hz);
@@ -739,7 +785,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             fill="#ffffff"
             stroke="#18181b"
             strokeWidth={2}
-            style={{ cursor: cursors[handle] }}
+            style={{ cursor: HANDLE_CURSORS[handle] }}
             onPointerDown={(e) =>
               startResize(e, handle, targetType, targetId, localOrWorldCenterForState, size)
             }
@@ -855,264 +901,20 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {/* FLOATING CONTEXT HEADER BAR: FLOOR SELECTOR OR LAYER TOGGLES */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: 12,
-          right: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          pointerEvents: 'none',
-          zIndex: 10,
-          gap: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        {selectedBuilding ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              backgroundColor: '#ffffff',
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: '1px solid #cbd5e1',
-              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
-              pointerEvents: 'auto',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              onClick={() => onSelectionChange({ type: 'none' })}
-              style={{
-                padding: '4px 8px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #cbd5e1',
-                borderRadius: 5,
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#0f172a',
-                cursor: 'pointer',
-              }}
-            >
-              ← Campus Exterior
-            </button>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 4px' }}>
-              🏢 {selectedBuilding.shortName ? `${selectedBuilding.shortName} · ` : ''}
-              {selectedBuilding.name}
-            </span>
-            <div style={{ width: 1, height: 18, backgroundColor: '#e2e8f0' }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>Floor:</span>
-            {selectedBuilding.floors.map((fl) => {
-              const isFlActive = selection.floorId === fl.id;
-              return (
-                <button
-                  key={fl.id}
-                  onClick={() =>
-                    onSelectionChange({
-                      type: 'floor',
-                      buildingId: selectedBuilding.id,
-                      floorId: fl.id,
-                    })
-                  }
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: isFlActive ? 700 : 500,
-                    backgroundColor: isFlActive ? '#18181b' : '#f1f5f9',
-                    color: isFlActive ? '#ffffff' : '#334155',
-                    border: '1px solid',
-                    borderColor: isFlActive ? '#18181b' : '#cbd5e1',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {fl.level === 1 ? 'Ground / Floor 1' : `Floor ${fl.level}`}
-                </button>
-              );
-            })}
-            {onAddFloor && (
-              <button
-                onClick={() => onAddFloor(selectedBuilding.id)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
-                  border: '1px dashed #94a3b8',
-                  cursor: 'pointer',
-                }}
-                title="Add another floor to this building"
-              >
-                + Floor
-              </button>
-            )}
-          </div>
-        ) : (
-          /* Outdoor Layer Filter Bar */
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              backgroundColor: '#ffffff',
-              padding: '5px 10px',
-              borderRadius: 8,
-              border: '1px solid #cbd5e1',
-              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
-              pointerEvents: 'auto',
-              fontSize: 12,
-            }}
-          >
-            <span style={{ fontWeight: 700, color: '#334155', fontSize: 11 }}>Layers:</span>
-            {(
-              [
-                ['buildings', '🏢 Buildings'],
-                ['paths', '🛣️ Paths & Roads'],
-                ['greenery', '🌳 Greenery'],
-                ['infrastructure', '⛲ Plazas & Fountain'],
-                ['annotations', '💬 Labels & AI'],
-              ] as [EditorLayerId, string][]
-            ).map(([lid, text]) => {
-              const active = visibleLayers[lid] !== false;
-              return (
-                <button
-                  key={lid}
-                  onClick={() => onToggleLayer?.(lid)}
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: 5,
-                    fontSize: 11,
-                    fontWeight: active ? 600 : 500,
-                    backgroundColor: active ? '#f1f5f9' : '#ffffff',
-                    color: active ? '#0f172a' : '#94a3b8',
-                    border: `1px solid ${active ? '#cbd5e1' : '#e2e8f0'}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {active ? '✓ ' : ''}
-                  {text}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Active Polyline / Polygon Drawing Banner */}
-        {isPointDrawTool && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: '#18181b',
-              color: '#ffffff',
-              padding: '6px 12px',
-              borderRadius: 8,
-              fontSize: 12,
-              pointerEvents: 'auto',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
-          >
-            <span>
-              Click points on canvas ({draftPoints.length} placed).
-            </span>
-            <button
-              onClick={finishPointDrawing}
-              disabled={draftPoints.length < 2}
-              style={{
-                padding: '3px 8px',
-                backgroundColor: '#22c55e',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 5,
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: draftPoints.length >= 2 ? 'pointer' : 'not-allowed',
-              }}
-            >
-              ✓ Finish Shape
-            </button>
-            <button
-              onClick={() => setDraftPoints([])}
-              style={{
-                padding: '3px 8px',
-                backgroundColor: '#475569',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 5,
-                fontSize: 11,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {/* Multi-Selection Action Bar */}
-        {selection.type === 'multi' &&
-          selection.selectedIds &&
-          selection.selectedIds.length > 1 && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                backgroundColor: '#ffffff',
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
-                pointerEvents: 'auto',
-                fontSize: 12,
-              }}
-            >
-              <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                {selection.selectedIds.length} objects selected
-              </span>
-              {onDuplicateSelected && (
-                <button
-                  onClick={onDuplicateSelected}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 5,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ⧉ Duplicate All
-                </button>
-              )}
-              {onDeleteSelected && (
-                <button
-                  onClick={onDeleteSelected}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    color: '#dc2626',
-                    borderRadius: 5,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  🗑 Delete All
-                </button>
-              )}
-            </div>
-          )}
-      </div>
+      <EditorCanvasHeaderOverlay
+        selectedBuilding={selectedBuilding}
+        selection={selection}
+        visibleLayers={visibleLayers}
+        isPointDrawTool={isPointDrawTool}
+        draftPointsCount={draftPoints.length}
+        onSelectionChange={onSelectionChange}
+        onToggleLayer={onToggleLayer}
+        onAddFloor={onAddFloor}
+        onFinishPointDrawing={finishPointDrawing}
+        onCancelPointDrawing={() => setDraftPoints([])}
+        onDuplicateSelected={onDuplicateSelected}
+        onDeleteSelected={onDeleteSelected}
+      />
 
       {/* MAIN INTERACTIVE SVG CANVAS */}
       <svg
@@ -1396,13 +1198,31 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
               const isSelected =
                 selection.buildingId === bld.id ||
                 (selection.selectedIds?.includes(bld.id) ?? false);
-              const isDragTarget =
+              const isSingleDragTarget =
                 dragState?.targetType === 'building' &&
                 dragState.targetId === bld.id &&
                 dragPreview;
+              const isMultiDragTarget =
+                dragState?.targetType === 'multi' &&
+                Boolean(selection.selectedIds?.includes(bld.id)) &&
+                dragPreview;
+              const isDragTarget = isSingleDragTarget || isMultiDragTarget;
 
-              const center = isDragTarget ? dragPreview.center : bld.footprint.center;
-              const size = isDragTarget ? dragPreview.size : bld.footprint.size;
+              const multiDx =
+                isMultiDragTarget && dragPreview && dragState
+                  ? dragPreview.center[0] - dragState.initialCenter[0]
+                  : 0;
+              const multiDz =
+                isMultiDragTarget && dragPreview && dragState
+                  ? dragPreview.center[1] - dragState.initialCenter[1]
+                  : 0;
+
+              const center: [number, number] = isSingleDragTarget
+                ? dragPreview.center
+                : isMultiDragTarget
+                  ? [bld.footprint.center[0] + multiDx, bld.footprint.center[1] + multiDz]
+                  : bld.footprint.center;
+              const size = isSingleDragTarget ? dragPreview.size : bld.footprint.size;
               const [cx, cz] = center;
               const [w, d] = size;
 
@@ -1498,16 +1318,23 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                               onSelectionChange({ type: 'multi', selectedIds: nextIds });
                               return;
                             }
-                            onSelectionChange({
-                              type: isFloorView && isSelected ? 'floor' : 'building',
-                              buildingId: bld.id,
-                              floorId:
-                                isFloorView && isSelected
-                                  ? selection.floorId
-                                  : undefined,
-                            });
+                            const isInMultiGroup =
+                              selection.type === 'multi' &&
+                              selection.selectedIds &&
+                              selection.selectedIds.length > 1 &&
+                              selection.selectedIds.includes(bld.id);
+                            if (!isInMultiGroup) {
+                              onSelectionChange({
+                                type: isFloorView && isSelected ? 'floor' : 'building',
+                                buildingId: bld.id,
+                                floorId:
+                                  isFloorView && isSelected
+                                    ? selection.floorId
+                                    : undefined,
+                              });
+                            }
                             if (!isFloorView || !isSelected) {
-                              startMove(e, 'building', bld.id, center, size);
+                              startMove(e, 'building', bld.id, bld.footprint.center, bld.footprint.size);
                             }
                           }
                         }}
@@ -1575,6 +1402,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
                   {/* Building Resize Handles when selected in Campus view */}
                   {isSelected &&
+                    selection.type !== 'multi' &&
                     !selection.roomId &&
                     !isFloorView &&
                     renderHandles(center, size, 'building', bld.id, center)}
@@ -1591,15 +1419,37 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
               const isSelected =
                 selection.roomId === rm.id ||
                 (selection.selectedIds?.includes(rm.id) ?? false);
-              const isDragTarget =
+              const isSingleDragTarget =
                 dragState?.targetType === 'room' &&
                 dragState.targetId === rm.id &&
                 dragPreview;
+              const isMultiDragTarget =
+                dragState?.targetType === 'multi' &&
+                Boolean(selection.selectedIds?.includes(rm.id)) &&
+                dragPreview;
+              const isDragTarget = isSingleDragTarget || isMultiDragTarget;
 
-              const localCenter = isDragTarget ? dragPreview.center : rm.localCenter;
-              const size = isDragTarget ? dragPreview.size : rm.size;
+              const multiDx =
+                isMultiDragTarget && dragPreview && dragState
+                  ? dragPreview.center[0] - dragState.initialCenter[0]
+                  : 0;
+              const multiDz =
+                isMultiDragTarget && dragPreview && dragState
+                  ? dragPreview.center[1] - dragState.initialCenter[1]
+                  : 0;
+
+              const localCenter: [number, number] = isSingleDragTarget
+                ? dragPreview.center
+                : isMultiDragTarget
+                  ? [rm.localCenter[0] + multiDx, rm.localCenter[1] + multiDz]
+                  : rm.localCenter;
+              const size = isSingleDragTarget ? dragPreview.size : rm.size;
               const polygon =
-                isDragTarget && dragPreview.points ? dragPreview.points : rm.polygon;
+                isSingleDragTarget && dragPreview.points
+                  ? dragPreview.points
+                  : isMultiDragTarget && rm.polygon
+                    ? rm.polygon.map(([px, pz]) => [px + multiDx, pz + multiDz] as Vec2)
+                    : rm.polygon;
 
               const bCx = selectedBuilding.footprint.center[0];
               const bCz = selectedBuilding.footprint.center[1];
@@ -1663,13 +1513,20 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       style={{ cursor: tool === 'select' ? 'pointer' : 'default' }}
                       onPointerDown={(e) => {
                         if (tool === 'select') {
-                          onSelectionChange({
-                            type: 'room',
-                            buildingId: selectedBuilding.id,
-                            floorId: selectedFloor.id,
-                            roomId: rm.id,
-                          });
-                          startMove(e, 'room', rm.id, localCenter, size);
+                          const isInMultiGroup =
+                            selection.type === 'multi' &&
+                            selection.selectedIds &&
+                            selection.selectedIds.length > 1 &&
+                            selection.selectedIds.includes(rm.id);
+                          if (!isInMultiGroup) {
+                            onSelectionChange({
+                              type: 'room',
+                              buildingId: selectedBuilding.id,
+                              floorId: selectedFloor.id,
+                              roomId: rm.id,
+                            });
+                          }
+                          startMove(e, 'room', rm.id, rm.localCenter, rm.size);
                         }
                       }}
                     />
@@ -1709,13 +1566,20 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                             });
                             return;
                           }
-                          onSelectionChange({
-                            type: 'room',
-                            buildingId: selectedBuilding.id,
-                            floorId: selectedFloor.id,
-                            roomId: rm.id,
-                          });
-                          startMove(e, 'room', rm.id, localCenter, size);
+                          const isInMultiGroup =
+                            selection.type === 'multi' &&
+                            selection.selectedIds &&
+                            selection.selectedIds.length > 1 &&
+                            selection.selectedIds.includes(rm.id);
+                          if (!isInMultiGroup) {
+                            onSelectionChange({
+                              type: 'room',
+                              buildingId: selectedBuilding.id,
+                              floorId: selectedFloor.id,
+                              roomId: rm.id,
+                            });
+                          }
+                          startMove(e, 'room', rm.id, rm.localCenter, rm.size);
                         }
                       }}
                       onDoubleClick={(e) => {
@@ -2020,100 +1884,31 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
       {/* INLINE RENAME POPOVER ON DOUBLE CLICK */}
       {inlineEditRoomId && selectedBuilding && selectedFloor && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 52,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#ffffff',
-            padding: '8px 12px',
-            borderRadius: 8,
-            border: '1px solid #cbd5e1',
-            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.14)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            zIndex: 30,
+        <InlineRoomRenamePopover
+          value={inlineEditValue}
+          onChange={setInlineEditValue}
+          onSave={() => {
+            onUpdateRoomProps?.(
+              selectedBuilding.id,
+              selectedFloor.id,
+              inlineEditRoomId,
+              { name: inlineEditValue.trim() },
+              'Inline rename element',
+            );
+            setInlineEditRoomId(null);
           }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>Rename:</span>
-          <input
-            type="text"
-            autoFocus
-            value={inlineEditValue}
-            onChange={(e) => setInlineEditValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                onUpdateRoomProps?.(
-                  selectedBuilding.id,
-                  selectedFloor.id,
-                  inlineEditRoomId,
-                  { name: inlineEditValue.trim() },
-                  'Inline rename element',
-                );
-                setInlineEditRoomId(null);
-              } else if (e.key === 'Escape') {
-                setInlineEditRoomId(null);
-              }
-            }}
-            style={{
-              padding: '5px 8px',
-              borderRadius: 5,
-              border: '1px solid #cbd5e1',
-              fontSize: 12,
-              outline: 'none',
-            }}
-          />
-          <button
-            onClick={() => {
-              onUpdateRoomProps?.(
-                selectedBuilding.id,
-                selectedFloor.id,
-                inlineEditRoomId,
-                { name: inlineEditValue.trim() },
-                'Inline rename element',
-              );
-              setInlineEditRoomId(null);
-            }}
-            style={{
-              padding: '5px 10px',
-              backgroundColor: '#18181b',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 5,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Save
-          </button>
-        </div>
+          onCancel={() => setInlineEditRoomId(null)}
+        />
       )}
 
       {/* Floating Bottom Status Bar */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 12,
-          right: 12,
-          backgroundColor: '#ffffff',
-          padding: '5px 12px',
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 500,
-          color: '#475569',
-          border: '1px solid #cbd5e1',
-          boxShadow: '0 2px 6px rgba(15, 23, 42, 0.05)',
-          pointerEvents: 'none',
-        }}
-      >
-        {isFloorView && selectedBuilding && selectedFloor
-          ? `Indoor Mode: ${selectedBuilding.shortName || selectedBuilding.name} • Floor ${selectedFloor.level}`
-          : 'Outdoor Campus Mode (Double-click a building to edit floors)'}{' '}
-        | Zoom: {viewport.zoom.toFixed(1)} px/m | Snap: {gridSnap > 0 ? `${gridSnap}m` : 'Off'}
-      </div>
+      <EditorCanvasStatusBar
+        isFloorView={isFloorView}
+        selectedBuilding={selectedBuilding}
+        selectedFloor={selectedFloor}
+        zoom={viewport.zoom}
+        gridSnap={gridSnap}
+      />
     </div>
   );
 };
