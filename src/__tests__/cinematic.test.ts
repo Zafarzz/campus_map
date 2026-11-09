@@ -19,6 +19,12 @@ import {
   type Keyframe,
 } from '../cinematic/pathMath';
 import { PRESETS, buildPreset } from '../cinematic/presets';
+import {
+  MP4_MIME_CANDIDATES,
+  WEBM_MIME_CANDIDATES,
+  isFormatSupported,
+  pickMimeType,
+} from '../cinematic/recorder';
 
 const kf = (x: number, dur: number): Keyframe => ({
   id: makeKeyframeId(),
@@ -194,5 +200,28 @@ describe('cinematic store', () => {
     expect(cinematic.getState().path.keyframes).toHaveLength(0);
     cinematic.importPathJson(json);
     expect(cinematic.getState().path.keyframes).toHaveLength(9);
+  });
+
+  it('configures video recording format with MP4 as default', () => {
+    const recState = cinematic.getState().rec;
+    expect(recState.format).toBe('mp4');
+
+    cinematic.setRecording({ format: 'webm' });
+    expect(cinematic.getState().rec.format).toBe('webm');
+
+    cinematic.setRecording({ format: 'mp4' });
+    expect(cinematic.getState().rec.format).toBe('mp4');
+  });
+
+  it('exposes MP4 and WebM candidate MIME types with priority on standard MP4', () => {
+    expect(MP4_MIME_CANDIDATES.length).toBeGreaterThan(0);
+    expect(MP4_MIME_CANDIDATES).toContain('video/mp4;codecs=avc1');
+    expect(MP4_MIME_CANDIDATES).toContain('video/mp4');
+
+    expect(WEBM_MIME_CANDIDATES.length).toBeGreaterThan(0);
+    expect(WEBM_MIME_CANDIDATES).toContain('video/webm;codecs=vp8');
+
+    expect(typeof isFormatSupported).toBe('function');
+    expect(typeof pickMimeType).toBe('function');
   });
 });

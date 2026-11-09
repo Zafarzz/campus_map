@@ -636,4 +636,87 @@ export function getSportsMeshTexture(): THREE.CanvasTexture | null {
   return texture;
 }
 
+let cachedLibrarySignTexture: THREE.CanvasTexture | null = null;
+
+/**
+ * Creates or retrieves the high-resolution texture for the Block F South Facade
+ * entrance plaque: «LIBRARY».
+ * Architecturally authentic brass/metal plate with dark lettering and fine beveled border.
+ */
+export function getLibrarySignTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  if (cachedLibrarySignTexture) return cachedLibrarySignTexture;
+
+  const width = 512;
+  const height = 192;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Background: brushed warm architectural brass / polished metallic bronze
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, '#fef9c3');
+  gradient.addColorStop(0.3, '#fef08a');
+  gradient.addColorStop(0.7, '#eab308');
+  gradient.addColorStop(1, '#ca8a04');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Outer beveled frame
+  ctx.strokeStyle = '#854d0e';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(4, 4, width - 8, height - 8);
+
+  // Inner fine border
+  ctx.strokeStyle = '#713f12';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(12, 12, width - 24, height - 24);
+
+  // 4 brass screw rosettes in corners
+  const screwRadius = 5;
+  const screws = [
+    [18, 18],
+    [width - 18, 18],
+    [18, height - 18],
+    [width - 18, height - 18],
+  ];
+  ctx.fillStyle = '#713f12';
+  for (const [sx, sy] of screws) {
+    ctx.beginPath();
+    ctx.arc(sx, sy, screwRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(sx - 1, sy - 1, screwRadius * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = '#fef08a';
+    ctx.fill();
+    ctx.fillStyle = '#713f12';
+  }
+
+  // Text setup: "LIBRARY"
+  ctx.font = 'bold 70px "Montserrat", "Cinzel", "Arial", sans-serif';
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = '10px';
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Crisp engraved drop shadow
+  ctx.shadowColor = 'rgba(254, 240, 138, 0.9)';
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.shadowBlur = 0;
+
+  // Deep engraved dark bronze lettering
+  ctx.fillStyle = '#1c1917';
+  ctx.fillText('LIBRARY', width / 2, height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  cachedLibrarySignTexture = texture;
+  return texture;
+}
+
 

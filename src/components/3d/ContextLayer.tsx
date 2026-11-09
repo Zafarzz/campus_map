@@ -445,6 +445,30 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       if (f.id === 'out-plaza-mvijfubr') continue;
       if (f.id.startsWith('kpp-')) continue;
 
+      // Special handling for lawn-g1 (central lawn containing the Grand Campus Fountain):
+      // Split into west and east parcels so grass never intersects or z-fights with the fountain promenade plaza.
+      if (f.id === 'lawn-g1' && f.footprint.type === 'rect') {
+        const [lw, ld] = f.footprint.size;
+        const [lcx, lcz] = f.footprint.center;
+        const lawnMinX = lcx - lw / 2;
+        const lawnMaxX = lcx + lw / 2;
+        // Fountain plaza bounds in world coords: center [5.5, -23.1], outerLength + 6.0 = 63.0m (X: [-26.0, 37.0])
+        const fountainWestX = -26.0;
+        const fountainEastX = 37.0;
+
+        if (lawnMinX < fountainWestX) {
+          const westW = fountainWestX - lawnMinX;
+          const westCenter: [number, number] = [lawnMinX + westW / 2, lcz];
+          addFootprint('lawn', { type: 'rect', center: westCenter, size: [westW, ld] }, flatLayerElevation.lawn, 0.02);
+        }
+        if (lawnMaxX > fountainEastX) {
+          const eastW = lawnMaxX - fountainEastX;
+          const eastCenter: [number, number] = [fountainEastX + eastW / 2, lcz];
+          addFootprint('lawn', { type: 'rect', center: eastCenter, size: [eastW, ld] }, flatLayerElevation.lawn, 0.02);
+        }
+        continue;
+      }
+
       if (f.kind === 'structure') {
         addFootprint('structure', f.footprint, 0, f.height ?? mapConfig.building.unknownStructureHeight);
         continue;

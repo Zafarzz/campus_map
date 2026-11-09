@@ -15,7 +15,7 @@ export function CinematicRecorder() {
   }, [rec.phase, rec.startedAt]);
 
   if (!rec.supported) {
-    return <p className="cine-hint cine-hint--warn">Video recording is not supported in this browser (needs MediaRecorder + canvas.captureStream with WebM).</p>;
+    return <p className="cine-hint cine-hint--warn">Video recording is not supported in this browser (needs MediaRecorder + canvas.captureStream).</p>;
   }
   const recording = rec.phase === 'recording';
   const mm = Math.floor(elapsed / 60);
@@ -23,7 +23,18 @@ export function CinematicRecorder() {
 
   return (
     <div>
-      <div className="cine-grid2">
+      <div className="cine-grid3">
+        <label className="cine-field">
+          <span>Format</span>
+          <select
+            disabled={recording}
+            value={rec.format}
+            onChange={(e) => cinematic.setRecording({ format: e.target.value === 'webm' ? 'webm' : 'mp4' })}
+          >
+            <option value="mp4">MP4 (.mp4)</option>
+            <option value="webm">WebM (.webm)</option>
+          </select>
+        </label>
         <label className="cine-field">
           <span>Resolution</span>
           <select disabled={recording} value={rec.resolutionId} onChange={(e) => cinematic.setRecording({ resolutionId: e.target.value })}>
@@ -59,7 +70,7 @@ export function CinematicRecorder() {
       {rec.error && <p className="cine-hint cine-hint--warn">{rec.error}</p>}
       {rec.downloadUrl && (
         <p className="cine-hint">
-          Saved: <a href={rec.downloadUrl} download={rec.downloadName ?? 'cinematic.webm'}>{rec.downloadName}</a> ({(rec.sizeBytes / 1048576).toFixed(1)} MB)
+          Saved: <a href={rec.downloadUrl} download={rec.downloadName ?? 'cinematic.mp4'}>{rec.downloadName}</a> ({(rec.sizeBytes / 1048576).toFixed(1)} MB)
         </p>
       )}
       <p className="cine-hint">Only the 3D canvas is recorded — panels and overlays never appear in the video.</p>

@@ -124,6 +124,9 @@ export function BlockAFacade({
         transparent: true,
         opacity: transparent ? opacity * 0.45 : 0.92,
         depthWrite: !transparent,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       }),
     );
 
@@ -276,7 +279,11 @@ export function BlockAFacade({
 
       batcher.addBox('wall', [bay1W - 0.5, 2.8, 0.08], [cx, plinthH + 1.4, 0.02]);
       batcher.addBox('trim', [winW + 0.14, 0.07, 0.16], [cx, winY - winH / 2 - 0.04, 0.06]);
-      batcher.addBox('frame', [winW, winH, 0.08], [cx, winY, 0.04]);
+      // Outer window frame border (top, bottom, left, right rails/stiles)
+      batcher.addBox('frame', [winW, 0.06, 0.08], [cx, winY + winH / 2 - 0.03, 0.04]);
+      batcher.addBox('frame', [winW, 0.06, 0.08], [cx, winY - winH / 2 + 0.03, 0.04]);
+      batcher.addBox('frame', [0.06, winH - 0.12, 0.08], [cx - winW / 2 + 0.03, winY, 0.04]);
+      batcher.addBox('frame', [0.06, winH - 0.12, 0.08], [cx + winW / 2 - 0.03, winY, 0.04]);
       for (const px of [-paneW, 0, paneW]) {
         batcher.addBox('glass', [paneW - 0.05, winH - 0.1, 0.02], [cx + px, winY, 0.05]);
       }
@@ -310,7 +317,11 @@ export function BlockAFacade({
         const transomCenterY = baseSillY + bottomH + transomH / 2;
 
         batcher.addBox('trim', [winW + 0.16, 0.08, 0.16], [cx, baseSillY - 0.04, 0.06]);
-        batcher.addBox('frame', [winW, winH, 0.06], [cx, winCenterY, 0.03]);
+        // Outer window frame border (top, bottom, left, right rails/stiles)
+        batcher.addBox('frame', [winW, 0.06, 0.06], [cx, winCenterY + winH / 2 - 0.03, 0.04]);
+        batcher.addBox('frame', [winW, 0.06, 0.06], [cx, winCenterY - winH / 2 + 0.03, 0.04]);
+        batcher.addBox('frame', [0.06, winH - 0.12, 0.06], [cx - winW / 2 + 0.03, winCenterY, 0.04]);
+        batcher.addBox('frame', [0.06, winH - 0.12, 0.06], [cx + winW / 2 - 0.03, winCenterY, 0.04]);
         batcher.addBox('frame', [winW - 0.04, 0.06, 0.08], [cx, baseSillY + bottomH, 0.05]);
 
         for (const mx of mullionXs) {
@@ -323,16 +334,20 @@ export function BlockAFacade({
 
           const isSash = sIdx === 0 || sIdx === 3;
           const sw = secWidths[sIdx] - 0.08;
-          batcher.addBox('glass', [sw, bottomH - 0.08, 0.02], [cx + scx, bottomCenterY, 0.04]);
 
           if (isSash) {
             batcher.addBox('frame', [sw - 0.04, bottomH * 0.65, 0.03], [cx + scx, bottomCenterY - 0.25, 0.055]);
             batcher.addBox('glass', [sw - 0.12, bottomH * 0.65 - 0.08, 0.02], [cx + scx, bottomCenterY - 0.25, 0.06]);
+            // Upper stationary pane above sash
+            const upperSashH = bottomH - bottomH * 0.65;
+            batcher.addBox('glass', [sw, upperSashH - 0.04, 0.02], [cx + scx, bottomCenterY + bottomH * 0.325, 0.04]);
             batcher.addBox(
               'steel',
               [0.02, 0.08, 0.03],
               [cx + scx + (sIdx === 0 ? sw * 0.35 : -sw * 0.35), bottomCenterY - 0.25, 0.085],
             );
+          } else {
+            batcher.addBox('glass', [sw, bottomH - 0.08, 0.02], [cx + scx, bottomCenterY, 0.04]);
           }
         });
       }
@@ -388,7 +403,11 @@ export function BlockAFacade({
       // Right wall & 2F window
       batcher.addBox('wall', [bay6W * 0.38, 2.8, 0.08], [cx + porchW * 0.38, plinthH + 1.4, 0.02]);
       batcher.addBox('trim', [f2WinW + 0.14, 0.08, 0.14], [dx, f2WinY - f2WinH / 2 - 0.04, 0.08]);
-      batcher.addBox('frame', [f2WinW, f2WinH, 0.06], [dx, f2WinY, 0.04]);
+      // Outer window frame border (top, bottom, left, right rails/stiles)
+      batcher.addBox('frame', [f2WinW, 0.06, 0.06], [dx, f2WinY + f2WinH / 2 - 0.03, 0.04]);
+      batcher.addBox('frame', [f2WinW, 0.06, 0.06], [dx, f2WinY - f2WinH / 2 + 0.03, 0.04]);
+      batcher.addBox('frame', [0.06, f2WinH - 0.12, 0.06], [dx - f2WinW / 2 + 0.03, f2WinY, 0.04]);
+      batcher.addBox('frame', [0.06, f2WinH - 0.12, 0.06], [dx + f2WinW / 2 - 0.03, f2WinY, 0.04]);
       batcher.addBox('frame', [f2WinW - 0.06, 0.05, 0.06], [dx, f2WinY + f2WinH * 0.25, 0.06]);
       batcher.addBox('glass', [f2WinW - 0.1, f2WinH * 0.24, 0.02], [dx, f2WinY + f2WinH * 0.36, 0.05]);
       batcher.addBox('frame', [0.05, f2WinH * 0.58, 0.06], [dx - f2WinW * 0.1, f2WinY - f2WinH * 0.18, 0.06]);

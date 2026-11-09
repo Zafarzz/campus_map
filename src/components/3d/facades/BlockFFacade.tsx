@@ -52,6 +52,7 @@ export function BlockFFacade({
   buildingWidth,
   buildingDepth,
   facing = 'east',
+  wallHeight = 12.0,
   opacity = 1,
   transparent = false,
   wallColor = '#ebdcc5',
@@ -68,14 +69,20 @@ export function BlockFFacade({
   const rotY = sign * (Math.PI / 2);
 
   const plinthHeight = 0.6;
-  const architraveHeight = 0.4;
-  const friezeHeight = 0.7;
+  const architraveHeight = 0.45;
+  const friezeHeight = 0.85;
+
+  // Entablature sits at the top crown: from (wallHeight - 2.20) to wallHeight (12.0m)
+  const entablatureBaseY = wallHeight - 2.2;
+  const architraveCenterY = entablatureBaseY + architraveHeight / 2;
+  const friezeCenterY = entablatureBaseY + architraveHeight + friezeHeight / 2;
+  const corniceBaseY = entablatureBaseY + architraveHeight + friezeHeight;
 
   const winW = 1.6;
-  const f1WinH = 1.4;
-  const f1WinCenterY = 1.8;
-  const f2WinH = 3.8;
-  const f2WinCenterY = 5.9;
+  const f1WinH = 1.5;
+  const f1WinCenterY = 1.85;
+  const f2WinH = 5.0;
+  const f2WinCenterY = 6.25;
 
   const wallTextures = useMemo(() => getArchitecturalWallTextures(8, 2), []);
   const plinthTextures = useMemo(() => getGranitePlinthTextures(4, 1), []);
@@ -140,6 +147,9 @@ export function BlockFFacade({
         transparent: true,
         opacity: transparent ? opacity * 0.9 : 0.94,
         depthWrite: !transparent,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       }),
     );
 
@@ -242,31 +252,38 @@ export function BlockFFacade({
   const merged = useMemo(() => {
     const b = new StaticGeometryBatcher();
 
-    // 1. Plinth & drip molding
+    // 1. Plinth & drip molding (0.00m to 0.60m)
     b.addBox('plinth', [0.22, plinthHeight, facadeLength + 0.1], [sign * 0.08, plinthHeight / 2, 0]);
     b.addBox('trim', [0.16, 0.08, facadeLength + 0.15], [sign * 0.12, plinthHeight, 0]);
 
-    // 2. Main travertine wall & rustication joints
-    b.addBox('wall', [0.15, 7.8 - plinthHeight, facadeLength], [0, (7.8 + plinthHeight) / 2, 0]);
-    for (let y = 0.9; y <= 7.65; y += 0.45) {
+    // 2. Main travertine wall & rustication joints (0.60m to entablatureBaseY = 9.80m)
+    const wallH = entablatureBaseY - plinthHeight;
+    const wallCenterY = (entablatureBaseY + plinthHeight) / 2;
+    b.addBox('wall', [0.15, wallH, facadeLength], [0, wallCenterY, 0]);
+    for (let y = 0.9; y <= entablatureBaseY - 0.2; y += 0.45) {
       b.addBox('joint', [0.01, 0.035, facadeLength], [sign * 0.078, y, 0]);
     }
 
-    // 3. Classical vertical pilasters
-    const shaftH = 7.4 - 0.85;
-    const shaftY = (7.4 + 0.85) / 2;
+    // 3. Classical vertical pilasters (shaft reaches capital at entablatureBaseY - 0.45m = 9.35m)
+    const capitalBottomY = entablatureBaseY - 0.45;
+    const shaftH = capitalBottomY - 0.85;
+    const shaftY = (capitalBottomY + 0.85) / 2;
     const px = sign * 0.14;
     for (let i = 0; i <= bayCount; i++) {
       const pz = -facadeLength / 2 + i * bayWidth;
       const isCorner = i === 0 || i === bayCount;
       const pilasterW = isCorner ? 0.65 : 0.55;
+      // Base pedestal
       b.addBox('trim', [0.26, 0.25, pilasterW + 0.08], [px, 0.725, pz]);
+      // Shaft
       b.addBox('wall', [0.22, shaftH, pilasterW], [px - sign * 0.01, shaftY, pz]);
+      // Fluted joint grooves along shaft
       b.addBox('joint', [0.02, shaftH - 0.4, 0.05], [px + sign * 0.105, shaftY, pz - 0.12]);
       b.addBox('joint', [0.02, shaftH - 0.4, 0.05], [px + sign * 0.105, shaftY, pz + 0.12]);
-      b.addBox('trim', [0.26, 0.16, pilasterW + 0.06], [px, 7.48, pz]);
-      b.addBox('trim', [0.3, 0.16, pilasterW + 0.12], [px + sign * 0.02, 7.64, pz]);
-      b.addBox('trim', [0.34, 0.08, pilasterW + 0.18], [px + sign * 0.04, 7.76, pz]);
+      // Capital moldings up to entablatureBaseY (9.80m)
+      b.addBox('trim', [0.26, 0.16, pilasterW + 0.06], [px, entablatureBaseY - 0.32, pz]);
+      b.addBox('trim', [0.3, 0.16, pilasterW + 0.12], [px + sign * 0.02, entablatureBaseY - 0.16, pz]);
+      b.addBox('trim', [0.34, 0.08, pilasterW + 0.18], [px + sign * 0.04, entablatureBaseY - 0.04, pz]);
     }
 
     // 4 & 5. Windows (1F and 2F)
@@ -274,55 +291,92 @@ export function BlockFFacade({
     for (let bay = 1; bay < bayCount; bay++) {
       const bayCenterZ = -facadeLength / 2 + (bay + 0.5) * bayWidth;
       for (const wz of [bayCenterZ - 1.4, bayCenterZ + 1.4]) {
-        // 1F Window
-        b.addBox('cavity', [0.06, f1WinH - 0.06, winW - 0.06], [wx - sign * 0.035, f1WinCenterY, wz]);
-        b.addBox('frame', [0.06, f1WinH, winW], [wx, f1WinCenterY, wz]);
-        b.addBox('frame', [0.04, 0.045, winW - 0.1], [wx + 0.015, f1WinCenterY, wz]);
-        b.addBox('frame', [0.04, f1WinH - 0.1, 0.045], [wx + 0.015, f1WinCenterY, wz - winW / 6]);
-        b.addBox('frame', [0.04, f1WinH - 0.1, 0.045], [wx + 0.015, f1WinCenterY, wz + winW / 6]);
-        b.addBox('glass', [0.03, f1WinH - 0.12, winW - 0.12], [wx - sign * 0.015, f1WinCenterY, wz]);
+        // 1F Window (height 1.5m, center Y = 1.85m, span 1.10m - 2.60m)
+        b.addBox('cavity', [0.02, f1WinH - 0.06, winW - 0.06], [wx - sign * 0.03, f1WinCenterY, wz]);
+        // Perimeter window frame (top, bottom, left, right rails/stiles)
+        b.addBox('frame', [0.06, 0.05, winW], [wx, f1WinCenterY + f1WinH / 2 - 0.025, wz]);
+        b.addBox('frame', [0.06, 0.05, winW], [wx, f1WinCenterY - f1WinH / 2 + 0.025, wz]);
+        b.addBox('frame', [0.06, f1WinH - 0.1, 0.05], [wx, f1WinCenterY, wz - winW / 2 + 0.025]);
+        b.addBox('frame', [0.06, f1WinH - 0.1, 0.05], [wx, f1WinCenterY, wz + winW / 2 - 0.025]);
+        b.addBox('frame', [0.05, 0.045, winW - 0.1], [wx + sign * 0.01, f1WinCenterY, wz]);
+        b.addBox('frame', [0.05, f1WinH - 0.1, 0.045], [wx + sign * 0.01, f1WinCenterY, wz - winW / 6]);
+        b.addBox('frame', [0.05, f1WinH - 0.1, 0.045], [wx + sign * 0.01, f1WinCenterY, wz + winW / 6]);
+        b.addBox('glass', [0.02, f1WinH - 0.12, winW - 0.12], [wx, f1WinCenterY, wz]);
         b.addBox('trim', [0.18, 0.12, winW + 0.25], [wx + 0.06, f1WinCenterY - f1WinH / 2 - 0.06, wz]);
         b.addBox('trim', [0.14, 0.1, winW + 0.2], [wx + 0.04, f1WinCenterY + f1WinH / 2 + 0.05, wz]);
 
-        // 2F Window
-        b.addBox('cavity', [0.06, f2WinH - 0.06, winW - 0.06], [wx - sign * 0.035, f2WinCenterY, wz]);
-        b.addBox('frame', [0.06, f2WinH, winW], [wx, f2WinCenterY, wz]);
-        b.addBox('frame', [0.04, 0.045, winW - 0.1], [wx + 0.015, f2WinCenterY - f2WinH * 0.25, wz]);
-        b.addBox('frame', [0.04, 0.045, winW - 0.1], [wx + 0.015, f2WinCenterY, wz]);
-        b.addBox('frame', [0.04, 0.045, winW - 0.1], [wx + 0.015, f2WinCenterY + f2WinH * 0.25, wz]);
-        b.addBox('frame', [0.04, f2WinH - 0.1, 0.045], [wx + 0.015, f2WinCenterY, wz - winW / 6]);
-        b.addBox('frame', [0.04, f2WinH - 0.1, 0.045], [wx + 0.015, f2WinCenterY, wz + winW / 6]);
-        b.addBox('glass', [0.03, f2WinH - 0.12, winW - 0.12], [wx - sign * 0.015, f2WinCenterY, wz]);
+        // 2F Window (height 5.0m, center Y = 6.25m, span 3.75m - 8.75m)
+        b.addBox('cavity', [0.02, f2WinH - 0.06, winW - 0.06], [wx - sign * 0.03, f2WinCenterY, wz]);
+        // Perimeter window frame (top, bottom, left, right rails/stiles)
+        b.addBox('frame', [0.06, 0.05, winW], [wx, f2WinCenterY + f2WinH / 2 - 0.025, wz]);
+        b.addBox('frame', [0.06, 0.05, winW], [wx, f2WinCenterY - f2WinH / 2 + 0.025, wz]);
+        b.addBox('frame', [0.06, f2WinH - 0.1, 0.05], [wx, f2WinCenterY, wz - winW / 2 + 0.025]);
+        b.addBox('frame', [0.06, f2WinH - 0.1, 0.05], [wx, f2WinCenterY, wz + winW / 2 - 0.025]);
+        // 3 horizontal transoms
+        b.addBox('frame', [0.05, 0.045, winW - 0.1], [wx + sign * 0.01, f2WinCenterY - f2WinH * 0.25, wz]);
+        b.addBox('frame', [0.05, 0.045, winW - 0.1], [wx + sign * 0.01, f2WinCenterY, wz]);
+        b.addBox('frame', [0.05, 0.045, winW - 0.1], [wx + sign * 0.01, f2WinCenterY + f2WinH * 0.25, wz]);
+        b.addBox('frame', [0.05, f2WinH - 0.1, 0.045], [wx + sign * 0.01, f2WinCenterY, wz - winW / 6]);
+        b.addBox('frame', [0.05, f2WinH - 0.1, 0.045], [wx + sign * 0.01, f2WinCenterY, wz + winW / 6]);
+        b.addBox('glass', [0.02, f2WinH - 0.12, winW - 0.12], [wx, f2WinCenterY, wz]);
         b.addBox('trim', [0.2, 0.14, winW + 0.25], [wx + 0.07, f2WinCenterY - f2WinH / 2 - 0.07, wz]);
         b.addBox('trim', [0.16, 0.12, winW + 0.2], [wx + 0.05, f2WinCenterY + f2WinH / 2 + 0.06, wz]);
       }
     }
 
     // 6. Bay 0 decorative grooves
-    for (const gy of [2.0, 3.5, 5.0, 6.5]) {
+    for (const gy of [2.0, 3.5, 5.0, 6.5, 8.0]) {
       b.addBox('joint', [0.015, 0.035, bayWidth * 0.86], [sign * 0.085, gy, emblemBayZ]);
     }
 
-    // 7. Classical entablature & cornice
-    b.addBox('trim', [0.24, architraveHeight, facadeLength + 0.15], [sign * 0.12, 8.0, 0]);
-    for (const gy of [7.92, 8.08]) {
+    // 7. Classical entablature & cornice (reaching wallHeight = 12.0m)
+    // Architrave (9.80m - 10.25m, center architraveCenterY = 10.025m)
+    b.addBox('trim', [0.24, architraveHeight, facadeLength + 0.15], [sign * 0.12, architraveCenterY, 0]);
+    for (const gy of [entablatureBaseY + 0.12, entablatureBaseY + 0.32]) {
       b.addBox('joint', [0.015, 0.025, facadeLength + 0.16], [sign * 0.245, gy, 0]);
     }
-    b.addBox('trim', [0.26, friezeHeight, facadeLength + 0.2], [sign * 0.14, 8.55, 0]);
-    b.addBox('trim', [0.36, 0.25, facadeLength + 0.25], [sign * 0.2, 9.025, 0]);
-    b.addBox('trim', [0.44, 0.2, facadeLength + 0.3], [sign * 0.24, 9.25, 0]);
 
-    // Dentils
-    const dentilCount = Math.floor(facadeLength / 0.3);
+    // Frieze band (10.25m - 11.10m, center friezeCenterY = 10.675m)
+    b.addBox('trim', [0.26, friezeHeight, facadeLength + 0.2], [sign * 0.14, friezeCenterY, 0]);
+
+    // Cornice (11.10m - 12.02m)
+    // Bed mold / frieze cap
+    b.addBox('trim', [0.36, 0.25, facadeLength + 0.25], [sign * 0.2, corniceBaseY + 0.125, 0]);
+    // Dentil band base
+    b.addBox('trim', [0.44, 0.2, facadeLength + 0.3], [sign * 0.24, corniceBaseY + 0.35, 0]);
+
+    // Dentils along dentil band
+    const dentilCount = Math.floor(facadeLength / 0.35);
     for (let i = 0; i < dentilCount; i++) {
       const z = -facadeLength / 2 + (i + 0.5) * (facadeLength / dentilCount);
-      b.addBox('trim', [0.08, 0.12, 0.14], [sign * 0.44, 9.25, z]);
+      b.addBox('trim', [0.08, 0.12, 0.15], [sign * 0.44, corniceBaseY + 0.35, z]);
     }
-    b.addBox('trim', [0.58, 0.45, facadeLength + 0.4], [sign * 0.32, 9.575, 0]);
-    b.addBox('trim', [0.06, 0.05, facadeLength + 0.44], [sign * 0.6, 9.775, 0]);
+
+    // Corona (projecting main cornice beam)
+    b.addBox('trim', [0.58, 0.4, facadeLength + 0.4], [sign * 0.32, corniceBaseY + 0.65, 0]);
+    // Cymatium / top coping cap (reaching +12.02m)
+    b.addBox('trim', [0.64, 0.07, facadeLength + 0.44], [sign * 0.35, corniceBaseY + 0.885, 0]);
 
     return b.buildAll();
-  }, [facadeLength, sign, bayCount, bayWidth, emblemBayZ, plinthHeight, architraveHeight, friezeHeight, winW, f1WinH, f1WinCenterY, f2WinH, f2WinCenterY]);
+  }, [
+    facadeLength,
+    sign,
+    bayCount,
+    bayWidth,
+    emblemBayZ,
+    plinthHeight,
+    architraveHeight,
+    friezeHeight,
+    entablatureBaseY,
+    architraveCenterY,
+    friezeCenterY,
+    corniceBaseY,
+    winW,
+    f1WinH,
+    f1WinCenterY,
+    f2WinH,
+    f2WinCenterY,
+  ]);
 
   useEffect(() => () => disposeMergedMap(merged), [merged]);
 
@@ -338,35 +392,35 @@ export function BlockFFacade({
 
       {/* Universal Official Ajou University Medallion & Typography */}
       <AjouLogoMedallion
-        position={[sign * 0.15, 5.2, emblemBayZ]}
+        position={[sign * 0.15, 6.25, emblemBayZ]}
         rotation={[0, rotY, 0]}
-        radius={1.15}
+        radius={1.35}
         showText={true}
         opacity={opacity}
         transparent={transparent}
       />
 
-      {/* Korean Signage Plaque */}
+      {/* Korean Signage Plaque on Frieze (friezeCenterY = 10.675m) */}
       {koreanFriezeTexture && (
         <mesh
-          position={[sign * 0.272, 8.52, koreanSignZ]}
+          position={[sign * 0.272, friezeCenterY, koreanSignZ]}
           rotation={[0, rotY, 0]}
           material={materials.koreanFriezeMat}
           raycast={NO_RAYCAST}
         >
-          <planeGeometry args={[Math.min(5.6, bayWidth - 0.4), 0.58]} />
+          <planeGeometry args={[Math.min(5.6, bayWidth - 0.4), 0.7]} />
         </mesh>
       )}
 
-      {/* English Signage Plaque */}
+      {/* English Signage Plaque on Frieze (friezeCenterY = 10.675m) */}
       {englishFriezeTexture && (
         <mesh
-          position={[sign * 0.272, 8.52, englishSignZ]}
+          position={[sign * 0.272, friezeCenterY, englishSignZ]}
           rotation={[0, rotY, 0]}
           material={materials.englishFriezeMat}
           raycast={NO_RAYCAST}
         >
-          <planeGeometry args={[Math.min(13.5, 2.3 * bayWidth - 0.4), 0.58]} />
+          <planeGeometry args={[Math.min(13.5, 2.3 * bayWidth - 0.4), 0.7]} />
         </mesh>
       )}
     </group>

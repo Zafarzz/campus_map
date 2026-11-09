@@ -218,7 +218,7 @@ export const TELEPORT_LOCATIONS: TeleportDestination[] = [
   {
     id: 'fountain-bridge',
     label: '⛲ Grand Fountain Plaza',
-    position: [0.0, 1.8, -13.5],
+    position: [-3.05, 1.8, -10.5],
     yaw: 0,
   },
   {

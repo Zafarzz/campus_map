@@ -220,8 +220,28 @@ export const confirmedFloorPlans: FloorPlanDef[] = [
     level: 2,
     rooms: [
       // Two Large Semicircular Tiered Amphitheatres on south (north area is open corridor/walkway)
-      { id: 'bld-d-f2-f201', number: 'F-201', name: 'Tiered Lecture Hall (Amphitheatre West)', kind: 'hall', capacity: 120, uSpan: [0.03, 0.44], vSpan: [0.40, 0.96], legacyId: 'bld-d-f2-r1' },
-      { id: 'bld-d-f2-f202', number: 'F-202', name: 'Tiered Lecture Hall (Amphitheatre East)', kind: 'hall', capacity: 120, uSpan: [0.56, 0.97], vSpan: [0.40, 0.96], legacyId: 'bld-d-f2-r2' },
+      {
+        id: 'bld-d-f2-f201',
+        number: 'F-201',
+        name: 'Tiered Lecture Hall (Amphitheatre West)',
+        kind: 'hall',
+        capacity: 120,
+        description: 'Large tiered university amphitheatre lecture hall (120 seats) with raked auditorium seating, keynote speaker rostrum, acoustic wood slat paneling, and ultra-wide digital presentation video wall.',
+        uSpan: [0.03, 0.44],
+        vSpan: [0.40, 0.96],
+        legacyId: 'bld-d-f2-r1',
+      },
+      {
+        id: 'bld-d-f2-f202',
+        number: 'F-202',
+        name: 'Tiered Lecture Hall (Amphitheatre East)',
+        kind: 'hall',
+        capacity: 120,
+        description: 'Large tiered university amphitheatre lecture hall (120 seats) with raked auditorium seating, keynote speaker rostrum, acoustic wood slat paneling, and ultra-wide digital presentation video wall.',
+        uSpan: [0.56, 0.97],
+        vSpan: [0.40, 0.96],
+        legacyId: 'bld-d-f2-r2',
+      },
     ],
   },
   // ==========================================

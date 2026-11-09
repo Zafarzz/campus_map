@@ -347,6 +347,9 @@ export function CampusFountain({
     const plazaMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.plazaPaving,
       roughness: 0.8,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
     });
     const plazaBorderMat = new THREE.MeshStandardMaterial({
       color: FOUNTAIN_MATERIALS.plazaBorder,
@@ -378,9 +381,21 @@ export function CampusFountain({
     const batcher = new StaticGeometryBatcher();
     const d = FOUNTAIN_DIMENSIONS;
 
-    // 1. Окружающая площадь-променада
-    batcher.addBox('plaza', [d.outerLength + 6.0, 0.04, d.outerWidth + 6.0], [0, 0.02, 0]);
-    batcher.addBox('plazaBorder', [d.outerLength + 6.3, 0.02, d.outerWidth + 6.3], [0, 0.03, 0]);
+    // 1. Окружающая площадь-променада и фасонный бордюр
+    const plazaW = d.outerLength + 6.0;
+    const plazaD = d.outerWidth + 6.0;
+    batcher.addBox('plaza', [plazaW, 0.048, plazaD], [0, 0.024, 0]);
+
+    // Бордюр по внешнему периметру площади (вынесен по краям, исключает Z-файтинг с мощением площади)
+    const curbW = 0.2;
+    const curbH = 0.06;
+    const curbY = curbH / 2;
+    for (const cz of [-plazaD / 2 - curbW / 2, plazaD / 2 + curbW / 2]) {
+      batcher.addBox('plazaBorder', [plazaW + curbW * 2, curbH, curbW], [0, curbY, cz]);
+    }
+    for (const cx of [-plazaW / 2 - curbW / 2, plazaW / 2 + curbW / 2]) {
+      batcher.addBox('plazaBorder', [curbW, curbH, plazaD], [cx, curbY, 0]);
+    }
 
     // 2. Главная чаша 54x18 м и борт из ДПК
     batcher.addBox('poolTile', [d.basinLength, 0.06, d.basinWidth], [0, 0.05, 0]);

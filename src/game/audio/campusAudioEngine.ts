@@ -451,6 +451,37 @@ export class CampusAudioEngine {
     this.playFootstep(surface, true);
   }
 
+  /**
+   * Plays a crisp, cheerful RFID turnstile access chime (two-tone chirp: 1046Hz C6 -> 1568Hz G6).
+   */
+  public playTurnstileBeep(): void {
+    if (!this.ctx || !this.masterGain || this.muted) return;
+    try {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1046.5, now);
+      osc.frequency.setValueAtTime(1567.98, now + 0.08);
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.23);
+    } catch {
+      // AudioContext interrupted or suspended
+    }
+  }
+
   public dispose(): void {
     if (this.birdTimerId !== null && typeof window !== 'undefined') {
       window.clearInterval(this.birdTimerId);

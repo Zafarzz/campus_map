@@ -10,7 +10,7 @@ import {
   type Keyframe,
 } from './pathMath';
 import { buildPreset, type PresetId } from './presets';
-import { isRecordingSupported, recorderEngine } from './recorder';
+import { isRecordingSupported, recorderEngine, type VideoFormat } from './recorder';
 
 /**
  * Cinematic mode state.
@@ -44,6 +44,7 @@ export const RESOLUTIONS: ResolutionOption[] = [
 export type RecordingState = {
   resolutionId: string;
   fps: 30 | 60;
+  format: VideoFormat;
   /** Record the whole camera sequence: restarts the shot and stops automatically at its end. */
   wholeSequence: boolean;
   /** Swap red/blue in the output (fix for encoders that produce wrong channel order). */
@@ -130,6 +131,7 @@ const initial = (): CinematicState => ({
   rec: {
     resolutionId: '1080',
     fps: 30,
+    format: 'mp4',
     wholeSequence: true,
     swapRB: false,
     phase: 'idle',
@@ -397,7 +399,7 @@ export const cinematic = {
   },
 
   // ---- recording -------------------------------------------------------------------------
-  setRecording(patch: Partial<Pick<RecordingState, 'resolutionId' | 'fps' | 'wholeSequence' | 'swapRB'>>) {
+  setRecording(patch: Partial<Pick<RecordingState, 'resolutionId' | 'fps' | 'format' | 'wholeSequence' | 'swapRB'>>) {
     if (state.rec.phase === 'recording') return;
     set((s) => ({ rec: { ...s.rec, ...patch } }));
   },
@@ -407,7 +409,13 @@ export const cinematic = {
     const res = RESOLUTIONS.find((r) => r.id === rec.resolutionId) ?? RESOLUTIONS[1];
     try {
       if (rec.downloadUrl) URL.revokeObjectURL(rec.downloadUrl);
-      recorderEngine.start({ width: res.width, height: res.height, fps: rec.fps, swapRB: rec.swapRB });
+      recorderEngine.start({
+        width: res.width,
+        height: res.height,
+        fps: rec.fps,
+        format: rec.format,
+        swapRB: rec.swapRB,
+      });
     } catch (e) {
       set({ rec: { ...rec, error: e instanceof Error ? e.message : String(e), downloadUrl: null } });
       return;
@@ -427,7 +435,9 @@ export const cinematic = {
     try {
       const blob = await recorderEngine.stop();
       const url = URL.createObjectURL(blob);
-      const name = `campus-cinematic-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+      const isMp4 = blob.type.toLowerCase().includes('mp4') || recorderEngine.format === 'mp4';
+      const ext = isMp4 ? 'mp4' : 'webm';
+      const name = `campus-cinematic-${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
       set((s) => ({ rec: { ...s.rec, downloadUrl: url, downloadName: name, sizeBytes: blob.size, error: null } }));
       const a = document.createElement('a');
       a.href = url;
@@ -435,7 +445,7 @@ export const cinematic = {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      notify('Recording saved as WebM');
+      notify(`Recording saved as ${ext.toUpperCase()}`);
     } catch (e) {
       set((s) => ({ rec: { ...s.rec, error: e instanceof Error ? e.message : String(e) } }));
     }
