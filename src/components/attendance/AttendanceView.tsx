@@ -42,15 +42,24 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   const { index, selectRoom } = useMap();
 
   const isTeacherOrAdmin = Boolean(
-    user?.is_admin ||
-      user?.account_type === 'staff' ||
-      user?.effective_roles?.includes('teacher') ||
-      user?.effective_roles?.includes('admin'),
+    user && (
+      user.is_admin ||
+      user.account_type === 'staff' ||
+      user.roles?.some((r) => r === 'teacher' || r === 'staff' || r === 'admin') ||
+      user.effective_roles?.some((r) => r === 'teacher' || r === 'staff' || r === 'admin')
+    ),
   );
 
   const [activeTab, setActiveTab] = useState<'student' | 'teacher' | 'history'>(() =>
     isTeacherOrAdmin ? 'teacher' : 'student',
   );
+
+  // Security guard: Students and guests can never access teacher mode
+  useEffect(() => {
+    if (!isTeacherOrAdmin && activeTab === 'teacher') {
+      setActiveTab('student');
+    }
+  }, [isTeacherOrAdmin, activeTab]);
 
   const [sessions, setSessions] = useState<AttendanceSessionInfo[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
@@ -113,7 +122,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   }, [activeTab, sessions]);
 
   // Fetch rotating QR code for the active session
-  const activeSessionForQr = activeTab === 'teacher' ? activeTeacherSession : null;
+  const activeSessionForQr = isTeacherOrAdmin && activeTab === 'teacher' ? activeTeacherSession : null;
 
   const refreshQrToken = useCallback(async (sessionId: string) => {
     try {
@@ -295,14 +304,14 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
         <div className="att-role-badge">
           {isTeacherOrAdmin ? <BriefcaseIcon size={16} /> : <GraduationIcon size={16} />}
           <span>
-            {user ? `${user.display_name} (${user.account_type})` : 'Guest / Demo Mode'}
+            {user ? `${user.display_name} • ${isTeacherOrAdmin ? 'Faculty / Instructor' : 'Student'}` : 'Guest Mode (Check-In Only)'}
           </span>
         </div>
         {!user ? (
           <button type="button" className="att-role-switch-btn" onClick={() => openLogin("student")}>
             Sign In with ID
           </button>
-        ) : (
+        ) : isTeacherOrAdmin ? (
           <button
             type="button"
             className="att-role-switch-btn"
@@ -312,7 +321,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
           >
             Switch to {activeTab === 'teacher' ? 'Student View' : 'Teacher View'}
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Tabs */}
@@ -328,16 +337,18 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
           Student Check-In
         </button>
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'teacher'}
-          className={`att-tab-btn${activeTab === 'teacher' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('teacher')}
-        >
-          <QrCodeIcon size={16} />
-          Teacher QR Session
-        </button>
+        {isTeacherOrAdmin && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'teacher'}
+            className={`att-tab-btn${activeTab === 'teacher' ? ' is-active' : ''}`}
+            onClick={() => setActiveTab('teacher')}
+          >
+            <QrCodeIcon size={16} />
+            Teacher QR Session
+          </button>
+        )}
 
         <button
           type="button"
@@ -468,10 +479,12 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                         <button
                           type="button"
                           className="att-btn att-btn--primary"
-                          onClick={() => handleFastCheckIn(sess)}
-                          disabled={isSubmittingScan}
+                          onClick={() => {
+                            setSelectedSessionId(sess.id);
+                            startCamera();
+                          }}
                         >
-                          ⚡ 1-Click Check-in
+                          <CameraIcon size={14} /> Scan with Camera
                         </button>
                         {sess.room_id && (
                           <button
@@ -481,6 +494,17 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                             title="Locate classroom in 3D"
                           >
                             <MapNavIcon size={14} /> Locate in 3D
+                          </button>
+                        )}
+                        {isTeacherOrAdmin && (
+                          <button
+                            type="button"
+                            className="att-btn att-btn--secondary"
+                            style={{ fontSize: 11, padding: '6px 8px' }}
+                            onClick={() => handleFastCheckIn(sess)}
+                            title="Instructor simulation check-in"
+                          >
+                            ⚡ Test Check-in
                           </button>
                         )}
                       </div>
@@ -556,7 +580,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
       {/* ============================================================== */}
       {/* TAB 2: TEACHER QR SESSION                                      */}
       {/* ============================================================== */}
-      {activeTab === 'teacher' && (
+      {activeTab === 'teacher' && isTeacherOrAdmin && (
         <>
           {activeTeacherSession ? (
             <div className="att-card">
@@ -945,7 +969,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
       )}
 
       {/* Fullscreen Projector Modal for Lecture Halls */}
-      {isProjectorOpen && activeTeacherSession && (
+      {isProjectorOpen && activeTeacherSession && isTeacherOrAdmin && (
         <div className="att-projector-modal" onClick={() => setIsProjectorOpen(false)}>
           <div className="att-projector-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

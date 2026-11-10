@@ -1,17 +1,17 @@
-# Graph Report - campus_map  (2026-11-08)
+# Graph Report - campus_map  (2026-11-11)
 
 ## Corpus Check
-- 388 files · ~438,822 words
+- 388 files · ~439,100 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 22 file(s) not represented in the graph (top: (none) 8, .css 5, .example 2)
 
 ## Summary
-- 5728 nodes · 17306 edges · 218 communities (186 shown, 32 thin omitted)
+- 5728 nodes · 17308 edges · 218 communities (186 shown, 32 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 1793 edges (avg confidence: 0.93)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1e375c4f`
+- Built from commit: `8f4c2884`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -27,7 +27,7 @@
 - estimate_occupancy
 - test_room_state.py
 - App.tsx
-- appearance/presets.ts
+- FRONTEND_CONTRACT
 - GameScene.tsx
 - BookingsView.tsx
 - parse_csv
@@ -160,7 +160,7 @@
 - ADR-0003: PostgreSQL 18, the `campus` schema, two roles, and explicit grants
 - CLAUDE.md
 - .claude/CLAUDE.md
-- ClassroomInterior3D.tsx
+- Room.tsx
 - 2. Before & After Visual Comparison
 - DECISIONS.md
 - ADR-0002: Python 3.13, with Docker as the canonical runtime
@@ -189,7 +189,7 @@
 - Отчёт об импорте: Корпус F (2-й этаж, `bld-d-f2`)
 - Отчёт об импорте: Корпус B (1-й этаж, `bld-g-f1`)
 - Отчёт об импорте: Корпус A (2-й этаж, `bld-h-f2`)
-- MapNavIcon
+- apiClient.ts
 - Privacy
 - ADR-0004: SQLAlchemy 2.1 async + asyncpg + Alembic
 - LocalDiskStorageAdapter
@@ -265,8 +265,8 @@ Cohesion: 0.08
 Nodes (9): _publish_changes(), InProcessBroker, Connection, Hub, Verification, Why an in-process fallback rather than requiring Redis, Recorder, TestHub (+1 more)
 
 ### Community 2 - "searchService.ts"
-Cohesion: 0.15
-Nodes (24): compactCode(), diagnoseEmptySearch(), EmptySearchDiagnosis, EmptySearchEntityKind, extractTargetWords(), foldText(), formatDayNames(), formatProfessorDisplay() (+16 more)
+Cohesion: 0.14
+Nodes (25): TimetableCatalog, compactCode(), diagnoseEmptySearch(), EmptySearchDiagnosis, EmptySearchEntityKind, extractTargetWords(), foldText(), formatDayNames() (+17 more)
 
 ### Community 3 - "v1/facilities.py"
 Cohesion: 0.19
@@ -298,11 +298,11 @@ Nodes (46): Interval, next_transition_at(), state_at(), _context(), _lesson(), _
 
 ### Community 10 - "App.tsx"
 Cohesion: 0.05
-Nodes (86): The seams, and how the front end switches, Context, 1.1 Constraints this places on the backend, 1. Framework and build setup, 3.3 The target architecture the docs describe, 4.2 Time and state, C-8 — Gaps: things the master prompt needs that the repo has none of, 1. Стек и точки входа [факт] (+78 more)
+Nodes (80): Context, 3.3 The target architecture the docs describe, 4.2 Time and state, C-8 — Gaps: things the master prompt needs that the repo has none of, 1. Стек и точки входа [факт], 2.1 Зависимости модулей, 2. Модули [факт], 3. Поток данных: от источника геометрии до 3D [факт] (+72 more)
 
-### Community 11 - "appearance/presets.ts"
-Cohesion: 0.10
-Nodes (19): DEFAULT_TUNING_VALUES, isDevOrDebugMode(), VisualTuningParams, ACADEMIC_CLASSIC, ACADEMIC_MODERN, ADMINISTRATION, APPEARANCE_PRESETS, BLOCK_A_FRONT (+11 more)
+### Community 11 - "FRONTEND_CONTRACT"
+Cohesion: 0.11
+Nodes (18): 1.1 Constraints this places on the backend, 1. Framework and build setup, 2.1 Geometry is **not** a backend concern, 2. How the front end gets its data today, 3.1 Campus tree — `src/domain/campus/types.ts`, 3.2 Schedule — `src/domain/schedule/types.ts`, 3.3 Search — `src/services/search/searchService.ts`, 3.4 Render contract (read-only reference) — `src/domain/geometry/types.ts` (+10 more)
 
 ### Community 12 - "GameScene.tsx"
 Cohesion: 0.07
@@ -382,7 +382,7 @@ Nodes (11): _coerce_date(), _coerce_int(), _coerce_time(), _coerce_week_pattern(
 
 ### Community 31 - "AuthIcons.tsx"
 Cohesion: 0.14
-Nodes (40): AuthHeaderButton(), AlertIcon(), ArrowLeftIcon(), BriefcaseIcon(), CameraIcon(), CampusIcon(), CheckCircleIcon(), CheckIcon() (+32 more)
+Nodes (38): AuthHeaderButton(), AlertIcon(), ArrowLeftIcon(), BriefcaseIcon(), CalendarIcon(), CampusIcon(), CheckIcon(), ChevronDownIcon() (+30 more)
 
 ### Community 32 - "DetailedBuilding.tsx"
 Cohesion: 0.09
@@ -422,7 +422,7 @@ Nodes (39): book_teacher_appointment_endpoint(), _build_default_storage(), claim
 
 ### Community 42 - "EditorPage.tsx"
 Cohesion: 0.06
-Nodes (99): 10. Архитектура 2D Visual Editor (`src/editor/`) [факт], Vec2, CHANGE_CATEGORY_LABELS, computeSemanticChanges(), numDiff(), photosDiff(), pickPrimaryCategory(), pointsDiff() (+91 more)
+Nodes (97): 10. Архитектура 2D Visual Editor (`src/editor/`) [факт], Vec2, CHANGE_CATEGORY_LABELS, computeSemanticChanges(), numDiff(), photosDiff(), pickPrimaryCategory(), pointsDiff() (+89 more)
 
 ### Community 43 - "test_api.py"
 Cohesion: 0.09
@@ -449,8 +449,8 @@ Cohesion: 0.17
 Nodes (16): ApiModel, BuildingDetailOut, BuildingOut, CampusDetailOut, CampusOut, Computed, ConnectorOut, FloorDetailOut (+8 more)
 
 ### Community 49 - "AttendanceView.tsx"
-Cohesion: 0.13
-Nodes (33): AttendanceView(), AttendanceViewProps, API_PREFIX, ApiError, apiGet(), apiPatch(), apiPost(), rawApiBase (+25 more)
+Cohesion: 0.16
+Nodes (28): AttendanceView(), AttendanceViewProps, CheckCircleIcon(), ClockIcon(), RefreshIcon(), closeAttendanceSession(), generateDeterministicQrSvg(), getAttendanceQr() (+20 more)
 
 ### Community 50 - "test_notifications.py"
 Cohesion: 0.05
@@ -493,8 +493,8 @@ Cohesion: 0.20
 Nodes (4): S3CompatibleStorageAdapter, StoredObject, [0.3.0] — 2026-10-21 — Phase 3: Crowds, Student Life & Shared Platform Services, Added
 
 ### Community 60 - "attachmentStorage.ts"
-Cohesion: 0.19
-Nodes (19): base64ToUint8(), clearAllAttachmentBlobs(), createPhotoAttachmentFromFile(), deleteAttachmentBlob(), getAttachmentBlob(), getAttachmentPreviewUrl(), guessMimeTypeFromFileName(), initAttachmentStorage() (+11 more)
+Cohesion: 0.17
+Nodes (22): DIRECTION_PRESETS, formatBytes(), PhotoAttachmentsSection(), base64ToUint8(), clearAllAttachmentBlobs(), createPhotoAttachmentFromFile(), deleteAttachmentBlob(), getAttachmentBlob() (+14 more)
 
 ### Community 61 - ".parse"
 Cohesion: 0.13
@@ -505,8 +505,8 @@ Cohesion: 0.13
 Nodes (9): _apply_override(), OverrideSpec, RecurrenceError, test_a_cancelled_occurrence_stays_in_the_series_flagged(), test_a_dtstart_with_an_offset_is_rejected(), test_a_move_override_without_a_new_start_is_rejected(), test_an_exdate_matches_the_original_start_not_a_moved_one(), test_an_override_that_ends_before_it_starts_is_rejected() (+1 more)
 
 ### Community 63 - "useBackendLive.ts"
-Cohesion: 0.16
-Nodes (20): BackendLivePanel(), fmtClock(), LEVEL_COLOR, pad(), BackendLive, BusynessPlace, markAutoReloaded(), navigateToPlaceOnMap() (+12 more)
+Cohesion: 0.14
+Nodes (25): CrowdedPlacesView(), CrowdedPlacesViewProps, DEMO_FALLBACK_PLACES, LEVEL_COLORS, BackendLivePanel(), fmtClock(), LEVEL_COLOR, pad() (+17 more)
 
 ### Community 64 - "dataclasses"
 Cohesion: 0.06
@@ -589,8 +589,8 @@ Cohesion: 0.08
 Nodes (7): parse_xlsx(), ParseResult, ColumnMapping, _normalise(), _squash(), TestColumnMapping, TestXlsxParsing
 
 ### Community 86 - "authService.ts"
-Cohesion: 0.18
-Nodes (26): changePasswordUser(), clearSession(), DEFAULT_LOGIN_CONFIG, DEMO_FALLBACK_ACCOUNTS, fetchCurrentUser(), getStorageItem(), getStoredToken(), getStoredUser() (+18 more)
+Cohesion: 0.17
+Nodes (27): changePasswordUser(), clearSession(), DEFAULT_LOGIN_CONFIG, DEMO_FALLBACK_ACCOUNTS, fetchCurrentUser(), getStorageItem(), getStoredToken(), getStoredUser() (+19 more)
 
 ### Community 87 - "engines/evidence.py"
 Cohesion: 0.12
@@ -665,8 +665,8 @@ Cohesion: 0.05
 Nodes (21): upgrade(), upgrade(), upgrade(), downgrade(), upgrade(), downgrade(), upgrade(), downgrade() (+13 more)
 
 ### Community 107 - "demo-campus.ts"
-Cohesion: 0.05
-Nodes (76): Decision, ADR-0023, ADR-003: Сохранение публичного интерфейса `CampusGeometry` как render-контракта, ADR-007: Аддитивное расширение render-модели для планировок этажей, 1.5 Помещения, 1.6 Идентификаторы (фактический формат), 4.1 Расположение файлов, 4.2 Схема (TypeScript-нотация; будущий файл `src/domain/document/types.ts`) (+68 more)
+Cohesion: 0.06
+Nodes (65): ADR-0023, 1.6 Идентификаторы (фактический формат), vitest, AJOU_ART_MATERIALS, CANTEEN_LAYOUT, CANTEEN_ROOM_ID, FOUNTAIN_MATERIALS, BuildingStructure (+57 more)
 
 ### Community 108 - "healthcheck"
 Cohesion: 0.54
@@ -682,7 +682,7 @@ Nodes (5): FrontendInventory, _validate(), build_snapshot(), main(), summarise()
 
 ### Community 111 - "Room.tsx"
 Cohesion: 0.05
-Nodes (68): 4. 3D-сцена [факт], 6. Ограничения и технический долг [факт], 8.1 Можно менять независимо (в рамках своей задачи, без ADR), 8.2 Требуют согласованного изменения (ADR + обновление документов), 8. Границы изменений, 1.1 Единицы и оси, 1.2 Начало координат кампуса, 1.3 Здания (+60 more)
+Nodes (62): 4. 3D-сцена [факт], 6. Ограничения и технический долг [факт], ADR-003: Сохранение публичного интерфейса `CampusGeometry` как render-контракта, ADR-007: Аддитивное расширение render-модели для планировок этажей, 1.1 Единицы и оси, 1.2 Начало координат кампуса, 1.3 Здания, 1.4 Этажи (+54 more)
 
 ### Community 112 - "cinematicStore.ts"
 Cohesion: 0.11
@@ -726,7 +726,7 @@ Nodes (11): 1. О проекте и его целях, 2. Фактический
 
 ### Community 124 - "LostFoundView.tsx"
 Cohesion: 0.10
-Nodes (35): BUILDINGS, CATEGORIES, formatTimeAgo(), LostFoundViewProps, parseContact(), processImageFile(), REPORT_BUILDING_OPTIONS, BUILDING_SHORT_PREFIX (+27 more)
+Nodes (40): CameraIcon(), PhoneIcon(), PlusIcon(), TelegramIcon(), BUILDINGS, CATEGORIES, formatTimeAgo(), LostFoundView() (+32 more)
 
 ### Community 129 - "[0.1.0] — 2026-10-17 — Phase 1: Foundation"
 Cohesion: 0.15
@@ -788,9 +788,9 @@ Nodes (4): clear_cache(), negotiate_locale(), ngettext(), _translation()
 Cohesion: 0.40
 Nodes (4): ADR-0003: PostgreSQL 18, the `campus` schema, two roles, and explicit grants, Alternatives rejected, Consequences, Context
 
-### Community 152 - "ClassroomInterior3D.tsx"
-Cohesion: 0.19
-Nodes (14): CLASSROOM_BOOTH_SPECS, ClassroomInterior3D(), ClassroomInteriorProps, getLectureScreenMaterial(), getRearMuralMaterial(), getSharedClassroomMaterials(), isCanvasSupported(), mergeStaticGeometries() (+6 more)
+### Community 152 - "Room.tsx"
+Cohesion: 0.08
+Nodes (39): BlockCCanteenInterior3D(), BlockCCanteenInterior3DProps, createBarstoolParts(), createChairParts(), mergeCanteenGeometries(), BlockCFoyerInterior3D(), BlockCFoyerProps, BlockCStairsInterior3D() (+31 more)
 
 ### Community 153 - "2. Before & After Visual Comparison"
 Cohesion: 0.25
@@ -841,8 +841,8 @@ Cohesion: 0.14
 Nodes (21): Cinematic Mode (`src/cinematic/`), CinematicCameraController(), poseAt(), Controls, isTyping(), MAX_BANK, SavedCamera, smoothstep() (+13 more)
 
 ### Community 167 - "loadCampus"
-Cohesion: 0.06
-Nodes (32): 2.1 Geometry is **not** a backend concern, 2. How the front end gets its data today, 3.1 Campus tree — `src/domain/campus/types.ts`, 3.2 Schedule — `src/domain/schedule/types.ts`, 3.3 Search — `src/services/search/searchService.ts`, 3.4 Render contract (read-only reference) — `src/domain/geometry/types.ts`, 3.5 Editor document (browser-local today) — `src/editor/domain/types.ts`, 3.6 Configuration the backend must mirror — `src/config/mapConfig.ts` (+24 more)
+Cohesion: 0.09
+Nodes (25): Decision, The seams, and how the front end switches, 7.1 Compatibility endpoints (shapes from §3, verbatim), 7.2 Identifier stability guarantees, 7.3 Known risks to flag before Phase 1, 7. Proposed integration shape, After changing a model, After the front end's campus data changes (+17 more)
 
 ### Community 168 - "cinematic/presets.ts"
 Cohesion: 0.24
@@ -892,9 +892,9 @@ Nodes (4): 1. Параметры калибровки, 2. Экспликация
 Cohesion: 0.40
 Nodes (4): 1. Параметры калибровки, 2. Экспликация помещений, 3. Особенности планировки, Отчёт об импорте: Корпус A (2-й этаж, `bld-h-f2`)
 
-### Community 181 - "MapNavIcon"
-Cohesion: 0.36
-Nodes (8): CalendarIcon(), MapNavIcon(), PackageIcon(), QrCodeIcon(), UsersIcon(), CampusNavRail(), CampusNavRailProps, CampusNavSection
+### Community 181 - "apiClient.ts"
+Cohesion: 0.29
+Nodes (8): API_PREFIX, ApiError, apiGet(), apiPatch(), apiPost(), rawApiBase, rawUseBackend, tryRefreshAccessToken()
 
 ### Community 182 - "Privacy"
 Cohesion: 0.29
@@ -1008,7 +1008,7 @@ Nodes (5): ADR-0006: The compatibility layer is a contract, not a convenience, A
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `now()` connect `now` to `RoomStateKind`, `test_import_service.py`, `auth.py`, `test_booking.py`, `time.py`, `import_service.py`, `booking_service.py`, `v1/state.py`, `loadCampus`, `parse_at`, `auth.py`, `settle_due_rooms`, `fetch_active_edupage_payload`, `dataclasses`, `fetch_edupage_timetable.py`, `health.py`, `history_service.py`, `v1/compat.py`, `test_time.py`, `compat_service.py`, `security.py`, `base.py`?**
+- **Why does `now()` connect `now` to `RoomStateKind`, `test_import_service.py`, `FRONTEND_CONTRACT`, `auth.py`, `test_booking.py`, `time.py`, `import_service.py`, `booking_service.py`, `v1/state.py`, `parse_at`, `auth.py`, `settle_due_rooms`, `fetch_active_edupage_payload`, `dataclasses`, `fetch_edupage_timetable.py`, `health.py`, `history_service.py`, `v1/compat.py`, `test_time.py`, `compat_service.py`, `security.py`, `base.py`?**
   _High betweenness centrality (0.334) - this node is a cross-community bridge._
 - **Are the 63 inferred relationships involving `Role` (e.g. with `approve_lab_booking()` and `approve_scenario()`) actually correct?**
   _`Role` has 63 INFERRED edges - model-reasoned connections that need verification._
@@ -1016,7 +1016,7 @@ _Questions this graph is uniquely positioned to answer:_
   _25 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `StaticGeometryBatcher` be split into smaller, more focused modules?**
   _Cohesion score 0.08512658227848101 - nodes in this community are weakly interconnected._
-- **Why does `5. Live and Simulate time` connect `loadCampus` to `now`, `App.tsx`?**
+- **Why does `5. Live and Simulate time` connect `FRONTEND_CONTRACT` to `now`, `App.tsx`?**
   _High betweenness centrality (0.325) - this node is a cross-community bridge._
 - **Are the 37 inferred relationships involving `Settings` (e.g. with `healthz()` and `readyz()`) actually correct?**
   _`Settings` has 37 INFERRED edges - model-reasoned connections that need verification._
