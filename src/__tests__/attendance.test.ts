@@ -29,6 +29,7 @@ import {
   reviewAttendanceRecord,
   scanAttendanceQr,
 } from '../services/attendance/attendanceService';
+import type { UserProfile } from '../services/auth/authTypes';
 
 describe('QR Attendance Service & Integration', () => {
   beforeEach(() => {
@@ -147,5 +148,70 @@ describe('QR Attendance Service & Integration', () => {
     expect(svg).toContain('viewBox');
     expect(svg).toContain('<rect');
     expect(svg).toContain('fill="#1e293b"');
+  });
+
+  it('strictly distinguishes student role from teacher/instructor role', () => {
+    const isTeacherOrAdmin = (user: UserProfile | null) =>
+      Boolean(
+        user && (
+          user.is_admin ||
+          user.account_type === 'staff' ||
+          user.roles?.some((r) => r === 'teacher' || r === 'staff' || r === 'admin') ||
+          user.effective_roles?.some((r) => r === 'teacher' || r === 'staff' || r === 'admin')
+        ),
+      );
+
+    const studentUser: UserProfile = {
+      user_id: 'usr-student-1',
+      account_type: 'student',
+      is_admin: false,
+      student_id: 'I25D1010',
+      display_name: 'ROBIYAXON M.',
+      first_name: 'Robiyaxon',
+      last_name: 'M.',
+      fathers_name: '',
+      department: 'Computer Science',
+      group_no: 'I25D',
+      must_change_password: false,
+      roles: ['student'],
+      effective_roles: ['student'],
+    };
+
+    const teacherUser: UserProfile = {
+      user_id: 'usr-teacher-1',
+      account_type: 'staff',
+      is_admin: false,
+      email: 'teacher@ajou.uz',
+      display_name: 'Prof. Kim',
+      first_name: 'Min-Jun',
+      last_name: 'Kim',
+      fathers_name: '',
+      department: 'Software Engineering',
+      group_no: '',
+      must_change_password: false,
+      roles: ['teacher', 'staff'],
+      effective_roles: ['teacher', 'staff'],
+    };
+
+    const adminUser: UserProfile = {
+      user_id: 'usr-admin-1',
+      account_type: 'staff',
+      is_admin: true,
+      email: 'admin@ajou.uz',
+      display_name: 'Admin',
+      first_name: 'Admin',
+      last_name: 'System',
+      fathers_name: '',
+      department: 'IT Infrastructure',
+      group_no: '',
+      must_change_password: false,
+      roles: ['admin'],
+      effective_roles: ['admin'],
+    };
+
+    expect(isTeacherOrAdmin(studentUser)).toBe(false);
+    expect(isTeacherOrAdmin(null)).toBe(false);
+    expect(isTeacherOrAdmin(teacherUser)).toBe(true);
+    expect(isTeacherOrAdmin(adminUser)).toBe(true);
   });
 });
