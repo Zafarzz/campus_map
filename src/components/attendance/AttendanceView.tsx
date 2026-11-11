@@ -6,7 +6,10 @@ import {
   AlertIcon,
   BriefcaseIcon,
   CameraIcon,
+  CampusIcon,
   CheckCircleIcon,
+  CheckIcon,
+  ChevronDownIcon,
   ClockIcon,
   CloseIcon,
   GraduationIcon,
@@ -40,15 +43,78 @@ interface AttendanceViewProps {
 
 type AttendanceTab = 'student' | 'history' | 'teacher' | 'stats';
 
-const ACADEMIC_BUILDINGS: { id: string; label: string; shortLabel: string }[] = [
-  { id: 'ALL', label: 'All Academic Blocks', shortLabel: 'All Blocks' },
-  { id: 'bld-h', label: 'Block A', shortLabel: 'Block A' },
-  { id: 'bld-g', label: 'Block B', shortLabel: 'Block B' },
-  { id: 'bld-i', label: 'Block C', shortLabel: 'Block C' },
-  { id: 'bld-c', label: 'Block D', shortLabel: 'Block D' },
-  { id: 'bld-b', label: 'Block E', shortLabel: 'Block E' },
-  { id: 'bld-d', label: 'Block F', shortLabel: 'Block F' },
-  { id: 'bld-e', label: 'Lecture & Conference Halls', shortLabel: 'Halls' },
+const ACADEMIC_BUILDINGS: {
+  id: string;
+  code: string;
+  name: string;
+  subtitle: string;
+  accent: string;
+  bgTint: string;
+}[] = [
+  {
+    id: 'ALL',
+    code: 'ALL',
+    name: 'All Buildings',
+    subtitle: 'All academic blocks & facilities',
+    accent: '#1b1c20',
+    bgTint: 'rgba(20, 24, 35, 0.06)',
+  },
+  {
+    id: 'bld-h',
+    code: 'A',
+    name: 'Block A',
+    subtitle: 'Engineering & Technology',
+    accent: '#2563eb',
+    bgTint: 'rgba(37, 99, 235, 0.1)',
+  },
+  {
+    id: 'bld-g',
+    code: 'B',
+    name: 'Block B',
+    subtitle: 'Architecture & Science',
+    accent: '#7c3aed',
+    bgTint: 'rgba(124, 58, 237, 0.1)',
+  },
+  {
+    id: 'bld-i',
+    code: 'C',
+    name: 'Block C',
+    subtitle: 'Conference Hall & Studios',
+    accent: '#d97706',
+    bgTint: 'rgba(217, 119, 6, 0.1)',
+  },
+  {
+    id: 'bld-c',
+    code: 'D',
+    name: 'Block D',
+    subtitle: 'Civil Engineering Labs',
+    accent: '#0284c7',
+    bgTint: 'rgba(2, 132, 199, 0.1)',
+  },
+  {
+    id: 'bld-b',
+    code: 'E',
+    name: 'Block E',
+    subtitle: 'Architecture & Design Studios',
+    accent: '#0d9488',
+    bgTint: 'rgba(13, 148, 136, 0.1)',
+  },
+  {
+    id: 'bld-d',
+    code: 'F',
+    name: 'Block F',
+    subtitle: 'Library & Lecture Halls',
+    accent: '#4f46e5',
+    bgTint: 'rgba(79, 70, 229, 0.1)',
+  },
+  {
+    id: 'bld-e',
+    code: 'H',
+    name: 'Halls',
+    subtitle: 'Event Halls & Auditorium',
+    accent: '#059669',
+    bgTint: 'rgba(5, 150, 105, 0.1)',
+  },
 ];
 
 const BUILDING_LABELS: Record<string, string> = {
@@ -94,22 +160,6 @@ const KNOWN_EXCLUDED_ROOM_IDS = new Set([
   'bld-g-f4-r2',
   'bld-g-f4-r5',
 ]);
-
-const UNIVERSITY_GROUPS = [
-  'I25A',
-  'I25B',
-  'I25C',
-  'I25D',
-  'I25E',
-  'I24E-1',
-  'I24E-2',
-  'A25A',
-  'A25B',
-  'C25A',
-  'C25B',
-  'E25A',
-  'E25B',
-];
 
 function isRawRoomIdentifier(val?: string | null): boolean {
   if (!val) return true;
@@ -218,6 +268,11 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
 
   // Teacher open session form
   const [selectedBuildingFilter, setSelectedBuildingFilter] = useState<string>('ALL');
+  const [isBuildingMenuOpen, setIsBuildingMenuOpen] = useState<boolean>(false);
+  const [isRoomMenuOpen, setIsRoomMenuOpen] = useState<boolean>(false);
+  const [roomSearchQuery, setRoomSearchQuery] = useState<string>('');
+  const buildingMenuRef = useRef<HTMLDivElement | null>(null);
+  const roomMenuRef = useRef<HTMLDivElement | null>(null);
   const [formRoomId, setFormRoomId] = useState<string>('');
   const [formSubject, setFormSubject] = useState<string>('');
   const [formSelectedGroups, setFormSelectedGroups] = useState<string[]>([]);
@@ -226,6 +281,29 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   const [formLateAfter, setFormLateAfter] = useState<number>(15);
   const [formStepSeconds, setFormStepSeconds] = useState<number>(20);
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
+
+  // Close building / room dropdowns when clicking outside
+  useEffect(() => {
+    if (!isBuildingMenuOpen && !isRoomMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isBuildingMenuOpen &&
+        buildingMenuRef.current &&
+        !buildingMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsBuildingMenuOpen(false);
+      }
+      if (
+        isRoomMenuOpen &&
+        roomMenuRef.current &&
+        !roomMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsRoomMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isBuildingMenuOpen, isRoomMenuOpen]);
 
   // Fullscreen projector mode
   const [isProjectorOpen, setIsProjectorOpen] = useState<boolean>(false);
@@ -297,22 +375,32 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
     return availableRooms.filter((r) => r.buildingId === selectedBuildingFilter);
   }, [availableRooms, selectedBuildingFilter]);
 
-  const roomsGroupedByBuilding = useMemo(() => {
-    const groups: { buildingId: string; buildingName: string; rooms: AcademicRoomOption[] }[] = [];
-    for (const bld of ACADEMIC_BUILDINGS) {
-      if (bld.id === 'ALL') continue;
-      if (selectedBuildingFilter !== 'ALL' && selectedBuildingFilter !== bld.id) continue;
-      const matching = availableRooms.filter((r) => r.buildingId === bld.id);
-      if (matching.length > 0) {
-        groups.push({
-          buildingId: bld.id,
-          buildingName: bld.shortLabel,
-          rooms: matching,
-        });
-      }
-    }
-    return groups;
-  }, [availableRooms, selectedBuildingFilter]);
+  const activeBuildingOption = useMemo(
+    () =>
+      ACADEMIC_BUILDINGS.find((b) => b.id === selectedBuildingFilter) || ACADEMIC_BUILDINGS[0],
+    [selectedBuildingFilter],
+  );
+
+  const selectedRoomOption = useMemo(
+    () =>
+      filteredRoomsForSelector.find((r) => r.id === formRoomId) ||
+      availableRooms.find((r) => r.id === formRoomId) ||
+      filteredRoomsForSelector[0] ||
+      null,
+    [filteredRoomsForSelector, availableRooms, formRoomId],
+  );
+
+  const searchableRoomsForMenu = useMemo(() => {
+    const q = roomSearchQuery.trim().toLowerCase();
+    if (!q) return filteredRoomsForSelector;
+    return filteredRoomsForSelector.filter(
+      (r) =>
+        r.displayName.toLowerCase().includes(q) ||
+        r.buildingName.toLowerCase().includes(q) ||
+        r.roomNumber.toLowerCase().includes(q) ||
+        r.roomName.toLowerCase().includes(q),
+    );
+  }, [filteredRoomsForSelector, roomSearchQuery]);
 
   // Ensure formRoomId always points to a valid room in the current building filter
   useEffect(() => {
@@ -1684,86 +1772,321 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                 onSubmit={handleCreateSession}
                 style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
               >
-                {/* 1. Academic Building & Classroom Selector (organized like Booking Rooms) */}
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#334155',
-                      marginBottom: 6,
-                    }}
-                  >
-                    1. Filter by Academic Building
-                  </label>
-                  <div className="att-building-pills" role="group" aria-label="Filter by academic building">
-                    {ACADEMIC_BUILDINGS.map((bld) => {
-                      const count =
-                        bld.id === 'ALL'
-                          ? availableRooms.length
-                          : availableRooms.filter((r) => r.buildingId === bld.id).length;
-                      if (bld.id !== 'ALL' && count === 0) return null;
-                      const isActive = selectedBuildingFilter === bld.id;
-                      return (
-                        <button
-                          key={bld.id}
-                          type="button"
-                          className={`att-building-pill${isActive ? ' is-active' : ''}`}
-                          onClick={() => setSelectedBuildingFilter(bld.id)}
+                {/* 1. Academic Building & Classroom Selector (Scrollable like Booking Rooms) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: '#334155',
+                        marginBottom: 5,
+                      }}
+                    >
+                      1. Select University Building
+                    </label>
+                    <div className="bookings-view__bld-selector-wrap" ref={buildingMenuRef}>
+                      <button
+                        type="button"
+                        className={`bookings-view__bld-trigger${isBuildingMenuOpen ? ' is-open' : ''}`}
+                        onClick={() => {
+                          setIsBuildingMenuOpen((prev) => !prev);
+                          setIsRoomMenuOpen(false);
+                        }}
+                        aria-haspopup="listbox"
+                        aria-expanded={isBuildingMenuOpen}
+                      >
+                        <div className="bookings-view__bld-trigger-left">
+                          <span
+                            className="bookings-view__bld-badge"
+                            style={{
+                              backgroundColor: activeBuildingOption.bgTint,
+                              color: activeBuildingOption.accent,
+                            }}
+                          >
+                            {activeBuildingOption.id === 'ALL' ? (
+                              <CampusIcon size={14} />
+                            ) : (
+                              activeBuildingOption.code
+                            )}
+                          </span>
+                          <div className="bookings-view__bld-trigger-meta">
+                            <span className="bookings-view__bld-trigger-name">
+                              {activeBuildingOption.name}
+                            </span>
+                            <span className="bookings-view__bld-trigger-sub">
+                              {activeBuildingOption.subtitle}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="bookings-view__bld-trigger-right">
+                          <span className="bookings-view__bld-count-pill">
+                            {filteredRoomsForSelector.length} rooms
+                          </span>
+                          <span
+                            className={`bookings-view__bld-chevron${
+                              isBuildingMenuOpen ? ' is-flipped' : ''
+                            }`}
+                          >
+                            <ChevronDownIcon size={15} />
+                          </span>
+                        </div>
+                      </button>
+
+                      {isBuildingMenuOpen && (
+                        <div
+                          className="bookings-view__bld-popover"
+                          role="listbox"
+                          aria-label="Campus academic buildings"
                         >
-                          <span>{bld.shortLabel}</span>
-                          <span className="att-building-pill__count">{count}</span>
-                        </button>
-                      );
-                    })}
+                          <div className="bookings-view__bld-popover-header">
+                            <span>SELECT UNIVERSITY BUILDING</span>
+                            <span className="bookings-view__bld-popover-badge">
+                              {availableRooms.length} total rooms
+                            </span>
+                          </div>
+
+                          <div
+                            className="bookings-view__bld-popover-list"
+                            style={{ maxHeight: 210, overflowY: 'auto' }}
+                          >
+                            {ACADEMIC_BUILDINGS.map((bld) => {
+                              const count =
+                                bld.id === 'ALL'
+                                  ? availableRooms.length
+                                  : availableRooms.filter((r) => r.buildingId === bld.id).length;
+                              if (bld.id !== 'ALL' && count === 0) return null;
+                              const isSelected = selectedBuildingFilter === bld.id;
+                              return (
+                                <button
+                                  key={bld.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  className={`bookings-view__bld-item${
+                                    isSelected ? ' is-selected' : ''
+                                  }`}
+                                  onClick={() => {
+                                    setSelectedBuildingFilter(bld.id);
+                                    setIsBuildingMenuOpen(false);
+                                  }}
+                                >
+                                  <div className="bookings-view__bld-item-left">
+                                    <span
+                                      className="bookings-view__bld-item-badge"
+                                      style={{
+                                        backgroundColor: bld.bgTint,
+                                        color: bld.accent,
+                                      }}
+                                    >
+                                      {bld.id === 'ALL' ? <CampusIcon size={14} /> : bld.code}
+                                    </span>
+                                    <div className="bookings-view__bld-item-text">
+                                      <span className="bookings-view__bld-item-title">
+                                        {bld.name}
+                                      </span>
+                                      <span className="bookings-view__bld-item-desc">
+                                        {bld.subtitle}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="bookings-view__bld-item-right">
+                                    <span className="bookings-view__bld-item-count has-avail">
+                                      {count} rooms
+                                    </span>
+                                    {isSelected && (
+                                      <span className="bookings-view__bld-item-check">
+                                        <CheckIcon size={14} />
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#334155',
-                      marginBottom: 4,
-                    }}
-                  >
-                    2. Select Classroom / Lecture Hall
-                  </label>
-                  <select
-                    value={formRoomId}
-                    onChange={(e) => setFormRoomId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '9px 10px',
-                      borderRadius: 8,
-                      border: '1px solid #cbd5e1',
-                      fontSize: 13,
-                      background: '#ffffff',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {selectedBuildingFilter === 'ALL'
-                      ? roomsGroupedByBuilding.map((grp) => (
-                          <optgroup
-                            key={grp.buildingId}
-                            label={`${grp.buildingName} (${grp.rooms.length} rooms)`}
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: '#334155',
+                        marginBottom: 5,
+                      }}
+                    >
+                      2. Select Classroom / Lecture Hall
+                    </label>
+                    <div className="bookings-view__bld-selector-wrap" ref={roomMenuRef}>
+                      <button
+                        type="button"
+                        className={`bookings-view__bld-trigger${isRoomMenuOpen ? ' is-open' : ''}`}
+                        onClick={() => {
+                          setIsRoomMenuOpen((prev) => !prev);
+                          setIsBuildingMenuOpen(false);
+                        }}
+                        aria-haspopup="listbox"
+                        aria-expanded={isRoomMenuOpen}
+                      >
+                        {selectedRoomOption ? (
+                          <>
+                            <div className="bookings-view__bld-trigger-left">
+                              {(() => {
+                                const bldMeta =
+                                  ACADEMIC_BUILDINGS.find(
+                                    (b) => b.id === selectedRoomOption.buildingId,
+                                  ) || ACADEMIC_BUILDINGS[1];
+                                return (
+                                  <span
+                                    className="bookings-view__bld-badge"
+                                    style={{
+                                      backgroundColor: bldMeta.bgTint,
+                                      color: bldMeta.accent,
+                                    }}
+                                  >
+                                    {bldMeta.code}
+                                  </span>
+                                );
+                              })()}
+                              <div className="bookings-view__bld-trigger-meta">
+                                <span className="bookings-view__bld-trigger-name">
+                                  {selectedRoomOption.displayName}
+                                </span>
+                                <span className="bookings-view__bld-trigger-sub">
+                                  {selectedRoomOption.buildingName} • Floor{' '}
+                                  {selectedRoomOption.floorNumber}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="bookings-view__bld-trigger-right">
+                              <span className="bookings-view__bld-count-pill">
+                                {selectedRoomOption.capacity
+                                  ? `${selectedRoomOption.capacity} seats`
+                                  : selectedRoomOption.kind === 'hall'
+                                  ? 'Hall'
+                                  : selectedRoomOption.kind === 'lab'
+                                  ? 'Lab'
+                                  : 'Room'}
+                              </span>
+                              <span
+                                className={`bookings-view__bld-chevron${
+                                  isRoomMenuOpen ? ' is-flipped' : ''
+                                }`}
+                              >
+                                <ChevronDownIcon size={15} />
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 13, color: '#64748b' }}>
+                            Choose classroom…
+                          </span>
+                        )}
+                      </button>
+
+                      {isRoomMenuOpen && (
+                        <div
+                          className="bookings-view__bld-popover"
+                          role="listbox"
+                          aria-label="Classrooms and lecture halls"
+                        >
+                          <div className="bookings-view__bld-popover-header">
+                            <span>SELECT CLASSROOM / LECTURE HALL</span>
+                            <span className="bookings-view__bld-popover-badge">
+                              {searchableRoomsForMenu.length} available
+                            </span>
+                          </div>
+
+                          <div style={{ padding: '4px 6px 6px' }}>
+                            <input
+                              type="text"
+                              value={roomSearchQuery}
+                              onChange={(e) => setRoomSearchQuery(e.target.value)}
+                              placeholder="Filter room number or name…"
+                              style={{
+                                width: '100%',
+                                padding: '6px 9px',
+                                borderRadius: 8,
+                                border: '1px solid #cbd5e1',
+                                fontSize: 12,
+                                boxSizing: 'border-box',
+                                outline: 'none',
+                              }}
+                            />
+                          </div>
+
+                          <div
+                            className="bookings-view__bld-popover-list"
+                            style={{ maxHeight: 210, overflowY: 'auto' }}
                           >
-                            {grp.rooms.map((rm) => (
-                              <option key={rm.id} value={rm.id}>
-                                {rm.displayName} — Floor {rm.floorNumber}
-                                {rm.capacity ? ` (${rm.capacity} seats)` : ''}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))
-                      : filteredRoomsForSelector.map((rm) => (
-                          <option key={rm.id} value={rm.id}>
-                            {rm.displayName} — Floor {rm.floorNumber}
-                            {rm.capacity ? ` (${rm.capacity} seats)` : ''}
-                          </option>
-                        ))}
-                  </select>
+                            {searchableRoomsForMenu.map((rm) => {
+                              const isSelected = formRoomId === rm.id;
+                              const bldMeta =
+                                ACADEMIC_BUILDINGS.find((b) => b.id === rm.buildingId) ||
+                                ACADEMIC_BUILDINGS[1];
+                              return (
+                                <button
+                                  key={rm.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  className={`bookings-view__bld-item${
+                                    isSelected ? ' is-selected' : ''
+                                  }`}
+                                  onClick={() => {
+                                    setFormRoomId(rm.id);
+                                    setIsRoomMenuOpen(false);
+                                    setRoomSearchQuery('');
+                                  }}
+                                >
+                                  <div className="bookings-view__bld-item-left">
+                                    <span
+                                      className="bookings-view__bld-item-badge"
+                                      style={{
+                                        backgroundColor: bldMeta.bgTint,
+                                        color: bldMeta.accent,
+                                      }}
+                                    >
+                                      {bldMeta.code}
+                                    </span>
+                                    <div className="bookings-view__bld-item-text">
+                                      <span className="bookings-view__bld-item-title">
+                                        {rm.displayName}
+                                      </span>
+                                      <span className="bookings-view__bld-item-desc">
+                                        {rm.buildingName} • Floor {rm.floorNumber}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="bookings-view__bld-item-right">
+                                    {rm.capacity && (
+                                      <span className="bookings-view__bld-item-count has-avail">
+                                        {rm.capacity} seats
+                                      </span>
+                                    )}
+                                    {isSelected && (
+                                      <span className="bookings-view__bld-item-check">
+                                        <CheckIcon size={14} />
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* 2. Course Subject / Title (no example placeholder) */}
@@ -1794,7 +2117,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                   />
                 </div>
 
-                {/* 3. Multi-Group Selector for single or combined classes (no example placeholder) */}
+                {/* 3. Target Group(s) — clean empty input space for single or combined groups */}
                 <div>
                   <div
                     style={{
@@ -1811,10 +2134,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                         color: '#334155',
                       }}
                     >
-                      Target Group(s){' '}
-                      <span style={{ fontWeight: 400, color: '#64748b', fontSize: 11 }}>
-                        (Select 1 or more groups for combined classes)
-                      </span>
+                      Target Group(s)
                     </label>
                     {formSelectedGroups.length > 0 && (
                       <button
@@ -1835,70 +2155,54 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                     )}
                   </div>
 
-                  <div className="att-multigroup-box">
-                    {formSelectedGroups.length > 0 && (
-                      <div className="att-multigroup-selected">
-                        {formSelectedGroups.map((grp) => (
-                          <span key={grp} className="att-multigroup-tag">
-                            {grp}
-                            <button
-                              type="button"
-                              onClick={() => toggleGroupSelection(grp)}
-                              aria-label={`Remove group ${grp}`}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="att-multigroup-options">
-                      {UNIVERSITY_GROUPS.map((grp) => {
-                        const isSelected = formSelectedGroups.includes(grp);
-                        return (
+                  {formSelectedGroups.length > 0 && (
+                    <div className="att-multigroup-selected" style={{ marginBottom: 6 }}>
+                      {formSelectedGroups.map((grp) => (
+                        <span key={grp} className="att-multigroup-tag">
+                          {grp}
                           <button
-                            key={grp}
                             type="button"
-                            className={`att-multigroup-option${isSelected ? ' is-selected' : ''}`}
                             onClick={() => toggleGroupSelection(grp)}
+                            aria-label={`Remove group ${grp}`}
                           >
-                            {isSelected ? `✓ ${grp}` : `+ ${grp}`}
+                            ×
                           </button>
-                        );
-                      })}
+                        </span>
+                      ))}
                     </div>
+                  )}
 
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="text"
-                        value={formCustomGroupInput}
-                        onChange={(e) => setFormCustomGroupInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ',') {
-                            e.preventDefault();
-                            addCustomGroupsFromInput();
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '6px 10px',
-                          borderRadius: 6,
-                          border: '1px solid #cbd5e1',
-                          fontSize: 12,
-                          background: '#ffffff',
-                        }}
-                      />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text"
+                      value={formCustomGroupInput}
+                      onChange={(e) => setFormCustomGroupInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          addCustomGroupsFromInput();
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        background: '#ffffff',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    {formCustomGroupInput.trim().length > 0 && (
                       <button
                         type="button"
                         className="att-btn att-btn--secondary"
-                        style={{ padding: '5px 10px', fontSize: 11 }}
+                        style={{ padding: '6px 10px', fontSize: 11 }}
                         onClick={addCustomGroupsFromInput}
-                        disabled={!formCustomGroupInput.trim()}
                       >
-                        + Add Group
+                        + Add
                       </button>
-                    </div>
+                    )}
                   </div>
                 </div>
 
