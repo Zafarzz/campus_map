@@ -106,7 +106,7 @@ class AttendanceSessionOpenIn(BaseModel):
     room_id: str | None = None
     room_label: str | None = Field(default=None, max_length=200)
     subject: str | None = Field(default=None, max_length=200)
-    group_label: str | None = Field(default=None, max_length=64)
+    group_label: str | None = Field(default=None, max_length=200)
     token_step_seconds: int = Field(default=20, ge=10, le=120)
     late_after_minutes: int = Field(default=30, ge=1, le=180)
     expected_count: int | None = Field(default=None, ge=1, le=2000)
@@ -584,6 +584,7 @@ async def list_attendance_sessions(
     rows = await academic_service.list_attendance_sessions(
         session, status_filter=status or "all", room_id=room_id, limit=limit
     )
+    await session.commit()
     return {"count": len(rows), "sessions": rows}
 
 

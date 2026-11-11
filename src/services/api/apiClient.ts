@@ -157,6 +157,7 @@ async function request<T>(
       headers,
       body: serializedBody,
       signal: options.signal,
+      cache: 'no-store',
     });
     if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
       const refreshed = await tryRefreshAccessToken(effectiveToken);
@@ -167,6 +168,7 @@ async function request<T>(
           headers,
           body: serializedBody,
           signal: options.signal,
+          cache: 'no-store',
         });
       }
     }

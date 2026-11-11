@@ -815,6 +815,23 @@ async def open_attendance_session(
 
     raw_room_id = room_id
     room_id = await _resolve_db_room_id(session, raw_room_id)
+
+    # Auto-close any lingering open sessions started by this teacher (or in the same room)
+    # when opening a new standalone session so orphaned live sessions never accumulate.
+    if meeting_id is None:
+        lingering_open = (
+            await session.execute(
+                select(AttendanceSession).where(
+                    AttendanceSession.closed_at.is_(None),
+                    AttendanceSession.opened_by == teacher_user_id,
+                )
+            )
+        ).scalars().all()
+        for prev_sess in lingering_open:
+            prev_sess.closed_at = instant
+        if lingering_open:
+            await session.flush()
+
     teacher_user = await session.get(AppUser, teacher_user_id)
     meta_payload: dict[str, Any] = {
         "room_id": room_id or raw_room_id,
@@ -1245,7 +1262,23 @@ async def close_attendance_session(
         )
 
     att_session.closed_at = instant
+
+    # Also close any other lingering open sessions started by the same teacher
+    # so duplicate open sessions never remain active on student screens.
+    if att_session.opened_by is not None:
+        other_open = (
+            await session.execute(
+                select(AttendanceSession).where(
+                    AttendanceSession.closed_at.is_(None),
+                    AttendanceSession.opened_by == att_session.opened_by,
+                )
+            )
+        ).scalars().all()
+        for other in other_open:
+            other.closed_at = instant
+
     await session.flush()
+    invalidate_state_cache()
 
     # Count enrolled attendees (present + late)
     attended_count = int(
@@ -1452,6 +1485,42 @@ async def list_attendance_sessions(
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """List attendance sessions with meeting info, student records, and scan counts (§13.3)."""
+    instant = datetime.now(UTC)
+
+    # Self-heal any orphaned open sessions (e.g. older than 2 hours, or superseded by a newer
+    # session from the same teacher that was subsequently opened/closed).
+    open_rows = (
+        await session.execute(
+            select(AttendanceSession)
+            .where(AttendanceSession.closed_at.is_(None))
+            .order_by(AttendanceSession.opened_at.desc())
+        )
+    ).scalars().all()
+    if open_rows:
+        healed = False
+        expiry_cutoff = instant - timedelta(hours=2)
+        for open_sess in open_rows:
+            if open_sess.opened_at < expiry_cutoff:
+                open_sess.closed_at = instant
+                healed = True
+                continue
+            if open_sess.opened_by is not None:
+                newer_exists = (
+                    await session.execute(
+                        select(AttendanceSession.id)
+                        .where(
+                            AttendanceSession.opened_by == open_sess.opened_by,
+                            AttendanceSession.opened_at > open_sess.opened_at,
+                        )
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                if newer_exists is not None:
+                    open_sess.closed_at = instant
+                    healed = True
+        if healed:
+            await session.flush()
+
     stmt = (
         select(AttendanceSession, Meeting, AppUser)
         .outerjoin(Meeting, Meeting.id == AttendanceSession.meeting_id)

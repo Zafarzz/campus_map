@@ -229,6 +229,62 @@ describe('QR Attendance Service & Integration', () => {
     expect(teacherView?.records?.[0]?.student_id).toBe('202590112');
   });
 
+  it('isolates My History records strictly per student account when switching users', async () => {
+    // 1. Sign in as Student 1 (Munisa) and check in
+    localStorageMock.setItem(
+      'campus_auth_user',
+      JSON.stringify({
+        user_id: 'usr-munisa-1',
+        account_type: 'student',
+        is_admin: false,
+        student_id: '202590232',
+        display_name: 'TOJIBOYEVA MUNISA ABDURAXMON QIZI',
+        group_no: 'I25C',
+        roles: ['student'],
+        effective_roles: ['student'],
+      }),
+    );
+
+    const session = await openAttendanceSession({
+      room_id: 'bld-c-f1-d102',
+      room_label: 'D-102 · Classroom (Block D)',
+      subject: 'Operations Management',
+      group_label: 'I25A, I25C',
+      expected_count: 60,
+    });
+    expect(session.group_label).toBe('I25A, I25C');
+
+    const qr = await getAttendanceQr(session.id);
+    await scanAttendanceQr(session.id, { token: qr.token });
+
+    const munisaRecords = await listMyAttendanceRecords();
+    expect(munisaRecords.length).toBe(1);
+    expect(munisaRecords[0].session_id).toBe(session.id);
+
+    // 2. Switch to Student 2 (Muslimaxon, who has NOT checked in)
+    localStorageMock.setItem(
+      'campus_auth_user',
+      JSON.stringify({
+        user_id: 'usr-muslimaxon-2',
+        account_type: 'student',
+        is_admin: false,
+        student_id: '202590143',
+        display_name: 'BAHODIROVA MUSLIMAXON SHAVKAT QIZI',
+        group_no: 'I25A',
+        roles: ['student'],
+        effective_roles: ['student'],
+      }),
+    );
+
+    const muslimaxonRecords = await listMyAttendanceRecords();
+    expect(muslimaxonRecords.length).toBe(0);
+
+    // 3. Close the session and verify it is no longer listed in open sessions
+    await closeAttendanceSession(session.id);
+    const openAfterClose = await listAttendanceSessions('open');
+    expect(openAfterClose.some((s) => s.id === session.id)).toBe(false);
+  });
+
   it('strictly distinguishes student role from teacher/instructor role', () => {
     const isTeacherOrAdmin = (user: UserProfile | null) =>
       Boolean(

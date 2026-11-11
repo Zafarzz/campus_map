@@ -562,3 +562,209 @@
   font-size: 11px;
   font-weight: 700;
 }
+
+/* Building Filter Pills (Classroom Selector) */
+.att-building-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.att-building-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.att-building-pill:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.att-building-pill.is-active {
+  background: #002c6c;
+  border-color: #002c6c;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 44, 108, 0.2);
+}
+
+.att-building-pill__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(15, 23, 42, 0.08);
+  color: inherit;
+}
+
+.att-building-pill.is-active .att-building-pill__count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Multi-Group Selector (Combined Classes) */
+.att-multigroup-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.att-multigroup-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.att-multigroup-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #002c6c;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.att-multigroup-tag button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.att-multigroup-tag button:hover {
+  color: #ffffff;
+}
+
+.att-multigroup-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.att-multigroup-option {
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.att-multigroup-option:hover {
+  border-color: #002c6c;
+  color: #002c6c;
+}
+
+.att-multigroup-option.is-selected {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1e40af;
+  font-weight: 700;
+}
+
+/* Teacher Class Recordings List (Statistics Tab) */
+.att-recordings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.att-recording-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.att-recording-card:hover {
+  border-color: rgba(0, 44, 108, 0.35);
+  background: #f8fafc;
+}
+
+.att-recording-card.is-selected {
+  border-color: #002c6c;
+  background: linear-gradient(135deg, rgba(0, 44, 108, 0.05), rgba(207, 160, 82, 0.06));
+  box-shadow: 0 2px 8px rgba(0, 44, 108, 0.08);
+}
+
+.att-recording-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.att-recording-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.att-recording-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.att-recording-card__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.att-recording-card__count {
+  font-size: 12px;
+  font-weight: 800;
+  color: #002c6c;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+

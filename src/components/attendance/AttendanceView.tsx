@@ -40,9 +40,127 @@ interface AttendanceViewProps {
 
 type AttendanceTab = 'student' | 'history' | 'teacher' | 'stats';
 
+const ACADEMIC_BUILDINGS: { id: string; label: string; shortLabel: string }[] = [
+  { id: 'ALL', label: 'All Academic Blocks', shortLabel: 'All Blocks' },
+  { id: 'bld-h', label: 'Block A', shortLabel: 'Block A' },
+  { id: 'bld-g', label: 'Block B', shortLabel: 'Block B' },
+  { id: 'bld-i', label: 'Block C', shortLabel: 'Block C' },
+  { id: 'bld-c', label: 'Block D', shortLabel: 'Block D' },
+  { id: 'bld-b', label: 'Block E', shortLabel: 'Block E' },
+  { id: 'bld-d', label: 'Block F', shortLabel: 'Block F' },
+  { id: 'bld-e', label: 'Lecture & Conference Halls', shortLabel: 'Halls' },
+];
+
+const BUILDING_LABELS: Record<string, string> = {
+  'bld-h': 'Block A',
+  'bld-g': 'Block B',
+  'bld-i': 'Block C',
+  'bld-c': 'Block D',
+  'bld-b': 'Block E',
+  'bld-d': 'Block F',
+  'bld-e': 'Halls',
+};
+
+const BUILDING_ORDER: Record<string, number> = {
+  'bld-h': 1,
+  'bld-g': 2,
+  'bld-i': 3,
+  'bld-c': 4,
+  'bld-b': 5,
+  'bld-d': 6,
+  'bld-e': 7,
+};
+
+const KNOWN_EXCLUDED_ROOM_IDS = new Set([
+  'room-canteen',
+  'bld-i-f1-wc',
+  'bld-i-f1-stairs',
+  'bld-i-f1-foyer',
+  'bld-d-f1-f101',
+  'bld-h-f1-a105',
+  'bld-h-f1-a107',
+  'bld-g-f1-lobby',
+  'bld-g-f2-lobby',
+  'bld-b-f1-lobby',
+  'bld-b-f2-lobby',
+  'bld-b-f1-e105',
+  'bld-b-f2-e205',
+  'bld-g-f1-wc-m',
+  'bld-g-f1-wc-f',
+  'bld-g-f2-wc-m',
+  'bld-g-f2-wc-f',
+  'bld-g-f3-r2',
+  'bld-g-f3-r5',
+  'bld-g-f4-r2',
+  'bld-g-f4-r5',
+]);
+
+const UNIVERSITY_GROUPS = [
+  'I25A',
+  'I25B',
+  'I25C',
+  'I25D',
+  'I25E',
+  'I24E-1',
+  'I24E-2',
+  'A25A',
+  'A25B',
+  'C25A',
+  'C25B',
+  'E25A',
+  'E25B',
+];
+
+function isRawRoomIdentifier(val?: string | null): boolean {
+  if (!val) return true;
+  const trimmed = val.trim();
+  return /^(bld-[a-z0-9-]+|room-[a-z0-9-]+)$/i.test(trimmed);
+}
+
+function isNonTeachingSpaceText(text: string): boolean {
+  const s = text.toLowerCase();
+  return (
+    s.includes('toilet') ||
+    s.includes('restroom') ||
+    s.includes('wc') ||
+    s.includes('washroom') ||
+    s.includes('lavatory') ||
+    s.includes('canteen') ||
+    s.includes('cafeteria') ||
+    s.includes('dining') ||
+    s.includes('library') ||
+    s.includes('reading') ||
+    s.includes('office') ||
+    s.includes('dean') ||
+    s.includes('rector') ||
+    s.includes('accounting') ||
+    s.includes('admission') ||
+    s.includes('lobby') ||
+    s.includes('foyer') ||
+    s.includes('stairs') ||
+    s.includes('corridor') ||
+    s.includes('storage') ||
+    s.includes('dorm')
+  );
+}
+
+interface AcademicRoomOption {
+  id: string;
+  buildingId: string;
+  buildingName: string;
+  floorNumber: number;
+  roomNumber: string;
+  roomName: string;
+  displayName: string;
+  capacity?: number;
+  kind: string;
+}
+
 export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   const { user, openLogin } = useAuth();
   const { index, selectRoom } = useMap();
+
+  const currentUserKey = user?.user_id || user?.student_id || user?.email || 'guest';
 
   const isTeacherOrAdmin = Boolean(
     user &&
@@ -78,6 +196,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   const [statsSessionDetail, setStatsSessionDetail] = useState<AttendanceSessionInfo | null>(null);
   const [statsSearchQuery, setStatsSearchQuery] = useState<string>('');
   const [statsGroupFilter, setStatsGroupFilter] = useState<string>('ALL');
+  const [statsSessionStatusFilter, setStatsSessionStatusFilter] = useState<'ALL' | 'CLOSED' | 'OPEN'>('ALL');
 
   const [currentQr, setCurrentQr] = useState<RotatingQrTokenData | null>(null);
   const [qrRemainingSeconds, setQrRemainingSeconds] = useState<number>(20);
@@ -98,9 +217,11 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // Teacher open session form
-  const [formRoomId, setFormRoomId] = useState<string>('room-a-101');
+  const [selectedBuildingFilter, setSelectedBuildingFilter] = useState<string>('ALL');
+  const [formRoomId, setFormRoomId] = useState<string>('');
   const [formSubject, setFormSubject] = useState<string>('');
-  const [formGroupLabel, setFormGroupLabel] = useState<string>('I25C');
+  const [formSelectedGroups, setFormSelectedGroups] = useState<string[]>([]);
+  const [formCustomGroupInput, setFormCustomGroupInput] = useState<string>('');
   const [formExpectedCount, setFormExpectedCount] = useState<number>(30);
   const [formLateAfter, setFormLateAfter] = useState<number>(15);
   const [formStepSeconds, setFormStepSeconds] = useState<number>(20);
@@ -109,65 +230,220 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
   // Fullscreen projector mode
   const [isProjectorOpen, setIsProjectorOpen] = useState<boolean>(false);
 
-  // All classrooms and lecture halls from campus index
-  const availableRooms = useMemo(() => {
-    const list: { id: string; name: string; buildingName: string }[] = [];
+  // Curated academic classrooms, labs & lecture halls (organized like Booking Rooms, excluding Dormitory & non-teaching buildings)
+  const availableRooms = useMemo<AcademicRoomOption[]>(() => {
+    const list: AcademicRoomOption[] = [];
     index.rooms.forEach((loc) => {
+      const bldId = loc.building.id;
+      // Exclude Dormitory (bld-j), North Building (bld-a), Block F Annexes (bld-f), etc.
+      if (!BUILDING_LABELS[bldId]) return;
+      if (KNOWN_EXCLUDED_ROOM_IDS.has(loc.room.id)) return;
+
+      const kind = loc.room.kind || 'classroom';
+      if (kind !== 'classroom' && kind !== 'lab' && kind !== 'hall') return;
+
+      const roomNumber = (loc.room.number || '').trim();
+      const roomName = (loc.room.name || '').trim();
+      // Exclude unnamed procedural placeholder rooms (e.g. bld-a-f1-r1)
+      if (!roomNumber && !roomName) return;
+
+      if (
+        isNonTeachingSpaceText(loc.room.id) ||
+        isNonTeachingSpaceText(roomNumber) ||
+        isNonTeachingSpaceText(roomName)
+      ) {
+        return;
+      }
+
+      const kindLabel =
+        kind === 'hall' ? 'Lecture Hall' : kind === 'lab' ? 'Laboratory' : 'Classroom';
+
+      let displayName = '';
+      if (roomNumber && roomName) {
+        if (roomName.toLowerCase().startsWith(roomNumber.toLowerCase())) {
+          displayName = roomName;
+        } else {
+          displayName = `${roomNumber} · ${roomName}`;
+        }
+      } else if (roomNumber) {
+        displayName = `${roomNumber} · ${kindLabel}`;
+      } else {
+        displayName = roomName;
+      }
+
       list.push({
         id: loc.room.id,
-        name: loc.room.name || loc.room.id,
-        buildingName: loc.building.name,
+        buildingId: bldId,
+        buildingName: BUILDING_LABELS[bldId],
+        floorNumber: loc.floor.level || 1,
+        roomNumber,
+        roomName,
+        displayName,
+        capacity: loc.room.capacity,
+        kind,
       });
     });
-    return list.sort((a, b) => a.name.localeCompare(b.name));
+
+    return list.sort((a, b) => {
+      const orderDiff = (BUILDING_ORDER[a.buildingId] || 99) - (BUILDING_ORDER[b.buildingId] || 99);
+      if (orderDiff !== 0) return orderDiff;
+      if (a.floorNumber !== b.floorNumber) return a.floorNumber - b.floorNumber;
+      return a.displayName.localeCompare(b.displayName, undefined, { numeric: true });
+    });
   }, [index]);
+
+  const filteredRoomsForSelector = useMemo(() => {
+    if (selectedBuildingFilter === 'ALL') return availableRooms;
+    return availableRooms.filter((r) => r.buildingId === selectedBuildingFilter);
+  }, [availableRooms, selectedBuildingFilter]);
+
+  const roomsGroupedByBuilding = useMemo(() => {
+    const groups: { buildingId: string; buildingName: string; rooms: AcademicRoomOption[] }[] = [];
+    for (const bld of ACADEMIC_BUILDINGS) {
+      if (bld.id === 'ALL') continue;
+      if (selectedBuildingFilter !== 'ALL' && selectedBuildingFilter !== bld.id) continue;
+      const matching = availableRooms.filter((r) => r.buildingId === bld.id);
+      if (matching.length > 0) {
+        groups.push({
+          buildingId: bld.id,
+          buildingName: bld.shortLabel,
+          rooms: matching,
+        });
+      }
+    }
+    return groups;
+  }, [availableRooms, selectedBuildingFilter]);
+
+  // Ensure formRoomId always points to a valid room in the current building filter
+  useEffect(() => {
+    if (filteredRoomsForSelector.length === 0) return;
+    if (!formRoomId || !filteredRoomsForSelector.some((r) => r.id === formRoomId)) {
+      setFormRoomId(filteredRoomsForSelector[0].id);
+    }
+  }, [filteredRoomsForSelector, formRoomId]);
 
   const formatRoomDisplay = useCallback(
     (roomId?: string | null, roomLabel?: string | null) => {
-      if (roomLabel) return roomLabel;
-      if (!roomId) return 'Campus Classroom';
-      const found = availableRooms.find((r) => r.id === roomId);
-      if (found) return `${found.name} (${found.buildingName})`;
-      return roomId.replace(/^room-/, '').toUpperCase();
+      if (roomLabel && !isRawRoomIdentifier(roomLabel)) {
+        return roomLabel;
+      }
+      const lookupId = (roomId || roomLabel || '').trim();
+      if (!lookupId) return 'Campus Classroom';
+
+      const found = availableRooms.find((r) => r.id === lookupId);
+      if (found) {
+        return `${found.displayName} (${found.buildingName})`;
+      }
+
+      const loc = index.rooms.get(lookupId);
+      if (loc) {
+        const bldName = BUILDING_LABELS[loc.building.id] || loc.building.name;
+        const num = (loc.room.number || '').trim();
+        const nm = (loc.room.name || '').trim();
+        if (num && nm) return `${num} · ${nm} (${bldName})`;
+        if (num) return `Room ${num} (${bldName})`;
+        if (nm) return `${nm} (${bldName})`;
+      }
+
+      // Parse legacy raw IDs like bld-c-f1-d102 into "Room D-102 (Block D)"
+      const bldMatch = lookupId.match(/^bld-([a-z])-f(\d+)-([a-z0-9-]+)$/i);
+      if (bldMatch) {
+        const bldKey = `bld-${bldMatch[1].toLowerCase()}`;
+        const bldLabel = BUILDING_LABELS[bldKey] || `Block ${bldMatch[1].toUpperCase()}`;
+        const rawCode = bldMatch[3].toUpperCase().replace(/^([A-Z])(\d+)$/, '$1-$2');
+        return `Room ${rawCode} (${bldLabel})`;
+      }
+
+      return lookupId.replace(/^room-/i, '').toUpperCase();
     },
-    [availableRooms],
+    [availableRooms, index],
+  );
+
+  const formatSessionTitle = useCallback(
+    (sess: { subject?: string | null; room_id?: string | null; room_label?: string | null }) => {
+      const subj = (sess.subject || '').trim();
+      if (
+        subj &&
+        !isRawRoomIdentifier(subj) &&
+        !/^Active Class Session \(BLD-/i.test(subj)
+      ) {
+        return subj;
+      }
+      return `Lecture · ${formatRoomDisplay(sess.room_id, sess.room_label)}`;
+    },
+    [formatRoomDisplay],
   );
 
   // Load all sessions
   const loadSessionsData = useCallback(async () => {
     const list = await listAttendanceSessions('all');
     setSessions(list);
+    const openSessions = list.filter((s) => s.is_open && !s.closed_at);
+
+    setSelectedSessionId((prev) => {
+      if (prev && openSessions.some((s) => s.id === prev)) {
+        return prev;
+      }
+      return openSessions[0]?.id || '';
+    });
+
     if (list.length > 0) {
-      const openOne = list.find((s) => s.is_open);
-      setSelectedSessionId((prev) => prev || (openOne ? openOne.id : list[0].id));
-      setSelectedStatsSessionId((prev) => prev || (openOne ? openOne.id : list[0].id));
+      setSelectedStatsSessionId((prev) => {
+        if (prev && list.some((s) => s.id === prev)) return prev;
+        return openSessions[0]?.id || list[0].id;
+      });
     }
   }, []);
 
-  // Load student check-in history
+  // Load student check-in history (isolated per user)
   const loadMyRecordsData = useCallback(async () => {
     const list = await listMyAttendanceRecords();
     setMyRecords(list);
   }, []);
 
+  // Whenever the signed-in user changes, immediately clear previous user's state & reload
   useEffect(() => {
+    setScanResult(null);
+    setScanError(null);
+    setTokenInput('');
+    setMyRecords([]);
     loadSessionsData();
     if (!isTeacherOrAdmin) {
       loadMyRecordsData();
     }
-  }, [loadSessionsData, loadMyRecordsData, isTeacherOrAdmin]);
+  }, [currentUserKey, isTeacherOrAdmin, loadSessionsData, loadMyRecordsData]);
+
+  // Student live polling: refresh open sessions every 3s & on window focus so closed sessions disappear immediately
+  useEffect(() => {
+    if (isTeacherOrAdmin || activeTab !== 'student') return;
+    const poll = setInterval(() => {
+      loadSessionsData();
+    }, 3000);
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadSessionsData();
+      }
+    };
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+    };
+  }, [isTeacherOrAdmin, activeTab, loadSessionsData]);
 
   // Sync active teacher session & fetch its full student records
   const refreshActiveTeacherSession = useCallback(async (sessionId: string) => {
     const detail = await getAttendanceSession(sessionId);
     if (detail) {
-      setActiveTeacherSession(detail);
+      setActiveTeacherSession(detail.is_open && !detail.closed_at ? detail : null);
     }
   }, []);
 
   useEffect(() => {
     if (!isTeacherOrAdmin) return;
-    const openSession = sessions.find((s) => s.is_open);
+    const openSession = sessions.find((s) => s.is_open && !s.closed_at);
     if (openSession) {
       setActiveTeacherSession((prev) => {
         if (!prev || prev.id !== openSession.id) {
@@ -180,6 +456,8 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
           records: openSession.records?.length ? openSession.records : prev.records,
         };
       });
+    } else {
+      setActiveTeacherSession(null);
     }
   }, [isTeacherOrAdmin, sessions, refreshActiveTeacherSession]);
 
@@ -334,6 +612,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
             ? err.message
             : 'Check-in failed. Please verify the QR code or token.';
         setScanError(msg);
+        await loadSessionsData();
       } finally {
         setIsSubmittingScan(false);
       }
@@ -514,6 +793,33 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
     }
   };
 
+  const toggleGroupSelection = (groupCode: string) => {
+    const normalized = groupCode.trim().toUpperCase();
+    if (!normalized) return;
+    setFormSelectedGroups((prev) =>
+      prev.includes(normalized) ? prev.filter((g) => g !== normalized) : [...prev, normalized],
+    );
+  };
+
+  const addCustomGroupsFromInput = () => {
+    const raw = formCustomGroupInput.trim();
+    if (!raw) return;
+    const tokens = raw
+      .split(/[,;\s]+/)
+      .map((t) => t.trim().toUpperCase())
+      .filter(Boolean);
+    if (tokens.length > 0) {
+      setFormSelectedGroups((prev) => {
+        const merged = [...prev];
+        for (const t of tokens) {
+          if (!merged.includes(t)) merged.push(t);
+        }
+        return merged;
+      });
+    }
+    setFormCustomGroupInput('');
+  };
+
   // Teacher actions
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -523,18 +829,26 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
     try {
       const selectedRoomObj = availableRooms.find((r) => r.id === formRoomId);
       const roomLabel = selectedRoomObj
-        ? `${selectedRoomObj.name} (${selectedRoomObj.buildingName})`
-        : formRoomId;
+        ? `${selectedRoomObj.displayName} (${selectedRoomObj.buildingName})`
+        : formatRoomDisplay(formRoomId, null);
+
+      const extraTypedGroups = formCustomGroupInput
+        .split(/[,;\s]+/)
+        .map((t) => t.trim().toUpperCase())
+        .filter(Boolean);
+      const allChosenGroups = Array.from(new Set([...formSelectedGroups, ...extraTypedGroups]));
+      const combinedGroupLabel = allChosenGroups.length > 0 ? allChosenGroups.join(', ') : undefined;
 
       const newSession = await openAttendanceSession({
         room_id: formRoomId,
         room_label: roomLabel,
         subject: formSubject.trim() || undefined,
-        group_label: formGroupLabel.trim() || undefined,
+        group_label: combinedGroupLabel,
         token_step_seconds: formStepSeconds,
         late_after_minutes: formLateAfter,
         expected_count: formExpectedCount,
       });
+      setFormCustomGroupInput('');
       setActiveTeacherSession(newSession);
       setSelectedStatsSessionId(newSession.id);
       await loadSessionsData();
@@ -555,7 +869,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
     setActiveTeacherSession(null);
     await loadSessionsData();
     if (closedDetail) {
-      setStatsSessionDetail(closedDetail);
+      setStatsSessionDetail({ ...closedDetail, is_open: false });
     }
     setSelectedStatsSessionId(closingId);
     // Automatically switch to the whole statistics & student roster view once closed
@@ -584,16 +898,45 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
     onBackToMap();
   };
 
+  // Clean & deduplicate session recordings for the Teacher Statistics tab
+  const dedupedStatsSessions = useMemo(() => {
+    const seenZeroDuplicateKeys = new Set<string>();
+    const result: AttendanceSessionInfo[] = [];
+    for (const s of sessions) {
+      const attended = (s.counts?.present || 0) + (s.counts?.late || 0);
+      const isClosedZero = (!s.is_open || Boolean(s.closed_at)) && attended === 0 && (s.total_scans || 0) === 0;
+      if (isClosedZero && s.id !== selectedStatsSessionId) {
+        const key = `${s.room_id || ''}::${formatSessionTitle(s)}::${s.group_label || ''}`;
+        if (seenZeroDuplicateKeys.has(key)) {
+          continue;
+        }
+        seenZeroDuplicateKeys.add(key);
+      }
+      result.push(s);
+    }
+    return result;
+  }, [sessions, selectedStatsSessionId, formatSessionTitle]);
+
+  const filteredRecordingSessions = useMemo(() => {
+    if (statsSessionStatusFilter === 'OPEN') {
+      return dedupedStatsSessions.filter((s) => s.is_open && !s.closed_at);
+    }
+    if (statsSessionStatusFilter === 'CLOSED') {
+      return dedupedStatsSessions.filter((s) => !s.is_open || Boolean(s.closed_at));
+    }
+    return dedupedStatsSessions;
+  }, [dedupedStatsSessions, statsSessionStatusFilter]);
+
   // Computed statistics for the Teacher Statistics tab
   const currentStatsSession = useMemo(() => {
     return (
       statsSessionDetail ||
       sessions.find((s) => s.id === selectedStatsSessionId) ||
       activeTeacherSession ||
-      sessions[0] ||
+      dedupedStatsSessions[0] ||
       null
     );
-  }, [statsSessionDetail, sessions, selectedStatsSessionId, activeTeacherSession]);
+  }, [statsSessionDetail, sessions, selectedStatsSessionId, activeTeacherSession, dedupedStatsSessions]);
 
   const attendedRecords = useMemo(() => {
     if (!currentStatsSession?.records) return [];
@@ -809,7 +1152,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {sessions.filter((s) => s.is_open).length === 0 ? (
+              {sessions.filter((s) => s.is_open && !s.closed_at).length === 0 ? (
                 <div
                   style={{
                     padding: '20px 0',
@@ -822,7 +1165,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                 </div>
               ) : (
                 sessions
-                  .filter((s) => s.is_open)
+                  .filter((s) => s.is_open && !s.closed_at)
                   .map((sess) => {
                     const isSelected = selectedSessionId === sess.id;
                     return (
@@ -840,10 +1183,7 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                         onClick={() => setSelectedSessionId(sess.id)}
                       >
                         <div className="att-session-title-row">
-                          <span className="att-session-title">
-                            {sess.subject ||
-                              `Class in ${formatRoomDisplay(sess.room_id, sess.room_label)}`}
-                          </span>
+                          <span className="att-session-title">{formatSessionTitle(sess)}</span>
                           <span className="att-badge att-badge--open">Live Session</span>
                         </div>
 
@@ -1342,8 +1682,91 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
 
               <form
                 onSubmit={handleCreateSession}
-                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
               >
+                {/* 1. Academic Building & Classroom Selector (organized like Booking Rooms) */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#334155',
+                      marginBottom: 6,
+                    }}
+                  >
+                    1. Filter by Academic Building
+                  </label>
+                  <div className="att-building-pills" role="group" aria-label="Filter by academic building">
+                    {ACADEMIC_BUILDINGS.map((bld) => {
+                      const count =
+                        bld.id === 'ALL'
+                          ? availableRooms.length
+                          : availableRooms.filter((r) => r.buildingId === bld.id).length;
+                      if (bld.id !== 'ALL' && count === 0) return null;
+                      const isActive = selectedBuildingFilter === bld.id;
+                      return (
+                        <button
+                          key={bld.id}
+                          type="button"
+                          className={`att-building-pill${isActive ? ' is-active' : ''}`}
+                          onClick={() => setSelectedBuildingFilter(bld.id)}
+                        >
+                          <span>{bld.shortLabel}</span>
+                          <span className="att-building-pill__count">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#334155',
+                      marginBottom: 4,
+                    }}
+                  >
+                    2. Select Classroom / Lecture Hall
+                  </label>
+                  <select
+                    value={formRoomId}
+                    onChange={(e) => setFormRoomId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 10px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      background: '#ffffff',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {selectedBuildingFilter === 'ALL'
+                      ? roomsGroupedByBuilding.map((grp) => (
+                          <optgroup
+                            key={grp.buildingId}
+                            label={`${grp.buildingName} (${grp.rooms.length} rooms)`}
+                          >
+                            {grp.rooms.map((rm) => (
+                              <option key={rm.id} value={rm.id}>
+                                {rm.displayName} — Floor {rm.floorNumber}
+                                {rm.capacity ? ` (${rm.capacity} seats)` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))
+                      : filteredRoomsForSelector.map((rm) => (
+                          <option key={rm.id} value={rm.id}>
+                            {rm.displayName} — Floor {rm.floorNumber}
+                            {rm.capacity ? ` (${rm.capacity} seats)` : ''}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+
+                {/* 2. Course Subject / Title (no example placeholder) */}
                 <div>
                   <label
                     style={{
@@ -1354,82 +1777,128 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                       marginBottom: 4,
                     }}
                   >
-                    Select Classroom / Lecture Hall
+                    Course Subject / Title
                   </label>
-                  <select
-                    value={formRoomId}
-                    onChange={(e) => setFormRoomId(e.target.value)}
+                  <input
+                    type="text"
+                    value={formSubject}
+                    onChange={(e) => setFormSubject(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '8px 10px',
                       borderRadius: 8,
                       border: '1px solid #cbd5e1',
                       fontSize: 13,
+                      boxSizing: 'border-box',
                     }}
-                  >
-                    {availableRooms.map((rm) => (
-                      <option key={rm.id} value={rm.id}>
-                        {rm.name} ({rm.buildingName})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
-                  <div>
+                {/* 3. Multi-Group Selector for single or combined classes (no example placeholder) */}
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 4,
+                    }}
+                  >
                     <label
                       style={{
-                        display: 'block',
                         fontSize: 12,
                         fontWeight: 600,
                         color: '#334155',
-                        marginBottom: 4,
                       }}
                     >
-                      Course Subject / Title
+                      Target Group(s){' '}
+                      <span style={{ fontWeight: 400, color: '#64748b', fontSize: 11 }}>
+                        (Select 1 or more groups for combined classes)
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Organizational Behaviour"
-                      value={formSubject}
-                      onChange={(e) => setFormSubject(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 10px',
-                        borderRadius: 8,
-                        border: '1px solid #cbd5e1',
-                        fontSize: 13,
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                    {formSelectedGroups.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormSelectedGroups([])}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#64748b',
+                          fontSize: 11,
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0,
+                        }}
+                      >
+                        Clear ({formSelectedGroups.length})
+                      </button>
+                    )}
                   </div>
 
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: '#334155',
-                        marginBottom: 4,
-                      }}
-                    >
-                      Target Group
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. I25C"
-                      value={formGroupLabel}
-                      onChange={(e) => setFormGroupLabel(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 10px',
-                        borderRadius: 8,
-                        border: '1px solid #cbd5e1',
-                        fontSize: 13,
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                  <div className="att-multigroup-box">
+                    {formSelectedGroups.length > 0 && (
+                      <div className="att-multigroup-selected">
+                        {formSelectedGroups.map((grp) => (
+                          <span key={grp} className="att-multigroup-tag">
+                            {grp}
+                            <button
+                              type="button"
+                              onClick={() => toggleGroupSelection(grp)}
+                              aria-label={`Remove group ${grp}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="att-multigroup-options">
+                      {UNIVERSITY_GROUPS.map((grp) => {
+                        const isSelected = formSelectedGroups.includes(grp);
+                        return (
+                          <button
+                            key={grp}
+                            type="button"
+                            className={`att-multigroup-option${isSelected ? ' is-selected' : ''}`}
+                            onClick={() => toggleGroupSelection(grp)}
+                          >
+                            {isSelected ? `✓ ${grp}` : `+ ${grp}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="text"
+                        value={formCustomGroupInput}
+                        onChange={(e) => setFormCustomGroupInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ',') {
+                            e.preventDefault();
+                            addCustomGroupsFromInput();
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          border: '1px solid #cbd5e1',
+                          fontSize: 12,
+                          background: '#ffffff',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="att-btn att-btn--secondary"
+                        style={{ padding: '5px 10px', fontSize: 11 }}
+                        onClick={addCustomGroupsFromInput}
+                        disabled={!formCustomGroupInput.trim()}
+                      >
+                        + Add Group
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1565,47 +2034,118 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
               </button>
             </div>
 
-            {/* Session Selector */}
-            <div>
-              <label
+            {/* Class Session Recordings Selector (Interactive Cards) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div
                 style={{
-                  display: 'block',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: '#64748b',
-                  marginBottom: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 6,
                 }}
               >
-                Select Session (Active or Closed)
-              </label>
-              <select
-                value={currentStatsSession?.id || ''}
-                onChange={(e) => {
-                  setSelectedStatsSessionId(e.target.value);
-                  setStatsGroupFilter('ALL');
-                }}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 13,
-                }}
-              >
-                {sessions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.subject || formatRoomDisplay(s.room_id, s.room_label)}{' '}
-                    {s.group_label ? `(${s.group_label})` : ''} —{' '}
-                    {s.is_open ? '🟢 Live' : '🔒 Closed'} ({s.counts.present + s.counts.late}/
-                    {s.expected_count || 30} attended)
-                  </option>
-                ))}
-              </select>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#475569',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  Class Recordings ({filteredRecordingSessions.length})
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(
+                    [
+                      { key: 'ALL', label: 'All' },
+                      { key: 'CLOSED', label: 'Completed' },
+                      { key: 'OPEN', label: 'Live' },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={`att-building-pill${
+                        statsSessionStatusFilter === tab.key ? ' is-active' : ''
+                      }`}
+                      style={{ padding: '3px 9px', fontSize: 11 }}
+                      onClick={() => setStatsSessionStatusFilter(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="att-recordings-list">
+                {filteredRecordingSessions.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '16px 0',
+                      textAlign: 'center',
+                      color: '#94a3b8',
+                      fontSize: 12,
+                    }}
+                  >
+                    No class recordings match this filter.
+                  </div>
+                ) : (
+                  filteredRecordingSessions.map((s) => {
+                    const isSelected = currentStatsSession?.id === s.id;
+                    const isOpen = Boolean(s.is_open && !s.closed_at);
+                    const attended = (s.counts?.present || 0) + (s.counts?.late || 0);
+                    const expected = s.expected_count || 30;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`att-recording-card${isSelected ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          setSelectedStatsSessionId(s.id);
+                          setStatsGroupFilter('ALL');
+                        }}
+                      >
+                        <div className="att-recording-card__main">
+                          <div className="att-recording-card__title">{formatSessionTitle(s)}</div>
+                          <div className="att-recording-card__meta">
+                            <span>🏛️ {formatRoomDisplay(s.room_id, s.room_label)}</span>
+                            {s.group_label && <span>👥 {s.group_label}</span>}
+                            <span>
+                              📅{' '}
+                              {new Date(s.opened_at).toLocaleString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="att-recording-card__right">
+                          <span
+                            className={`att-badge ${
+                              isOpen ? 'att-badge--open' : 'att-badge--present'
+                            }`}
+                          >
+                            {isOpen ? 'Live' : 'Completed'}
+                          </span>
+                          <span className="att-recording-card__count">
+                            {attended} / {expected} present
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             {currentStatsSession ? (
               <>
-                {/* Session Metadata Summary */}
+                {/* Selected Recording Banner */}
                 <div
                   style={{
                     display: 'flex',
@@ -1613,28 +2153,42 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                     justifyContent: 'space-between',
                     flexWrap: 'wrap',
                     gap: 8,
-                    padding: '10px 12px',
-                    background: '#f8fafc',
-                    borderRadius: 10,
-                    border: '1px solid rgba(15, 23, 42, 0.06)',
+                    padding: '12px 14px',
+                    background: 'linear-gradient(135deg, #f8fafc, #eff6ff)',
+                    borderRadius: 12,
+                    border: '1px solid rgba(0, 44, 108, 0.12)',
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
-                      {currentStatsSession.subject || 'University Class Session'}
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
+                      {formatSessionTitle(currentStatsSession)}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                      🏛️{' '}
-                      {formatRoomDisplay(
-                        currentStatsSession.room_id,
-                        currentStatsSession.room_label,
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '6px 10px',
+                        alignItems: 'center',
+                        fontSize: 12,
+                        color: '#475569',
+                        marginTop: 4,
+                      }}
+                    >
+                      <span>
+                        🏛️{' '}
+                        {formatRoomDisplay(
+                          currentStatsSession.room_id,
+                          currentStatsSession.room_label,
+                        )}
+                      </span>
+                      {currentStatsSession.group_label && (
+                        <span>👥 Group(s): {currentStatsSession.group_label}</span>
                       )}
-                      {currentStatsSession.group_label &&
-                        ` · 👥 Group ${currentStatsSession.group_label}`}
-                      {currentStatsSession.teacher_label &&
-                        ` · 👨‍🏫 ${currentStatsSession.teacher_label}`}
+                      {currentStatsSession.teacher_label && (
+                        <span>👨‍🏫 {currentStatsSession.teacher_label}</span>
+                      )}
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
                       Opened:{' '}
                       {new Date(currentStatsSession.opened_at).toLocaleString([], {
                         month: 'short',
@@ -1654,26 +2208,29 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                   </div>
                   <span
                     className={`att-badge ${
-                      currentStatsSession.is_open ? 'att-badge--open' : 'att-badge--present'
+                      currentStatsSession.is_open && !currentStatsSession.closed_at
+                        ? 'att-badge--open'
+                        : 'att-badge--present'
                     }`}
                   >
-                    {currentStatsSession.is_open ? 'Session Open' : 'Session Completed'}
+                    {currentStatsSession.is_open && !currentStatsSession.closed_at
+                      ? 'Session Live'
+                      : 'Session Completed'}
                   </span>
                 </div>
 
-                {/* Whole Statistics Cards */}
+                {/* Balanced 4-Card Statistics Grid */}
                 <div className="att-stats-grid">
                   <div className="att-stat-card att-stat-card--primary">
                     <span className="att-stat-label">Students Attended</span>
-                    <span className="att-stat-value">
-                      {totalAttendedCount} / {expectedStudentsCount}
-                    </span>
-                    <span className="att-stat-sub">Total verified students</span>
-                  </div>
-
-                  <div className="att-stat-card att-stat-card--primary">
-                    <span className="att-stat-label">Attendance Rate</span>
-                    <span className="att-stat-value">{attendanceRatePct}%</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span className="att-stat-value">
+                        {totalAttendedCount} / {expectedStudentsCount}
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#002c6c' }}>
+                        ({attendanceRatePct}%)
+                      </span>
+                    </div>
                     <div className="att-qr-progress-bar" style={{ marginTop: 4 }}>
                       <div
                         className="att-qr-progress-fill"
@@ -1687,18 +2244,25 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                     <span className="att-stat-value" style={{ color: '#15803d' }}>
                       {currentStatsSession.counts.present}
                     </span>
-                    <span className="att-stat-sub">Checked in before late threshold</span>
+                    <span className="att-stat-sub">Checked in on time</span>
                   </div>
 
                   <div className="att-stat-card">
-                    <span className="att-stat-label">Late / Absent</span>
+                    <span className="att-stat-label">Late Check-Ins</span>
                     <span className="att-stat-value" style={{ color: '#b45309' }}>
-                      {currentStatsSession.counts.late} Late ·{' '}
-                      {Math.max(0, expectedStudentsCount - totalAttendedCount)} Absent
+                      {currentStatsSession.counts.late}
                     </span>
                     <span className="att-stat-sub">
-                      Late after {currentStatsSession.late_after_minutes || 15} min
+                      After {currentStatsSession.late_after_minutes || 15} min threshold
                     </span>
+                  </div>
+
+                  <div className="att-stat-card">
+                    <span className="att-stat-label">Absent</span>
+                    <span className="att-stat-value" style={{ color: '#64748b' }}>
+                      {Math.max(0, expectedStudentsCount - totalAttendedCount)}
+                    </span>
+                    <span className="att-stat-sub">Not checked in</span>
                   </div>
                 </div>
 

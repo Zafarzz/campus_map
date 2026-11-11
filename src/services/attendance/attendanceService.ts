@@ -145,20 +145,22 @@ function saveLocalSessions(sessions: AttendanceSessionInfo[]) {
   setJsonStorageItem(STORAGE_SESSIONS_KEY, sessions);
 }
 
+function resolveCurrentUserKey(): string {
+  const currentUser = getStoredUser();
+  return currentUser?.user_id || currentUser?.student_id || currentUser?.email || 'guest-local';
+}
+
 function loadLocalMyRecords(): StudentAttendanceRecord[] {
   const all = getJsonStorageItem<StudentAttendanceRecord[]>(STORAGE_MY_RECORDS_KEY, []);
-  const currentUser = getStoredUser();
-  if (!currentUser?.user_id) {
-    return all;
-  }
-  return all.filter((r) => !r.user_id || r.user_id === currentUser.user_id);
+  const userKey = resolveCurrentUserKey();
+  return all.filter((r) => Boolean(r.user_id) && r.user_id === userKey);
 }
 
 function saveLocalMyRecord(record: StudentAttendanceRecord) {
-  const currentUser = getStoredUser();
+  const userKey = record.user_id || resolveCurrentUserKey();
   const enrichedRecord: StudentAttendanceRecord = {
     ...record,
-    user_id: record.user_id || currentUser?.user_id || null,
+    user_id: userKey,
   };
   const existing = getJsonStorageItem<StudentAttendanceRecord[]>(STORAGE_MY_RECORDS_KEY, []).filter(
     (r) =>
@@ -233,23 +235,19 @@ export async function listAttendanceSessions(
         token,
       );
       if (res?.sessions && Array.isArray(res.sessions)) {
-        // Also merge any locally created fallback sessions so nothing is lost
-        const localCustom = loadLocalSessions().filter((s) => s.id.startsWith('local-session-'));
-        let merged = [...res.sessions];
-        for (const loc of localCustom) {
-          if (!merged.some((m) => m.id === loc.id)) {
-            merged.push(loc);
-          }
-        }
+        let list = res.sessions.map((s) => ({
+          ...s,
+          is_open: Boolean(s.is_open && !s.closed_at),
+        }));
         if (status === 'open') {
-          merged = merged.filter((s) => s.is_open);
+          list = list.filter((s) => s.is_open);
         } else if (status === 'closed') {
-          merged = merged.filter((s) => !s.is_open);
+          list = list.filter((s) => !s.is_open);
         }
         if (roomId) {
-          merged = merged.filter((s) => s.room_id === roomId);
+          list = list.filter((s) => s.room_id === roomId);
         }
-        return merged;
+        return list;
       }
     } catch {
       // Fallback to local store when backend is unreachable
@@ -368,7 +366,9 @@ export async function openAttendanceSession(
   const currentUser = getStoredUser();
   const fallbackSubject =
     params.subject?.trim() ||
-    `Active Class Session (${(params.room_label || params.room_id).replace(/^room-/, '').toUpperCase()})`;
+    (params.room_label
+      ? `Class Lecture · ${params.room_label}`
+      : 'Class Lecture Session');
 
   if (isBackendEnabled) {
     try {
@@ -536,7 +536,7 @@ export async function scanAttendanceQr(
   const state: 'present' | 'late' = isLate ? 'late' : 'present';
   const recordId = `scan-${Date.now()}`;
   const scannedAt = new Date().toISOString();
-  const resolvedUserId = currentUser?.user_id || 'current-user';
+  const resolvedUserId = resolveCurrentUserKey();
   const resolvedStudentName = currentUser?.display_name || 'Student';
   const resolvedStudentId = currentUser?.student_id || currentUser?.email || null;
   const resolvedGroupNo = currentUser?.group_no || session?.group_label || null;
@@ -648,31 +648,37 @@ export async function closeAttendanceSession(
   sessionId: string,
   token?: string | null,
 ): Promise<void> {
+  // Always mark closed in localStorage so stale open state never persists locally
+  const closedIso = new Date().toISOString();
+  const sessions = loadLocalSessions();
+  let modified = false;
+  for (const s of sessions) {
+    if (s.id === sessionId) {
+      s.closed_at = closedIso;
+      s.is_open = false;
+      modified = true;
+    }
+  }
+  if (modified) {
+    saveLocalSessions(sessions);
+  }
+
   if (isBackendEnabled && UUID_REGEX.test(sessionId)) {
     try {
       await apiPost(`/academic/attendance/sessions/${sessionId}/close`, {}, undefined, token);
-      return;
     } catch {
-      // Fallback local update
+      // Local state already updated above
     }
-  }
-
-  // Fallback local update
-  const sessions = loadLocalSessions();
-  const session = sessions.find((s) => s.id === sessionId);
-  if (session) {
-    session.closed_at = new Date().toISOString();
-    session.is_open = false;
-    saveLocalSessions(sessions);
   }
 }
 
 /**
- * List the current student's check-in history
+ * List the current student's check-in history (strictly isolated per signed-in user)
  */
 export async function listMyAttendanceRecords(
   token?: string | null,
 ): Promise<StudentAttendanceRecord[]> {
+  const userKey = resolveCurrentUserKey();
   const localRecords = loadLocalMyRecords();
 
   if (isBackendEnabled) {
@@ -684,22 +690,19 @@ export async function listMyAttendanceRecords(
         token,
       );
       if (res?.records && Array.isArray(res.records)) {
-        const merged = [...res.records];
-        for (const loc of localRecords) {
-          const exists = merged.some(
-            (r) => r.id === loc.id || (r.session_id && r.session_id === loc.session_id),
-          );
-          if (!exists) {
-            merged.push(loc);
-          }
-        }
-        return merged.sort(
+        const backendRecords = res.records.map((r) => ({
+          ...r,
+          user_id: r.user_id || userKey,
+        }));
+        return backendRecords.sort(
           (a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime(),
         );
       }
     } catch {
-      // Fallback to local records
+      // Fallback to strictly user-scoped local records when backend is offline
     }
   }
-  return localRecords;
+  return localRecords.sort(
+    (a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime(),
+  );
 }
