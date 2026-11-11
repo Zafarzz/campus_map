@@ -104,6 +104,9 @@ class AttendanceSessionOpenIn(BaseModel):
 
     meeting_id: uuid.UUID | None = None
     room_id: str | None = None
+    room_label: str | None = Field(default=None, max_length=200)
+    subject: str | None = Field(default=None, max_length=200)
+    group_label: str | None = Field(default=None, max_length=64)
     token_step_seconds: int = Field(default=20, ge=10, le=120)
     late_after_minutes: int = Field(default=30, ge=1, le=180)
     expected_count: int | None = Field(default=None, ge=1, le=2000)
@@ -112,7 +115,8 @@ class AttendanceSessionOpenIn(BaseModel):
 class AttendanceScanIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    token: str = Field(min_length=6, max_length=64)
+    token: str = Field(min_length=6, max_length=128)
+    session_id: uuid.UUID | None = None
     device_id: str | None = Field(default=None, max_length=256)
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
@@ -542,6 +546,9 @@ async def open_attendance_session(
         token_step_seconds=body.token_step_seconds,
         late_after_minutes=body.late_after_minutes,
         expected_count=body.expected_count,
+        subject=body.subject,
+        group_label=body.group_label,
+        room_label=body.room_label,
     )
     await session.commit()
     token_data = await academic_service.get_current_qr_token(
@@ -550,7 +557,10 @@ async def open_attendance_session(
     return {
         "id": str(att_session.id),
         "meeting_id": str(att_session.meeting_id) if att_session.meeting_id else None,
-        "room_id": att_session.room_id,
+        "room_id": att_session.room_id or body.room_id,
+        "room_label": body.room_label,
+        "subject": body.subject,
+        "group_label": body.group_label,
         "opened_at": att_session.opened_at.isoformat(),
         "token_step_seconds": att_session.token_step_seconds,
         "late_after_minutes": att_session.late_after_minutes,
@@ -659,6 +669,43 @@ async def scan_attendance_qr(
         "review_reason": record.review_reason,
         "is_late": outcome.is_late,
         "counts_toward_occupancy": record.state in {"present", "late", "guest"},
+        **(await academic_service.get_scan_record_enrichment(session, record)),
+    }
+
+
+@router.post(
+    "/attendance/scan",
+    status_code=status.HTTP_201_CREATED,
+    summary="Check in using a QR payload or rotating 8-character token (§13.3)",
+)
+async def scan_attendance_by_token(
+    body: AttendanceScanIn,
+    session: SessionDep,
+    principal: CurrentPrincipal,
+) -> dict[str, Any]:
+    student_id = await ensure_principal_user(session, principal)
+    record, outcome = await academic_service.scan_attendance_qr(
+        session,
+        session_id=body.session_id,
+        student_user_id=student_id,
+        token=body.token,
+        raw_device_id=body.device_id,
+        student_lat=body.latitude,
+        student_lon=body.longitude,
+        geofence_enabled=body.geofence_enabled,
+        geofence_radius_m=body.geofence_radius_m,
+    )
+    await session.commit()
+    return {
+        "record_id": str(record.id),
+        "session_id": str(record.session_id),
+        "user_id": str(record.user_id),
+        "state": record.state,
+        "scanned_at": record.scanned_at.isoformat(),
+        "review_reason": record.review_reason,
+        "is_late": outcome.is_late,
+        "counts_toward_occupancy": record.state in {"present", "late", "guest"},
+        **(await academic_service.get_scan_record_enrichment(session, record)),
     }
 
 

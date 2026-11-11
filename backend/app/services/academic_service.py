@@ -19,6 +19,7 @@ Coordinates:
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -52,7 +53,7 @@ from app.domain.evidence import (
 )
 from app.domain.people import AppUser, EnrollmentRef, UserCapability
 from app.domain.platform import Scenario, ScenarioChange
-from app.domain.spatial import Floor, Room
+from app.domain.spatial import Floor, Room, RoomAlias
 from app.engines.attendance import (
     ScanClassification,
     classify_attendance_scan,
@@ -88,6 +89,7 @@ from app.engines.timetable_optimiser import (
     optimise_timetable,
 )
 from app.services.state_service import invalidate_state_cache
+from app.services.student_auth_service import OFFICIAL_STUDENT_ROSTER, STUDENT_REF_PREFIX
 
 log = get_logger(__name__)
 
@@ -656,6 +658,106 @@ async def get_exam_student_slips_for_id(
 # ===========================================================================
 
 
+async def _resolve_db_room_id(session: AsyncSession, room_id: str | None) -> str | None:
+    """Resolve a frontend room ID against ``room`` and ``room_alias`` tables.
+
+    Returns ``None`` if the room is a frontend-only space not seeded in PostgreSQL
+    so ``AttendanceSession.room_id`` never triggers a ForeignKeyViolationError.
+    """
+    if not room_id:
+        return None
+    clean = room_id.strip()
+    if not clean:
+        return None
+
+    direct = await session.get(Room, clean)
+    if direct is not None:
+        return direct.id
+
+    candidates = [clean, clean.upper()]
+    if clean.lower().startswith("room-"):
+        stripped = clean[5:]
+        candidates.extend([stripped, stripped.upper()])
+
+    for cand in candidates:
+        row = await session.get(Room, cand)
+        if row is not None:
+            return row.id
+        by_num = (
+            await session.execute(select(Room.id).where(Room.number == cand).limit(1))
+        ).scalar_one_or_none()
+        if by_num is not None:
+            return str(by_num)
+        by_alias = (
+            await session.execute(
+                select(RoomAlias.room_id).where(RoomAlias.alias == cand).limit(1)
+            )
+        ).scalar_one_or_none()
+        if by_alias is not None:
+            return str(by_alias)
+
+    return None
+
+
+def _resolve_user_roster_info(
+    user: AppUser | None, user_id: uuid.UUID | None
+) -> dict[str, str | None]:
+    """Resolve student full name, student_id, group_no, and department for attendance records."""
+    if user is not None and user.external_ref and user.external_ref.startswith(STUDENT_REF_PREFIX):
+        sid = user.external_ref[len(STUDENT_REF_PREFIX) :]
+        roster = OFFICIAL_STUDENT_ROSTER.get(sid)
+        if roster is not None:
+            return {
+                "student_name": roster.full_name,
+                "student_id": roster.student_id,
+                "group_no": roster.group_no,
+                "department": roster.department,
+            }
+        return {
+            "student_name": user.display_name or f"Student {sid}",
+            "student_id": sid,
+            "group_no": None,
+            "department": None,
+        }
+    if user is not None:
+        return {
+            "student_name": user.display_name or user.email or str(user.id)[:8],
+            "student_id": user.email or str(user.id)[:8],
+            "group_no": None,
+            "department": None,
+        }
+    return {
+        "student_name": str(user_id)[:8] if user_id else "Student",
+        "student_id": str(user_id)[:8] if user_id else None,
+        "group_no": None,
+        "department": None,
+    }
+
+
+async def _load_session_meta_signals(
+    session: AsyncSession, session_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    """Load session metadata stored in ``teacher_confirmation`` Signal payloads."""
+    if not session_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(Signal)
+            .where(
+                Signal.signal_type == SignalType.teacher_confirmation,
+                Signal.source_ref.in_(session_ids),
+            )
+            .order_by(Signal.observed_at.desc())
+        )
+    ).scalars().all()
+    meta: dict[str, dict[str, Any]] = {}
+    for sig in rows:
+        if sig.source_ref and sig.source_ref not in meta and isinstance(sig.payload, dict):
+            meta[sig.source_ref] = sig.payload
+    return meta
+# ===========================================================================
+
+
 async def open_attendance_session(
     session: AsyncSession,
     *,
@@ -664,6 +766,9 @@ async def open_attendance_session(
     room_id: str | None = None,
     token_step_seconds: int = 20,
     late_after_minutes: int = 30,
+    subject: str | None = None,
+    group_label: str | None = None,
+    room_label: str | None = None,
     expected_count: int | None = None,
     now: datetime | None = None,
     is_demo: bool = False,
@@ -708,6 +813,20 @@ async def open_attendance_session(
                 if sec is not None and sec.enrolled_count is not None:
                     expected_count = sec.enrolled_count
 
+    raw_room_id = room_id
+    room_id = await _resolve_db_room_id(session, raw_room_id)
+    teacher_user = await session.get(AppUser, teacher_user_id)
+    meta_payload: dict[str, Any] = {
+        "room_id": room_id or raw_room_id,
+        "room_label": room_label or raw_room_id or room_id,
+        "subject": subject or (meeting.subject if meeting else None),
+        "group_label": group_label or (meeting.group_label if meeting else None),
+        "teacher_label": (
+            (meeting.teacher_label if meeting else None)
+            or (teacher_user.display_name if teacher_user else None)
+        ),
+    }
+
     att_session = AttendanceSession(
         meeting_id=meeting_id,
         room_id=room_id,
@@ -721,12 +840,14 @@ async def open_attendance_session(
     session.add(att_session)
     await session.flush()
 
-    if room_id is not None:
+    sig_subject_id = (room_id or raw_room_id or "general")[:64]
+    if sig_subject_id:
         session.add(
             Signal(
                 signal_type=SignalType.teacher_confirmation,
                 subject_type="room",
-                subject_id=room_id,
+                subject_id=sig_subject_id,
+                payload=meta_payload,
                 value=0.1,
                 count=1,
                 reliability=0.85,
@@ -789,7 +910,7 @@ async def get_current_qr_token(
 async def scan_attendance_qr(
     session: AsyncSession,
     *,
-    session_id: uuid.UUID,
+    session_id: uuid.UUID | None = None,
     student_user_id: uuid.UUID,
     token: str,
     raw_device_id: str | None = None,
@@ -803,7 +924,55 @@ async def scan_attendance_qr(
 ) -> tuple[AttendanceRecord, ScanClassification]:
     """Process a student's QR attendance scan (§13.3)."""
     instant = now or datetime.now(UTC)
-    att_session = await session.get(AttendanceSession, session_id)
+    secret = get_settings().jwt_secret.get_secret_value()
+    clean_token = token.strip()
+    if clean_token.startswith("aut-att:"):
+        parts = clean_token.split(":")
+        if len(parts) >= 3:
+            clean_token = parts[2].strip()
+            with contextlib.suppress(ValueError):
+                session_id = uuid.UUID(parts[1].strip())
+    token = clean_token
+
+    att_session: AttendanceSession | None = (
+        await session.get(AttendanceSession, session_id) if session_id is not None else None
+    )
+
+    # If session_id was omitted or the 8-char token belongs to a different open session,
+    # check all currently open sessions to find a valid HMAC token match.
+    needs_fallback_search = att_session is None or (
+        att_session.closed_at is None
+        and not verify_rotating_qr_token(
+            secret,
+            att_session.id,
+            token,
+            instant,
+            step_seconds=att_session.token_step_seconds,
+        ).valid
+    )
+    if needs_fallback_search:
+        open_sessions = (
+            await session.execute(
+                select(AttendanceSession)
+                .where(AttendanceSession.closed_at.is_(None))
+                .order_by(AttendanceSession.opened_at.desc())
+            )
+        ).scalars().all()
+        for cand in open_sessions:
+            if verify_rotating_qr_token(
+                secret,
+                cand.id,
+                token,
+                instant,
+                step_seconds=cand.token_step_seconds,
+            ).valid:
+                att_session = cand
+                session_id = cand.id
+                break
+        if att_session is None and open_sessions and session_id is None:
+            att_session = open_sessions[0]
+            session_id = att_session.id
+
     if att_session is None:
         raise NotFoundError(
             f"AttendanceSession {session_id} does not exist.",
@@ -817,7 +986,6 @@ async def scan_attendance_qr(
             details={"status": "rejected", "reason": "session_closed"},
         )
 
-    secret = get_settings().jwt_secret.get_secret_value()
     verification = verify_rotating_qr_token(
         secret,
         att_session.id,
@@ -837,7 +1005,7 @@ async def scan_attendance_qr(
     existing_rec = (
         await session.execute(
             select(AttendanceRecord).where(
-                AttendanceRecord.session_id == session_id,
+                AttendanceRecord.session_id == att_session.id,
                 AttendanceRecord.user_id == student_user_id,
             )
         )
@@ -1145,24 +1313,86 @@ async def close_attendance_session(
     return att_session, rate_row
 
 
+async def get_scan_record_enrichment(
+    session: AsyncSession,
+    record: AttendanceRecord,
+) -> dict[str, Any]:
+    """Return enriched session & student metadata for a scan record response."""
+    att_session = await session.get(AttendanceSession, record.session_id)
+    meeting = (
+        await session.get(Meeting, att_session.meeting_id)
+        if att_session is not None and att_session.meeting_id is not None
+        else None
+    )
+    teacher_user = (
+        await session.get(AppUser, att_session.opened_by)
+        if att_session is not None and att_session.opened_by is not None
+        else None
+    )
+    sig_meta = (
+        (await _load_session_meta_signals(session, [str(record.session_id)])).get(
+            str(record.session_id)
+        )
+        or {}
+    )
+    student_user = (
+        await session.get(AppUser, record.user_id) if record.user_id is not None else None
+    )
+    roster_info = _resolve_user_roster_info(student_user, record.user_id)
+    return {
+        "room_id": (
+            (att_session.room_id if att_session else None)
+            or sig_meta.get("room_id")
+            or sig_meta.get("room_label")
+        ),
+        "room_label": sig_meta.get("room_label") or (att_session.room_id if att_session else None),
+        "subject": (meeting.subject if meeting else None) or sig_meta.get("subject"),
+        "teacher_label": (
+            (meeting.teacher_label if meeting else None)
+            or sig_meta.get("teacher_label")
+            or (teacher_user.display_name if teacher_user else None)
+        ),
+        "group_label": (meeting.group_label if meeting else None) or sig_meta.get("group_label"),
+        **roster_info,
+    }
+
+
 async def get_attendance_session_summary(
     session: AsyncSession,
     session_id: uuid.UUID,
 ) -> dict[str, Any]:
-    """Return an attendance session and its scan breakdown."""
+    """Return an attendance session and its scan breakdown with student names & groups."""
     att_session = await session.get(AttendanceSession, session_id)
     if att_session is None:
         raise NotFoundError(
             f"AttendanceSession {session_id} does not exist.",
             code="attendance_session_not_found",
         )
-    records = (
+    meeting = (
+        await session.get(Meeting, att_session.meeting_id)
+        if att_session.meeting_id is not None
+        else None
+    )
+    teacher_user = (
+        await session.get(AppUser, att_session.opened_by)
+        if att_session.opened_by is not None
+        else None
+    )
+    sig_meta = (
+        (await _load_session_meta_signals(session, [str(att_session.id)])).get(
+            str(att_session.id)
+        )
+        or {}
+    )
+
+    rec_rows = (
         await session.execute(
-            select(AttendanceRecord)
+            select(AttendanceRecord, AppUser)
+            .outerjoin(AppUser, AppUser.id == AttendanceRecord.user_id)
             .where(AttendanceRecord.session_id == session_id)
             .order_by(AttendanceRecord.scanned_at.asc())
         )
-    ).scalars().all()
+    ).all()
 
     counts: dict[str, int] = {
         "present": 0,
@@ -1171,31 +1401,46 @@ async def get_attendance_session_summary(
         "guest": 0,
         "rejected": 0,
     }
-    for r in records:
+    records_out: list[dict[str, Any]] = []
+    for r, u in rec_rows:
         counts[r.state] = counts.get(r.state, 0) + 1
-
-    return {
-        "id": str(att_session.id),
-        "meeting_id": str(att_session.meeting_id) if att_session.meeting_id else None,
-        "room_id": att_session.room_id,
-        "opened_by": str(att_session.opened_by) if att_session.opened_by else None,
-        "opened_at": att_session.opened_at.isoformat(),
-        "closed_at": att_session.closed_at.isoformat() if att_session.closed_at else None,
-        "token_step_seconds": att_session.token_step_seconds,
-        "late_after_minutes": att_session.late_after_minutes,
-        "expected_count": att_session.expected_count,
-        "counts": counts,
-        "total_scans": len(records),
-        "records": [
+        roster_info = _resolve_user_roster_info(u, r.user_id)
+        records_out.append(
             {
                 "id": str(r.id),
                 "user_id": str(r.user_id) if r.user_id else None,
+                "student_name": roster_info["student_name"],
+                "student_id": roster_info["student_id"],
+                "group_no": roster_info["group_no"],
+                "department": roster_info["department"],
                 "state": r.state,
                 "scanned_at": r.scanned_at.isoformat(),
                 "review_reason": r.review_reason,
             }
-            for r in records
-        ],
+        )
+
+    return {
+        "id": str(att_session.id),
+        "meeting_id": str(att_session.meeting_id) if att_session.meeting_id else None,
+        "room_id": att_session.room_id or sig_meta.get("room_id") or sig_meta.get("room_label"),
+        "room_label": sig_meta.get("room_label") or att_session.room_id,
+        "subject": (meeting.subject if meeting else None) or sig_meta.get("subject"),
+        "teacher_label": (
+            (meeting.teacher_label if meeting else None)
+            or sig_meta.get("teacher_label")
+            or (teacher_user.display_name if teacher_user else None)
+        ),
+        "group_label": (meeting.group_label if meeting else None) or sig_meta.get("group_label"),
+        "opened_by": str(att_session.opened_by) if att_session.opened_by else None,
+        "opened_at": att_session.opened_at.isoformat(),
+        "closed_at": att_session.closed_at.isoformat() if att_session.closed_at else None,
+        "is_open": att_session.closed_at is None,
+        "token_step_seconds": att_session.token_step_seconds,
+        "late_after_minutes": att_session.late_after_minutes,
+        "expected_count": att_session.expected_count,
+        "counts": counts,
+        "total_scans": len(records_out),
+        "records": records_out,
     }
 
 
@@ -1206,10 +1451,11 @@ async def list_attendance_sessions(
     room_id: str | None = None,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
-    """List attendance sessions with meeting info and scan counts (§13.3)."""
+    """List attendance sessions with meeting info, student records, and scan counts (§13.3)."""
     stmt = (
-        select(AttendanceSession, Meeting)
+        select(AttendanceSession, Meeting, AppUser)
         .outerjoin(Meeting, Meeting.id == AttendanceSession.meeting_id)
+        .outerjoin(AppUser, AppUser.id == AttendanceSession.opened_by)
         .order_by(AttendanceSession.opened_at.desc())
         .limit(limit)
     )
@@ -1222,14 +1468,19 @@ async def list_attendance_sessions(
         stmt = stmt.where(AttendanceSession.room_id == room_id)
 
     rows = (await session.execute(stmt)).all()
+    session_ids = [str(att_session.id) for att_session, _, _ in rows]
+    sig_meta_map = await _load_session_meta_signals(session, session_ids)
     results: list[dict[str, Any]] = []
 
-    for att_session, meeting in rows:
-        records = (
+    for att_session, meeting, teacher_user in rows:
+        sid_str = str(att_session.id)
+        sig_meta = sig_meta_map.get(sid_str) or {}
+        rec_rows = (
             await session.execute(
-                select(AttendanceRecord.state, func.count(AttendanceRecord.id))
+                select(AttendanceRecord, AppUser)
+                .outerjoin(AppUser, AppUser.id == AttendanceRecord.user_id)
                 .where(AttendanceRecord.session_id == att_session.id)
-                .group_by(AttendanceRecord.state)
+                .order_by(AttendanceRecord.scanned_at.asc())
             )
         ).all()
         counts: dict[str, int] = {
@@ -1239,19 +1490,41 @@ async def list_attendance_sessions(
             "guest": 0,
             "rejected": 0,
         }
-        total_scans = 0
-        for state, cnt in records:
-            counts[state] = cnt
-            total_scans += cnt
+        records_out: list[dict[str, Any]] = []
+        for r, u in rec_rows:
+            counts[r.state] = counts.get(r.state, 0) + 1
+            roster_info = _resolve_user_roster_info(u, r.user_id)
+            records_out.append(
+                {
+                    "id": str(r.id),
+                    "user_id": str(r.user_id) if r.user_id else None,
+                    "student_name": roster_info["student_name"],
+                    "student_id": roster_info["student_id"],
+                    "group_no": roster_info["group_no"],
+                    "department": roster_info["department"],
+                    "state": r.state,
+                    "scanned_at": r.scanned_at.isoformat(),
+                    "review_reason": r.review_reason,
+                }
+            )
 
         results.append(
             {
-                "id": str(att_session.id),
+                "id": sid_str,
                 "meeting_id": str(att_session.meeting_id) if att_session.meeting_id else None,
-                "room_id": att_session.room_id,
-                "subject": meeting.subject if meeting else None,
-                "teacher_label": meeting.teacher_label if meeting else None,
-                "group_label": meeting.group_label if meeting else None,
+                "room_id": (
+                    att_session.room_id or sig_meta.get("room_id") or sig_meta.get("room_label")
+                ),
+                "room_label": sig_meta.get("room_label") or att_session.room_id,
+                "subject": (meeting.subject if meeting else None) or sig_meta.get("subject"),
+                "teacher_label": (
+                    (meeting.teacher_label if meeting else None)
+                    or sig_meta.get("teacher_label")
+                    or (teacher_user.display_name if teacher_user else None)
+                ),
+                "group_label": (
+                    (meeting.group_label if meeting else None) or sig_meta.get("group_label")
+                ),
                 "opened_at": att_session.opened_at.isoformat(),
                 "closed_at": att_session.closed_at.isoformat() if att_session.closed_at else None,
                 "is_open": att_session.closed_at is None,
@@ -1259,7 +1532,8 @@ async def list_attendance_sessions(
                 "late_after_minutes": att_session.late_after_minutes,
                 "expected_count": att_session.expected_count,
                 "counts": counts,
-                "total_scans": total_scans,
+                "total_scans": len(records_out),
+                "records": records_out,
             }
         )
     return results
@@ -1273,24 +1547,37 @@ async def list_student_attendance_records(
 ) -> list[dict[str, Any]]:
     """Return attendance check-in records for a specific student (§13.3)."""
     stmt = (
-        select(AttendanceRecord, AttendanceSession, Meeting)
+        select(AttendanceRecord, AttendanceSession, Meeting, AppUser)
         .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
         .outerjoin(Meeting, Meeting.id == AttendanceSession.meeting_id)
+        .outerjoin(AppUser, AppUser.id == AttendanceSession.opened_by)
         .where(AttendanceRecord.user_id == student_user_id)
         .order_by(AttendanceRecord.scanned_at.desc())
         .limit(limit)
     )
     rows = (await session.execute(stmt)).all()
+    session_ids = list({str(att_session.id) for _, att_session, _, _ in rows})
+    sig_meta_map = await _load_session_meta_signals(session, session_ids)
     results: list[dict[str, Any]] = []
-    for record, att_session, meeting in rows:
+    for record, att_session, meeting, teacher_user in rows:
+        sig_meta = sig_meta_map.get(str(att_session.id)) or {}
         results.append(
             {
                 "id": str(record.id),
                 "session_id": str(record.session_id),
-                "room_id": att_session.room_id,
-                "subject": meeting.subject if meeting else None,
-                "teacher_label": meeting.teacher_label if meeting else None,
-                "group_label": meeting.group_label if meeting else None,
+                "room_id": (
+                    att_session.room_id or sig_meta.get("room_id") or sig_meta.get("room_label")
+                ),
+                "room_label": sig_meta.get("room_label") or att_session.room_id,
+                "subject": (meeting.subject if meeting else None) or sig_meta.get("subject"),
+                "teacher_label": (
+                    (meeting.teacher_label if meeting else None)
+                    or sig_meta.get("teacher_label")
+                    or (teacher_user.display_name if teacher_user else None)
+                ),
+                "group_label": (
+                    (meeting.group_label if meeting else None) or sig_meta.get("group_label")
+                ),
                 "state": record.state,
                 "scanned_at": record.scanned_at.isoformat(),
                 "review_reason": record.review_reason,

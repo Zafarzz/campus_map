@@ -1,4 +1,6 @@
-import { apiGet, apiPatch, apiPost, isBackendEnabled } from '../api/apiClient';
+import QRCode from 'qrcode';
+import { ApiError, apiGet, apiPatch, apiPost, isBackendEnabled } from '../api/apiClient';
+import { getStoredUser } from '../auth/authService';
 import { getJsonStorageItem, getRawStorageItem, setJsonStorageItem } from '../storage/localStore';
 import type {
   AttendanceRecordItem,
@@ -12,6 +14,7 @@ import type {
 
 const STORAGE_SESSIONS_KEY = 'campus_attendance_sessions_v1';
 const STORAGE_MY_RECORDS_KEY = 'campus_my_attendance_records_v1';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Seed demo sessions when localStorage is empty
 const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
@@ -19,6 +22,7 @@ const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
     id: 'demo-session-a101',
     meeting_id: null,
     room_id: 'room-a-101',
+    room_label: 'A-101 · Lecture Hall (Block A)',
     subject: 'Computer Vision & Deep Learning',
     teacher_label: 'Prof. Kim',
     group_label: 'I25D',
@@ -29,29 +33,41 @@ const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
     late_after_minutes: 15,
     expected_count: 32,
     counts: {
-      present: 24,
-      late: 2,
+      present: 2,
+      late: 1,
       pending_review: 1,
       guest: 0,
       rejected: 0,
     },
-    total_scans: 27,
+    total_scans: 4,
     records: [
       {
         id: 'rec-1',
         user_id: 'user-robiyaxon',
+        student_name: 'KADIROVA ROBIYAXON SHOIRJON QIZI',
+        student_id: '202590207',
+        group_no: 'I25D',
+        department: 'Electrical and Computer Engineering',
         state: 'present',
         scanned_at: new Date(Date.now() - 9 * 60 * 1000).toISOString(),
       },
       {
         id: 'rec-2',
         user_id: 'user-munisa',
+        student_name: 'TURSUNOVA MUNISA ANVAR QIZI',
+        student_id: '202590112',
+        group_no: 'I25C',
+        department: 'Electrical and Computer Engineering',
         state: 'present',
         scanned_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
       },
       {
         id: 'rec-3',
         user_id: 'user-bobur',
+        student_name: 'KARIMOV BOBURJON RUSTAM O‘G‘LI',
+        student_id: '202590145',
+        group_no: 'I25D',
+        department: 'Electrical and Computer Engineering',
         state: 'late',
         scanned_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
         review_reason: 'Scan after 15m late threshold',
@@ -59,6 +75,10 @@ const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
       {
         id: 'rec-4',
         user_id: 'user-guest-99',
+        student_name: 'ISLOMOV JAVOHIRBEK BAXTIYOR O‘G‘LI',
+        student_id: '202590188',
+        group_no: 'I25B',
+        department: 'Architecture',
         state: 'pending_review',
         scanned_at: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
         review_reason: 'Device ID mismatch or geofence boundary',
@@ -69,6 +89,7 @@ const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
     id: 'demo-session-c201',
     meeting_id: null,
     room_id: 'room-c-conf',
+    room_label: 'C-201 · Conference Hall (Block C)',
     subject: 'Algorithm Analysis & Complexity',
     teacher_label: 'Dr. Zafar',
     group_label: 'I25C',
@@ -79,14 +100,35 @@ const INITIAL_DEMO_SESSIONS: AttendanceSessionInfo[] = [
     late_after_minutes: 20,
     expected_count: 45,
     counts: {
-      present: 38,
-      late: 1,
+      present: 2,
+      late: 0,
       pending_review: 0,
       guest: 0,
       rejected: 0,
     },
-    total_scans: 39,
-    records: [],
+    total_scans: 2,
+    records: [
+      {
+        id: 'rec-c201-1',
+        user_id: 'user-munisa',
+        student_name: 'TURSUNOVA MUNISA ANVAR QIZI',
+        student_id: '202590112',
+        group_no: 'I25C',
+        department: 'Electrical and Computer Engineering',
+        state: 'present',
+        scanned_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'rec-c201-2',
+        user_id: 'user-2',
+        student_name: 'ABDULLAYEV SARDORBEK ULUG‘BEK O‘G‘LI',
+        student_id: '202590104',
+        group_no: 'I25C',
+        department: 'Electrical and Computer Engineering',
+        state: 'present',
+        scanned_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+      },
+    ],
   },
 ];
 
@@ -104,86 +146,69 @@ function saveLocalSessions(sessions: AttendanceSessionInfo[]) {
 }
 
 function loadLocalMyRecords(): StudentAttendanceRecord[] {
-  return getJsonStorageItem<StudentAttendanceRecord[]>(STORAGE_MY_RECORDS_KEY, []);
+  const all = getJsonStorageItem<StudentAttendanceRecord[]>(STORAGE_MY_RECORDS_KEY, []);
+  const currentUser = getStoredUser();
+  if (!currentUser?.user_id) {
+    return all;
+  }
+  return all.filter((r) => !r.user_id || r.user_id === currentUser.user_id);
 }
 
 function saveLocalMyRecord(record: StudentAttendanceRecord) {
-  const existing = loadLocalMyRecords().filter((r) => r.id !== record.id);
-  existing.unshift(record);
-  setJsonStorageItem(STORAGE_MY_RECORDS_KEY, existing.slice(0, 50));
+  const currentUser = getStoredUser();
+  const enrichedRecord: StudentAttendanceRecord = {
+    ...record,
+    user_id: record.user_id || currentUser?.user_id || null,
+  };
+  const existing = getJsonStorageItem<StudentAttendanceRecord[]>(STORAGE_MY_RECORDS_KEY, []).filter(
+    (r) =>
+      r.id !== enrichedRecord.id &&
+      !(r.session_id === enrichedRecord.session_id && r.user_id === enrichedRecord.user_id),
+  );
+  existing.unshift(enrichedRecord);
+  setJsonStorageItem(STORAGE_MY_RECORDS_KEY, existing.slice(0, 100));
+}
+
+function computeLocalWindowToken(sessionId: string, windowIndex: number): string {
+  let sessionHash = 0;
+  for (let i = 0; i < sessionId.length; i++) {
+    sessionHash = (sessionHash * 31 + sessionId.charCodeAt(i)) | 0;
+  }
+  return Math.abs(((windowIndex * 2654435761) ^ 0x5f3759df ^ sessionHash) | 0)
+    .toString(16)
+    .padStart(8, '0')
+    .slice(0, 8);
 }
 
 /**
- * Generate a deterministic SVG QR code pattern for offline demo mode
+ * Generate a real ISO-18004 scannable SVG QR code for any payload string.
  */
 export function generateDeterministicQrSvg(payload: string): string {
-  // Simple 21x21 QR code matrix simulator
-  const size = 21;
-  const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
+  try {
+    const qr = QRCode.create(payload || 'aut-att:default:00000000', {
+      errorCorrectionLevel: 'M',
+    });
+    const size = qr.modules.size;
+    const moduleSize = 8;
+    const padding = 24;
+    const totalDim = size * moduleSize + padding * 2;
 
-  // Finder pattern helper (7x7)
-  const drawFinder = (r0: number, c0: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        if (
-          r === 0 ||
-          r === 6 ||
-          c === 0 ||
-          c === 6 ||
-          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-        ) {
-          matrix[r0 + r][c0 + c] = true;
+    let rects = '';
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (qr.modules.get(r, c)) {
+          const x = padding + c * moduleSize;
+          const y = padding + r * moduleSize;
+          rects += `<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="#1e293b"/>`;
         }
       }
     }
-  };
 
-  drawFinder(0, 0); // Top-left
-  drawFinder(0, size - 7); // Top-right
-  drawFinder(size - 7, 0); // Bottom-left
-
-  // Timing lines
-  for (let i = 8; i < size - 8; i++) {
-    matrix[6][i] = i % 2 === 0;
-    matrix[i][6] = i % 2 === 0;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalDim} ${totalDim}" width="100%" height="100%" style="background:#ffffff;border-radius:12px;">${rects}</svg>`;
+  } catch {
+    const totalDim = 200;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalDim} ${totalDim}" width="100%" height="100%" style="background:#ffffff;border-radius:12px;"><rect x="20" y="20" width="56" height="56" fill="#1e293b"/></svg>`;
   }
-
-  // Hash-based data filler
-  let hash = 0;
-  for (let i = 0; i < payload.length; i++) {
-    hash = (hash << 5) - hash + payload.charCodeAt(i);
-    hash |= 0;
-  }
-
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      // Skip finder areas
-      const inTL = r < 8 && c < 8;
-      const inTR = r < 8 && c >= size - 8;
-      const inBL = r >= size - 8 && c < 8;
-      if (inTL || inTR || inBL || r === 6 || c === 6) continue;
-
-      const bit = ((hash ^ (r * 31 + c * 17)) & 1) === 1;
-      matrix[r][c] = bit;
-    }
-  }
-
-  const moduleSize = 8;
-  const padding = 16;
-  const totalDim = size * moduleSize + padding * 2;
-
-  let rects = '';
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (matrix[r][c]) {
-        const x = padding + c * moduleSize;
-        const y = padding + r * moduleSize;
-        rects += `<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="#1e293b"/>`;
-      }
-    }
-  }
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalDim} ${totalDim}" width="100%" height="100%" style="background:#ffffff;border-radius:12px;">${rects}</svg>`;
 }
 
 /**
@@ -208,7 +233,23 @@ export async function listAttendanceSessions(
         token,
       );
       if (res?.sessions && Array.isArray(res.sessions)) {
-        return res.sessions;
+        // Also merge any locally created fallback sessions so nothing is lost
+        const localCustom = loadLocalSessions().filter((s) => s.id.startsWith('local-session-'));
+        let merged = [...res.sessions];
+        for (const loc of localCustom) {
+          if (!merged.some((m) => m.id === loc.id)) {
+            merged.push(loc);
+          }
+        }
+        if (status === 'open') {
+          merged = merged.filter((s) => s.is_open);
+        } else if (status === 'closed') {
+          merged = merged.filter((s) => !s.is_open);
+        }
+        if (roomId) {
+          merged = merged.filter((s) => s.room_id === roomId);
+        }
+        return merged;
       }
     } catch {
       // Fallback to local store when backend is unreachable
@@ -235,7 +276,7 @@ export async function getAttendanceSession(
   sessionId: string,
   token?: string | null,
 ): Promise<AttendanceSessionInfo | null> {
-  if (isBackendEnabled) {
+  if (isBackendEnabled && UUID_REGEX.test(sessionId)) {
     try {
       const res = await apiGet<AttendanceSessionInfo>(
         `/academic/attendance/sessions/${sessionId}`,
@@ -243,7 +284,12 @@ export async function getAttendanceSession(
         undefined,
         token,
       );
-      if (res?.id) return res;
+      if (res?.id) {
+        return {
+          ...res,
+          is_open: res.is_open ?? res.closed_at === null,
+        };
+      }
     } catch {
       // Fallback to local store
     }
@@ -260,7 +306,7 @@ export async function getAttendanceQr(
   sessionId: string,
   token?: string | null,
 ): Promise<RotatingQrTokenData> {
-  if (isBackendEnabled) {
+  if (isBackendEnabled && UUID_REGEX.test(sessionId)) {
     try {
       const res = await apiGet<RotatingQrTokenData>(
         `/academic/attendance/sessions/${sessionId}/qr`,
@@ -268,20 +314,22 @@ export async function getAttendanceQr(
         undefined,
         token,
       );
-      if (res?.token) return res;
+      if (res?.token) {
+        return {
+          ...res,
+          qr_svg: res.qr_svg || generateDeterministicQrSvg(res.qr_payload),
+        };
+      }
     } catch {
       // Fallback to local simulated rotating token
     }
   }
 
-  // Local simulated rotating token calculation
-  const stepSeconds = 20;
+  const localSession = loadLocalSessions().find((s) => s.id === sessionId);
+  const stepSeconds = localSession?.token_step_seconds || 20;
   const nowMs = Date.now();
   const windowIndex = Math.floor(nowMs / (stepSeconds * 1000));
-  const pseudoToken = Math.abs((windowIndex * 2654435761) ^ 0x5f3759df)
-    .toString(16)
-    .padStart(8, '0')
-    .slice(0, 8);
+  const pseudoToken = computeLocalWindowToken(sessionId, windowIndex);
   const payload = `aut-att:${sessionId}:${pseudoToken}`;
 
   return {
@@ -300,6 +348,10 @@ interface OpenAttendanceSessionResponse {
   id: string;
   meeting_id?: string | null;
   room_id?: string | null;
+  room_label?: string | null;
+  subject?: string | null;
+  group_label?: string | null;
+  teacher_label?: string | null;
   opened_at: string;
   token_step_seconds: number;
   late_after_minutes: number;
@@ -313,12 +365,20 @@ export async function openAttendanceSession(
   params: OpenAttendanceSessionParams,
   token?: string | null,
 ): Promise<AttendanceSessionInfo> {
+  const currentUser = getStoredUser();
+  const fallbackSubject =
+    params.subject?.trim() ||
+    `Active Class Session (${(params.room_label || params.room_id).replace(/^room-/, '').toUpperCase()})`;
+
   if (isBackendEnabled) {
     try {
       const res = await apiPost<OpenAttendanceSessionResponse>(
         '/academic/attendance/sessions',
         {
           room_id: params.room_id,
+          room_label: params.room_label || null,
+          subject: fallbackSubject,
+          group_label: params.group_label || null,
           meeting_id: params.meeting_id || null,
           token_step_seconds: params.token_step_seconds ?? 20,
           late_after_minutes: params.late_after_minutes ?? 20,
@@ -332,6 +392,10 @@ export async function openAttendanceSession(
           id: res.id,
           meeting_id: res.meeting_id ?? null,
           room_id: res.room_id ?? params.room_id,
+          room_label: res.room_label ?? params.room_label ?? params.room_id,
+          subject: res.subject ?? fallbackSubject,
+          group_label: res.group_label ?? params.group_label ?? null,
+          teacher_label: res.teacher_label ?? currentUser?.display_name ?? 'Instructor',
           opened_at: res.opened_at,
           closed_at: null,
           is_open: true,
@@ -344,7 +408,7 @@ export async function openAttendanceSession(
         };
       }
     } catch {
-      // Fallback to local session creation
+      // Fallback to local session creation when backend is offline
     }
   }
 
@@ -353,8 +417,10 @@ export async function openAttendanceSession(
     id: `local-session-${Date.now()}`,
     meeting_id: params.meeting_id || null,
     room_id: params.room_id,
-    subject: `Active Class Session (${params.room_id.replace(/^room-/, '').toUpperCase()})`,
-    teacher_label: 'Current Instructor',
+    room_label: params.room_label || params.room_id,
+    subject: fallbackSubject,
+    group_label: params.group_label || null,
+    teacher_label: currentUser?.display_name || 'Current Instructor',
     opened_at: new Date().toISOString(),
     closed_at: null,
     is_open: true,
@@ -379,12 +445,30 @@ export async function scanAttendanceQr(
   params: ScanAttendanceParams,
   token?: string | null,
 ): Promise<AttendanceScanResult> {
+  const currentUser = getStoredUser();
+  let cleanSessionId = (sessionId || params.session_id || '').trim();
+  let cleanToken = params.token.trim();
+
+  if (cleanToken.startsWith('aut-att:')) {
+    const parts = cleanToken.split(':');
+    if (parts.length >= 3) {
+      cleanSessionId = parts[1].trim();
+      cleanToken = parts.slice(2).join(':').trim();
+    }
+  }
+
   if (isBackendEnabled) {
     try {
+      const isUuidSession = UUID_REGEX.test(cleanSessionId);
+      const endpoint = isUuidSession
+        ? `/academic/attendance/sessions/${cleanSessionId}/scan`
+        : '/academic/attendance/scan';
+
       const res = await apiPost<AttendanceScanResult>(
-        `/academic/attendance/sessions/${sessionId}/scan`,
+        endpoint,
         {
-          token: params.token,
+          token: cleanToken,
+          ...(isUuidSession ? { session_id: cleanSessionId } : {}),
           device_id: params.device_id || 'web-browser',
           latitude: params.latitude,
           longitude: params.longitude,
@@ -394,64 +478,122 @@ export async function scanAttendanceQr(
         token,
       );
       if (res?.record_id) {
-        // Save to student check-in history
         saveLocalMyRecord({
           id: res.record_id,
           session_id: res.session_id,
-          room_id: null,
+          user_id: currentUser?.user_id || res.user_id,
+          room_id: res.room_id || null,
+          room_label: res.room_label || res.room_id || null,
+          subject: res.subject || 'Class Lecture Session',
+          teacher_label: res.teacher_label || null,
+          group_label: res.group_label || currentUser?.group_no || null,
           state: res.state,
           scanned_at: res.scanned_at,
           review_reason: res.review_reason,
         });
         return res;
       }
-    } catch {
-      // Fallback local registration
+    } catch (err) {
+      // Rethrow explicit validation / duplicate / closed-session errors from the backend
+      if (err instanceof ApiError && err.status !== undefined && [400, 401, 403, 409, 422].includes(err.status)) {
+        // Only fall through to local sessions if the session is explicitly a local/demo session
+        const isLocalOrDemo =
+          cleanSessionId.startsWith('local-session-') || cleanSessionId.startsWith('demo-session-');
+        if (!isLocalOrDemo) {
+          throw err;
+        }
+      }
     }
   }
 
   // Fallback local registration
   const sessions = loadLocalSessions();
-  const session = sessions.find((s) => s.id === sessionId);
+  let session = sessions.find((s) => s.id === cleanSessionId);
+
+  // If token-only check-in in local mode, match open session by rotating token
+  if (!session || !cleanSessionId) {
+    const nowMs = Date.now();
+    const matched = sessions.find((s) => {
+      if (!s.is_open) return false;
+      const step = s.token_step_seconds || 20;
+      const win = Math.floor(nowMs / (step * 1000));
+      return (
+        computeLocalWindowToken(s.id, win) === cleanToken ||
+        computeLocalWindowToken(s.id, win - 1) === cleanToken
+      );
+    });
+    if (matched) {
+      session = matched;
+      cleanSessionId = matched.id;
+    }
+  }
+
   const isLate = session
-    ? Date.now() - new Date(session.opened_at).getTime() > (session.late_after_minutes || 20) * 60 * 1000
+    ? Date.now() - new Date(session.opened_at).getTime() >
+      (session.late_after_minutes || 20) * 60 * 1000
     : false;
 
   const state: 'present' | 'late' = isLate ? 'late' : 'present';
   const recordId = `scan-${Date.now()}`;
   const scannedAt = new Date().toISOString();
+  const resolvedUserId = currentUser?.user_id || 'current-user';
+  const resolvedStudentName = currentUser?.display_name || 'Student';
+  const resolvedStudentId = currentUser?.student_id || currentUser?.email || null;
+  const resolvedGroupNo = currentUser?.group_no || session?.group_label || null;
 
   if (session) {
-    session.counts[state] = (session.counts[state] || 0) + 1;
-    session.total_scans = (session.total_scans || 0) + 1;
-    session.records = session.records || [];
-    session.records.unshift({
-      id: recordId,
-      user_id: 'current-user',
-      state,
-      scanned_at: scannedAt,
-    });
-    saveLocalSessions(sessions);
+    const alreadyInSession = (session.records || []).some(
+      (r) =>
+        (r.user_id && r.user_id === resolvedUserId) ||
+        (resolvedStudentId && r.student_id === resolvedStudentId),
+    );
+    if (!alreadyInSession) {
+      session.counts[state] = (session.counts[state] || 0) + 1;
+      session.total_scans = (session.total_scans || 0) + 1;
+      session.records = session.records || [];
+      const newRecordItem: AttendanceRecordItem = {
+        id: recordId,
+        user_id: resolvedUserId,
+        student_name: resolvedStudentName,
+        student_id: resolvedStudentId,
+        group_no: resolvedGroupNo,
+        department: currentUser?.department || null,
+        state,
+        scanned_at: scannedAt,
+      };
+      session.records.unshift(newRecordItem);
+      saveLocalSessions(sessions);
+    }
   }
 
   const result: AttendanceScanResult = {
     record_id: recordId,
-    session_id: sessionId,
-    user_id: 'current-user',
+    session_id: cleanSessionId,
+    user_id: resolvedUserId,
     state,
     scanned_at: scannedAt,
     review_reason: isLate ? 'Scanned after late threshold' : null,
     is_late: isLate,
     counts_toward_occupancy: true,
+    room_id: session?.room_id || null,
+    room_label: session?.room_label || session?.room_id || null,
+    subject: session?.subject || 'Class Lecture',
+    teacher_label: session?.teacher_label || null,
+    group_label: resolvedGroupNo,
+    student_name: resolvedStudentName,
+    student_id: resolvedStudentId,
+    group_no: resolvedGroupNo,
   };
 
   saveLocalMyRecord({
     id: recordId,
-    session_id: sessionId,
+    session_id: cleanSessionId,
+    user_id: resolvedUserId,
     room_id: session?.room_id || null,
+    room_label: session?.room_label || session?.room_id || null,
     subject: session?.subject || 'Class Lecture',
     teacher_label: session?.teacher_label || null,
-    group_label: session?.group_label || null,
+    group_label: resolvedGroupNo,
     state,
     scanned_at: scannedAt,
   });
@@ -468,7 +610,7 @@ export async function reviewAttendanceRecord(
   note?: string,
   token?: string | null,
 ): Promise<void> {
-  if (isBackendEnabled) {
+  if (isBackendEnabled && UUID_REGEX.test(recordId)) {
     try {
       await apiPatch(
         `/academic/attendance/records/${recordId}/review`,
@@ -506,7 +648,7 @@ export async function closeAttendanceSession(
   sessionId: string,
   token?: string | null,
 ): Promise<void> {
-  if (isBackendEnabled) {
+  if (isBackendEnabled && UUID_REGEX.test(sessionId)) {
     try {
       await apiPost(`/academic/attendance/sessions/${sessionId}/close`, {}, undefined, token);
       return;
@@ -531,6 +673,8 @@ export async function closeAttendanceSession(
 export async function listMyAttendanceRecords(
   token?: string | null,
 ): Promise<StudentAttendanceRecord[]> {
+  const localRecords = loadLocalMyRecords();
+
   if (isBackendEnabled) {
     try {
       const res = await apiGet<{ count: number; records: StudentAttendanceRecord[] }>(
@@ -540,11 +684,22 @@ export async function listMyAttendanceRecords(
         token,
       );
       if (res?.records && Array.isArray(res.records)) {
-        return res.records;
+        const merged = [...res.records];
+        for (const loc of localRecords) {
+          const exists = merged.some(
+            (r) => r.id === loc.id || (r.session_id && r.session_id === loc.session_id),
+          );
+          if (!exists) {
+            merged.push(loc);
+          }
+        }
+        return merged.sort(
+          (a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime(),
+        );
       }
     } catch {
       // Fallback to local records
     }
   }
-  return loadLocalMyRecords();
+  return localRecords;
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import jsQR from 'jsqr';
 
 const storageMap = new Map<string, string>();
 const localStorageMock = {
@@ -148,6 +149,84 @@ describe('QR Attendance Service & Integration', () => {
     expect(svg).toContain('viewBox');
     expect(svg).toContain('<rect');
     expect(svg).toContain('fill="#1e293b"');
+
+    // Rasterize the SVG <rect> modules into an RGBA pixel buffer and decode with jsQR
+    const vbMatch = svg.match(/viewBox="0 0 (\d+) (\d+)"/);
+    expect(vbMatch).not.toBeNull();
+    const dim = Number(vbMatch![1]);
+    const rgba = new Uint8ClampedArray(dim * dim * 4);
+    rgba.fill(255); // white background
+
+    const rectRegex = /<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = rectRegex.exec(svg)) !== null) {
+      const rx = Number(m[1]);
+      const ry = Number(m[2]);
+      const rw = Number(m[3]);
+      const rh = Number(m[4]);
+      for (let py = ry; py < ry + rh; py++) {
+        for (let px = rx; px < rx + rw; px++) {
+          const idx = (py * dim + px) * 4;
+          rgba[idx] = 0;
+          rgba[idx + 1] = 0;
+          rgba[idx + 2] = 0;
+          rgba[idx + 3] = 255;
+        }
+      }
+    }
+
+    const decoded = jsQR(rgba, dim, dim);
+    expect(decoded).not.toBeNull();
+    expect(decoded?.data).toBe('aut-att:session-xyz:abcdef');
+  });
+
+  it('supports token-only check-in and populates both student history and teacher roster with full name & group', async () => {
+    localStorageMock.setItem(
+      'campus_auth_user',
+      JSON.stringify({
+        user_id: 'usr-munisa',
+        account_type: 'student',
+        is_admin: false,
+        student_id: '202590112',
+        display_name: 'TURSUNOVA MUNISA ANVAR QIZI',
+        first_name: 'MUNISA',
+        last_name: 'TURSUNOVA',
+        fathers_name: 'ANVAR QIZI',
+        department: 'Electrical and Computer Engineering',
+        group_no: 'I25C',
+        must_change_password: false,
+        roles: ['student'],
+        effective_roles: ['student'],
+      }),
+    );
+
+    const session = await openAttendanceSession({
+      room_id: 'bld-c-f2-r3',
+      room_label: 'Civil-Laboratory 4 (Block D)',
+      subject: 'Organizational Behaviour',
+      group_label: 'I25C',
+      expected_count: 45,
+    });
+
+    const qr = await getAttendanceQr(session.id);
+
+    // Check in using ONLY the 8-character token without passing sessionId
+    const scanRes = await scanAttendanceQr('', { token: qr.token });
+    expect(scanRes.session_id).toBe(session.id);
+    expect(scanRes.state).toBe('present');
+
+    // Student history must show the check-in
+    const myRecords = await listMyAttendanceRecords();
+    expect(myRecords.some((r) => r.session_id === session.id && r.subject === 'Organizational Behaviour')).toBe(
+      true,
+    );
+
+    // Teacher session summary must show the student's full name and group number
+    const teacherView = await getAttendanceSession(session.id);
+    expect(teacherView?.counts.present).toBe(1);
+    expect(teacherView?.records?.[0]?.student_name).toBe('TURSUNOVA MUNISA ANVAR QIZI');
+    expect(teacherView?.records?.[0]?.group_no).toBe('I25C');
+    expect(teacherView?.records?.[0]?.student_id).toBe('202590112');
   });
 
   it('strictly distinguishes student role from teacher/instructor role', () => {

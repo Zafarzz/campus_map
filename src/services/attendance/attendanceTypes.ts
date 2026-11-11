@@ -2,6 +2,7 @@ export interface AttendanceSessionInfo {
   id: string;
   meeting_id: string | null;
   room_id: string | null;
+  room_label?: string | null;
   subject?: string | null;
   teacher_label?: string | null;
   group_label?: string | null;
@@ -25,6 +26,10 @@ export interface AttendanceSessionInfo {
 export interface AttendanceRecordItem {
   id: string;
   user_id: string | null;
+  student_name?: string | null;
+  student_id?: string | null;
+  group_no?: string | null;
+  department?: string | null;
   state: 'present' | 'late' | 'pending_review' | 'guest' | 'rejected';
   scanned_at: string;
   review_reason?: string | null;
@@ -33,7 +38,9 @@ export interface AttendanceRecordItem {
 export interface StudentAttendanceRecord {
   id: string;
   session_id: string;
+  user_id?: string | null;
   room_id: string | null;
+  room_label?: string | null;
   subject?: string | null;
   teacher_label?: string | null;
   group_label?: string | null;
@@ -62,10 +69,21 @@ export interface AttendanceScanResult {
   review_reason?: string | null;
   is_late: boolean;
   counts_toward_occupancy: boolean;
+  room_id?: string | null;
+  room_label?: string | null;
+  subject?: string | null;
+  teacher_label?: string | null;
+  group_label?: string | null;
+  student_name?: string | null;
+  student_id?: string | null;
+  group_no?: string | null;
 }
 
 export interface OpenAttendanceSessionParams {
   room_id: string;
+  room_label?: string | null;
+  subject?: string | null;
+  group_label?: string | null;
   meeting_id?: string | null;
   token_step_seconds?: number;
   late_after_minutes?: number;
@@ -74,6 +92,7 @@ export interface OpenAttendanceSessionParams {
 
 export interface ScanAttendanceParams {
   token: string;
+  session_id?: string | null;
   device_id?: string;
   latitude?: number;
   longitude?: number;

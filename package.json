@@ -14,7 +14,10 @@
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "@react-three/rapier": "^2.2.0",
+    "@types/qrcode": "^1.5.6",
+    "jsqr": "^1.4.0",
     "leva": "^0.10.1",
+    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.186.1"
