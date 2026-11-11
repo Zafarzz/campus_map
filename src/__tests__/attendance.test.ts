@@ -349,4 +349,56 @@ describe('QR Attendance Service & Integration', () => {
     expect(isTeacherOrAdmin(teacherUser)).toBe(true);
     expect(isTeacherOrAdmin(adminUser)).toBe(true);
   });
+
+  it('blocks students from other groups when a class is restricted to specific groups (e.g. I25D, I25C)', async () => {
+    const session = await openAttendanceSession({
+      room_id: 'bld-h-f2-a207',
+      room_label: 'A-207 · Faculty / Seminar (Block A)',
+      subject: 'English',
+      group_label: 'I25D, I25C',
+      expected_count: 40,
+    });
+    const qr = await getAttendanceQr(session.id);
+
+    // 1. Student from I25A (not in I25D or I25C) must be rejected
+    localStorageMock.setItem(
+      'campus_auth_user',
+      JSON.stringify({
+        user_id: 'usr-muslimaxon-i25a',
+        account_type: 'student',
+        is_admin: false,
+        student_id: '202590143',
+        display_name: 'BAHODIROVA MUSLIMAXON SHAVKAT QIZI',
+        group_no: 'I25A',
+        roles: ['student'],
+        effective_roles: ['student'],
+      }),
+    );
+
+    await expect(scanAttendanceQr(session.id, { token: qr.token })).rejects.toThrow(
+      /only for group\(s\) I25D, I25C/i,
+    );
+    const i25aHistory = await listMyAttendanceRecords();
+    expect(i25aHistory.length).toBe(0);
+
+    // 2. Student from I25D (in I25D, I25C) succeeds
+    localStorageMock.setItem(
+      'campus_auth_user',
+      JSON.stringify({
+        user_id: 'usr-robiyaxon-i25d',
+        account_type: 'student',
+        is_admin: false,
+        student_id: '202590207',
+        display_name: 'ROBIYAXON M.',
+        group_no: 'I25D',
+        roles: ['student'],
+        effective_roles: ['student'],
+      }),
+    );
+
+    const i25dRes = await scanAttendanceQr(session.id, { token: qr.token });
+    expect(i25dRes.state).toBe('present');
+    const i25dHistory = await listMyAttendanceRecords();
+    expect(i25dHistory.length).toBe(1);
+  });
 });

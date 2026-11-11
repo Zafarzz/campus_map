@@ -20,6 +20,7 @@ Coordinates:
 from __future__ import annotations
 
 import contextlib
+import re
 import uuid
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -734,6 +735,59 @@ def _resolve_user_roster_info(
     }
 
 
+def _parse_target_groups(group_label: str | None) -> list[str]:
+    """Parse a session's ``group_label`` (e.g. ``'I25D, I25C'`` or ``'D, C'``) into normalized tokens."""
+    if not group_label:
+        return []
+    cleaned = re.sub(r"\bgroups?\b", " ", group_label, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\band\b", ",", cleaned, flags=re.IGNORECASE)
+    tokens = [
+        tok.strip().upper()
+        for tok in re.split(r"[,;/|+&\s]+", cleaned)
+        if tok.strip()
+    ]
+    if not tokens or "ALL" in tokens:
+        return []
+    seen: list[str] = []
+    for t in tokens:
+        if t not in seen:
+            seen.append(t)
+    return seen
+
+
+def _student_matches_session_groups(
+    student_group: str | None,
+    session_group_label: str | None,
+) -> tuple[bool, list[str]]:
+    """Return ``(matches, allowed_groups)`` for a student's ``group_no`` against a session's target groups.
+
+    Supports both full group codes (``'I25D'``, ``'I25C'``, ``'I24E-1'``) and short letter suffixes
+    (e.g. ``'D, C'`` matching ``'I25D'`` and ``'I25C'``).
+    """
+    allowed = _parse_target_groups(session_group_label)
+    if not allowed:
+        return True, []
+    norm_student = (student_group or "").strip().upper()
+    if not norm_student:
+        return False, allowed
+
+    for target in allowed:
+        if norm_student == target:
+            return True, allowed
+        # Support short group letters like "D" or "C" matching "I25D" / "I25C"
+        if len(target) == 1 and target.isalpha() and norm_student.endswith(target):
+            prefix = norm_student[:-1]
+            if not prefix or prefix[-1].isdigit():
+                return True, allowed
+        # Support hyphenated suffix like "E-1" matching "I24E-1"
+        if 2 <= len(target) <= 3 and norm_student.endswith(target):
+            prefix = norm_student[: -len(target)]
+            if prefix and prefix[-1].isdigit():
+                return True, allowed
+
+    return False, allowed
+
+
 async def _load_session_meta_signals(
     session: AsyncSession, session_ids: list[str]
 ) -> dict[str, dict[str, Any]]:
@@ -1018,6 +1072,42 @@ async def scan_attendance_qr(
             details={"status": "rejected", "reason": verification.reason},
         )
 
+    # Enforce target group restriction: if the teacher specified target group(s) for this
+    # session (e.g. "I25D, I25C"), students from other groups (e.g. "I25A") cannot check in.
+    meeting: Meeting | None = (
+        await session.get(Meeting, att_session.meeting_id)
+        if att_session.meeting_id is not None
+        else None
+    )
+    sig_meta = (
+        (await _load_session_meta_signals(session, [str(att_session.id)])).get(
+            str(att_session.id)
+        )
+        or {}
+    )
+    session_group_label = (
+        (meeting.group_label if meeting else None) or sig_meta.get("group_label")
+    )
+    student_user = await session.get(AppUser, student_user_id)
+    student_roster = _resolve_user_roster_info(student_user, student_user_id)
+    student_group_no = student_roster.get("group_no")
+    if student_group_no and session_group_label:
+        group_ok, allowed_groups = _student_matches_session_groups(
+            student_group_no, str(session_group_label)
+        )
+        if not group_ok:
+            raise ValidationError(
+                f"Access denied: This class session is only for group(s) {', '.join(allowed_groups)}. "
+                f"Students from group {student_group_no} cannot check in.",
+                code="attendance_group_mismatch",
+                details={
+                    "status": "rejected",
+                    "reason": "group_mismatch",
+                    "allowed_groups": allowed_groups,
+                    "student_group": student_group_no,
+                },
+            )
+
     # Check duplicate scan before classifying
     existing_rec = (
         await session.execute(
@@ -1036,26 +1126,24 @@ async def scan_attendance_qr(
 
     # Check section enrolment if linked to a meeting with a section
     is_enrolled = True
-    if att_session.meeting_id is not None:
-        meeting = await session.get(Meeting, att_session.meeting_id)
-        if meeting is not None and meeting.rule_id is not None:
-            rule = await session.get(MeetingRule, meeting.rule_id)
-            if rule is not None:
-                total_enrolled_in_sec = await session.scalar(
-                    select(func.count(EnrollmentRef.id)).where(
-                        EnrollmentRef.section_id == rule.section_id
-                    )
+    if meeting is not None and meeting.rule_id is not None:
+        rule = await session.get(MeetingRule, meeting.rule_id)
+        if rule is not None:
+            total_enrolled_in_sec = await session.scalar(
+                select(func.count(EnrollmentRef.id)).where(
+                    EnrollmentRef.section_id == rule.section_id
                 )
-                if (total_enrolled_in_sec or 0) > 0:
-                    match = (
-                        await session.execute(
-                            select(EnrollmentRef.id).where(
-                                EnrollmentRef.section_id == rule.section_id,
-                                EnrollmentRef.user_id == student_user_id,
-                            )
+            )
+            if (total_enrolled_in_sec or 0) > 0:
+                match = (
+                    await session.execute(
+                        select(EnrollmentRef.id).where(
+                            EnrollmentRef.section_id == rule.section_id,
+                            EnrollmentRef.user_id == student_user_id,
                         )
-                    ).scalar_one_or_none()
-                    is_enrolled = match is not None
+                    )
+                ).scalar_one_or_none()
+                is_enrolled = match is not None
 
     # Soft device binding (hash only)
     device_hash: str | None = None
@@ -1427,6 +1515,10 @@ async def get_attendance_session_summary(
         )
     ).all()
 
+    session_group_label = (
+        (meeting.group_label if meeting else None) or sig_meta.get("group_label")
+    )
+
     counts: dict[str, int] = {
         "present": 0,
         "late": 0,
@@ -1436,8 +1528,13 @@ async def get_attendance_session_summary(
     }
     records_out: list[dict[str, Any]] = []
     for r, u in rec_rows:
-        counts[r.state] = counts.get(r.state, 0) + 1
         roster_info = _resolve_user_roster_info(u, r.user_id)
+        stu_grp = roster_info.get("group_no")
+        if stu_grp and session_group_label:
+            matches, _ = _student_matches_session_groups(stu_grp, str(session_group_label))
+            if not matches:
+                continue
+        counts[r.state] = counts.get(r.state, 0) + 1
         records_out.append(
             {
                 "id": str(r.id),
@@ -1463,7 +1560,7 @@ async def get_attendance_session_summary(
             or sig_meta.get("teacher_label")
             or (teacher_user.display_name if teacher_user else None)
         ),
-        "group_label": (meeting.group_label if meeting else None) or sig_meta.get("group_label"),
+        "group_label": session_group_label,
         "opened_by": str(att_session.opened_by) if att_session.opened_by else None,
         "opened_at": att_session.opened_at.isoformat(),
         "closed_at": att_session.closed_at.isoformat() if att_session.closed_at else None,
@@ -1544,6 +1641,9 @@ async def list_attendance_sessions(
     for att_session, meeting, teacher_user in rows:
         sid_str = str(att_session.id)
         sig_meta = sig_meta_map.get(sid_str) or {}
+        sess_group_label = (
+            (meeting.group_label if meeting else None) or sig_meta.get("group_label")
+        )
         rec_rows = (
             await session.execute(
                 select(AttendanceRecord, AppUser)
@@ -1561,8 +1661,13 @@ async def list_attendance_sessions(
         }
         records_out: list[dict[str, Any]] = []
         for r, u in rec_rows:
-            counts[r.state] = counts.get(r.state, 0) + 1
             roster_info = _resolve_user_roster_info(u, r.user_id)
+            stu_grp = roster_info.get("group_no")
+            if stu_grp and sess_group_label:
+                matches, _ = _student_matches_session_groups(stu_grp, str(sess_group_label))
+                if not matches:
+                    continue
+            counts[r.state] = counts.get(r.state, 0) + 1
             records_out.append(
                 {
                     "id": str(r.id),
@@ -1591,9 +1696,7 @@ async def list_attendance_sessions(
                     or sig_meta.get("teacher_label")
                     or (teacher_user.display_name if teacher_user else None)
                 ),
-                "group_label": (
-                    (meeting.group_label if meeting else None) or sig_meta.get("group_label")
-                ),
+                "group_label": sess_group_label,
                 "opened_at": att_session.opened_at.isoformat(),
                 "closed_at": att_session.closed_at.isoformat() if att_session.closed_at else None,
                 "is_open": att_session.closed_at is None,
@@ -1615,6 +1718,10 @@ async def list_student_attendance_records(
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Return attendance check-in records for a specific student (§13.3)."""
+    student_user = await session.get(AppUser, student_user_id)
+    student_roster = _resolve_user_roster_info(student_user, student_user_id)
+    student_group_no = student_roster.get("group_no")
+
     stmt = (
         select(AttendanceRecord, AttendanceSession, Meeting, AppUser)
         .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
@@ -1630,6 +1737,15 @@ async def list_student_attendance_records(
     results: list[dict[str, Any]] = []
     for record, att_session, meeting, teacher_user in rows:
         sig_meta = sig_meta_map.get(str(att_session.id)) or {}
+        sess_group_label = (
+            (meeting.group_label if meeting else None) or sig_meta.get("group_label")
+        )
+        if student_group_no and sess_group_label:
+            matches, _ = _student_matches_session_groups(
+                student_group_no, str(sess_group_label)
+            )
+            if not matches:
+                continue
         results.append(
             {
                 "id": str(record.id),
@@ -1644,9 +1760,7 @@ async def list_student_attendance_records(
                     or sig_meta.get("teacher_label")
                     or (teacher_user.display_name if teacher_user else None)
                 ),
-                "group_label": (
-                    (meeting.group_label if meeting else None) or sig_meta.get("group_label")
-                ),
+                "group_label": sess_group_label,
                 "state": record.state,
                 "scanned_at": record.scanned_at.isoformat(),
                 "review_reason": record.review_reason,

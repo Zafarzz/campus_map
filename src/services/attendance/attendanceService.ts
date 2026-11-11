@@ -438,6 +438,62 @@ export async function openAttendanceSession(
 }
 
 /**
+ * Parse a session's `group_label` (e.g. "I25D, I25C" or "D, C") into normalized group tokens.
+ */
+export function parseTargetGroups(groupLabel?: string | null): string[] {
+  if (!groupLabel) return [];
+  const cleaned = groupLabel
+    .replace(/\bgroups?\b/gi, ' ')
+    .replace(/\band\b/gi, ',');
+  const tokens = cleaned
+    .split(/[,;/|+&\s]+/)
+    .map((t) => t.trim().toUpperCase())
+    .filter(Boolean);
+  if (tokens.length === 0 || tokens.includes('ALL')) return [];
+  return Array.from(new Set(tokens));
+}
+
+/**
+ * Check whether a student's `group_no` matches a session's target `group_label`.
+ * Supports both full group codes ("I25D", "I25C") and short group letters ("D", "C").
+ */
+export function doesStudentMatchSessionGroups(
+  studentGroup?: string | null,
+  sessionGroupLabel?: string | null,
+): { matches: boolean; allowedGroups: string[] } {
+  const allowedGroups = parseTargetGroups(sessionGroupLabel);
+  if (allowedGroups.length === 0) {
+    return { matches: true, allowedGroups: [] };
+  }
+  const normStudent = (studentGroup || '').trim().toUpperCase();
+  if (!normStudent) {
+    return { matches: false, allowedGroups };
+  }
+
+  for (const target of allowedGroups) {
+    if (normStudent === target) {
+      return { matches: true, allowedGroups };
+    }
+    // Short letter suffix like "D" or "C" matching "I25D" / "I25C"
+    if (target.length === 1 && /^[A-Z]$/.test(target) && normStudent.endsWith(target)) {
+      const prefix = normStudent.slice(0, -1);
+      if (!prefix || /\d$/.test(prefix)) {
+        return { matches: true, allowedGroups };
+      }
+    }
+    // Short hyphenated suffix like "E-1" matching "I24E-1"
+    if (target.length >= 2 && target.length <= 3 && normStudent.endsWith(target)) {
+      const prefix = normStudent.slice(0, -target.length);
+      if (prefix && /\d$/.test(prefix)) {
+        return { matches: true, allowedGroups };
+      }
+    }
+  }
+
+  return { matches: false, allowedGroups };
+}
+
+/**
  * Student scans/submits a QR attendance token
  */
 export async function scanAttendanceQr(
@@ -478,6 +534,15 @@ export async function scanAttendanceQr(
         token,
       );
       if (res?.record_id) {
+        if (currentUser?.group_no && res.group_label) {
+          const grpCheck = doesStudentMatchSessionGroups(currentUser.group_no, res.group_label);
+          if (!grpCheck.matches) {
+            throw new ApiError(
+              `Access denied: This class session is only for group(s) ${grpCheck.allowedGroups.join(', ')}. Students from group ${currentUser.group_no} cannot check in.`,
+              403,
+            );
+          }
+        }
         saveLocalMyRecord({
           id: res.record_id,
           session_id: res.session_id,
@@ -494,7 +559,7 @@ export async function scanAttendanceQr(
         return res;
       }
     } catch (err) {
-      // Rethrow explicit validation / duplicate / closed-session errors from the backend
+      // Rethrow explicit validation / duplicate / closed-session / group-mismatch errors from the backend
       if (err instanceof ApiError && err.status !== undefined && [400, 401, 403, 409, 422].includes(err.status)) {
         // Only fall through to local sessions if the session is explicitly a local/demo session
         const isLocalOrDemo =
@@ -525,6 +590,16 @@ export async function scanAttendanceQr(
     if (matched) {
       session = matched;
       cleanSessionId = matched.id;
+    }
+  }
+
+  if (session?.group_label && currentUser?.group_no) {
+    const grpCheck = doesStudentMatchSessionGroups(currentUser.group_no, session.group_label);
+    if (!grpCheck.matches) {
+      throw new ApiError(
+        `Access denied: This class session is only for group(s) ${grpCheck.allowedGroups.join(', ')}. Students from group ${currentUser.group_no} cannot check in.`,
+        403,
+      );
     }
   }
 
@@ -678,8 +753,14 @@ export async function closeAttendanceSession(
 export async function listMyAttendanceRecords(
   token?: string | null,
 ): Promise<StudentAttendanceRecord[]> {
+  const currentUser = getStoredUser();
+  const studentGroup = currentUser?.group_no;
   const userKey = resolveCurrentUserKey();
-  const localRecords = loadLocalMyRecords();
+  const localRecords = loadLocalMyRecords().filter((r) =>
+    studentGroup && r.group_label
+      ? doesStudentMatchSessionGroups(studentGroup, r.group_label).matches
+      : true,
+  );
 
   if (isBackendEnabled) {
     try {
@@ -690,10 +771,16 @@ export async function listMyAttendanceRecords(
         token,
       );
       if (res?.records && Array.isArray(res.records)) {
-        const backendRecords = res.records.map((r) => ({
-          ...r,
-          user_id: r.user_id || userKey,
-        }));
+        const backendRecords = res.records
+          .filter((r) =>
+            studentGroup && r.group_label
+              ? doesStudentMatchSessionGroups(studentGroup, r.group_label).matches
+              : true,
+          )
+          .map((r) => ({
+            ...r,
+            user_id: r.user_id || userKey,
+          }));
         return backendRecords.sort(
           (a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime(),
         );

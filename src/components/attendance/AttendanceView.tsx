@@ -20,6 +20,7 @@ import {
 } from '../auth/AuthIcons';
 import {
   closeAttendanceSession,
+  doesStudentMatchSessionGroups,
   getAttendanceQr,
   getAttendanceSession,
   listAttendanceSessions,
@@ -666,6 +667,23 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
         }
       }
 
+      // Pre-check target group restriction if the target session is in our loaded list
+      const targetSessObj =
+        sessions.find((s) => s.id === parsedSessionId) ||
+        sessions.find((s) => s.is_open && !s.closed_at);
+      if (targetSessObj?.group_label && user?.group_no) {
+        const grpCheck = doesStudentMatchSessionGroups(user.group_no, targetSessObj.group_label);
+        if (!grpCheck.matches) {
+          setScanError(
+            `Access denied: This class session is only for group(s) ${grpCheck.allowedGroups.join(
+              ', ',
+            )}. Students from group ${user.group_no} cannot check in.`,
+          );
+          setIsSubmittingScan(false);
+          return;
+        }
+      }
+
       try {
         const res = await scanAttendanceQr(parsedSessionId, {
           token: cleanToken,
@@ -1256,6 +1274,12 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                   .filter((s) => s.is_open && !s.closed_at)
                   .map((sess) => {
                     const isSelected = selectedSessionId === sess.id;
+                    const groupEligibility = doesStudentMatchSessionGroups(
+                      user?.group_no,
+                      sess.group_label,
+                    );
+                    const isRestrictedFromStudent =
+                      Boolean(user?.group_no && sess.group_label) && !groupEligibility.matches;
                     return (
                       <div
                         key={sess.id}
@@ -1272,7 +1296,15 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                       >
                         <div className="att-session-title-row">
                           <span className="att-session-title">{formatSessionTitle(sess)}</span>
-                          <span className="att-badge att-badge--open">Live Session</span>
+                          <span
+                            className={`att-badge ${
+                              isRestrictedFromStudent ? 'att-badge--rejected' : 'att-badge--open'
+                            }`}
+                          >
+                            {isRestrictedFromStudent
+                              ? `Only Group ${groupEligibility.allowedGroups.join(', ')}`
+                              : 'Live Session'}
+                          </span>
                         </div>
 
                         <div className="att-meta-row">
@@ -1289,13 +1321,24 @@ export function AttendanceView({ onBackToMap }: AttendanceViewProps) {
                           <button
                             type="button"
                             className="att-btn att-btn--primary"
+                            disabled={isRestrictedFromStudent}
+                            style={isRestrictedFromStudent ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isRestrictedFromStudent) {
+                                setScanError(
+                                  `Access denied: This class session is only for group(s) ${groupEligibility.allowedGroups.join(
+                                    ', ',
+                                  )}. Students from group ${user?.group_no} cannot check in.`,
+                                );
+                                return;
+                              }
                               setSelectedSessionId(sess.id);
                               startCamera();
                             }}
                           >
-                            <CameraIcon size={14} /> Scan with Camera
+                            <CameraIcon size={14} />{' '}
+                            {isRestrictedFromStudent ? 'Not Your Group' : 'Scan with Camera'}
                           </button>
                           {sess.room_id && (
                             <button
