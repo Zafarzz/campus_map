@@ -120,10 +120,10 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
     expect(westDeck).toBeDefined();
     expect(eastDeck).toBeDefined();
 
-    // West bridge must be centered at X = -3.05 (fountainX 5.5 - 8.55)
-    expect(westDeck!.position[0]).toBeCloseTo(-3.05, 1);
-    // East bridge must be centered at X = +14.05 (fountainX 5.5 + 8.55)
-    expect(eastDeck!.position[0]).toBeCloseTo(14.05, 1);
+    // West bridge must be centered at X = -8.55 (fountainX 0.0 - 8.55)
+    expect(westDeck!.position[0]).toBeCloseTo(-8.55, 1);
+    // East bridge must be centered at X = +8.55 (fountainX 0.0 + 8.55)
+    expect(eastDeck!.position[0]).toBeCloseTo(8.55, 1);
 
     // Top surface of the deck is at Y = 0.82m
     const deckTopY = westDeck!.position[1] + westDeck!.halfExtents[1];
@@ -136,8 +136,8 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
     expect(colliders.some((c) => c.id === 'fountain-bridge-ramp-s-1')).toBe(true);
 
     // Verify that water basins DO NOT block either bridge corridor:
-    // West bridge corridor: X in [-4.10, -2.00]
-    // East bridge corridor: X in [13.00, 15.10]
+    // West bridge corridor: X in [-9.60, -7.50]
+    // East bridge corridor: X in [7.50, 9.60]
     const basins = colliders.filter((c) => c.id.startsWith('campus-fountain-basin'));
     expect(basins.length).toBe(3);
 
@@ -145,9 +145,9 @@ describe('Campus Grand Fountain Architecture (CAD Sheet 1, scaled 1.5x)', () => 
       const minX = b.position[0] - b.halfExtents[0];
       const maxX = b.position[0] + b.halfExtents[0];
 
-      // Neither West bridge center (-3.05) nor East bridge center (14.05) should be inside any basin obstacle
-      const coversWestBridge = minX < -3.05 && maxX > -3.05;
-      const coversEastBridge = minX < 14.05 && maxX > 14.05;
+      // Neither West bridge center (-8.55) nor East bridge center (8.55) should be inside any basin obstacle
+      const coversWestBridge = minX < -8.55 && maxX > -8.55;
+      const coversEastBridge = minX < 8.55 && maxX > 8.55;
       expect(coversWestBridge).toBe(false);
       expect(coversEastBridge).toBe(false);
     }

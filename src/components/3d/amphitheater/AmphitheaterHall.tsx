@@ -247,11 +247,19 @@ export function AmphitheaterHall({
         emissive: '#fef08a',
         emissiveIntensity: 0.8,
       }),
-      cyanFrame: new THREE.MeshStandardMaterial({ color: '#38bdf8' }),
+      cyanFrame: new THREE.MeshStandardMaterial({
+        color: '#38bdf8',
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
       whiteLed: new THREE.MeshStandardMaterial({
         color: '#ffffff',
         emissive: '#ffffff',
         emissiveIntensity: 1.2,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -3,
       }),
     };
   }, [screenTex, bookshelfTex, parquetTex, grilyatoTex, slateRoofTex]);
@@ -289,7 +297,7 @@ export function AmphitheaterHall({
     batcher.addGeometry('parquet', floorBowlGeo, [0, 0.035, 0]);
     floorBowlGeo.dispose();
 
-    // 2. Amphitheater Tiers (3 steps)
+    // 2. Amphitheater Tiers (3 steps) with parquet treads
     for (const t of spec.tiers) {
       const tGeo = createTierRingGeometry(
         t.outer.rx,
@@ -302,7 +310,22 @@ export function AmphitheaterHall({
       );
       batcher.addGeometry('tier', tGeo, [0, 0, 0]);
       tGeo.dispose();
+
+      // Textured parquet seating tread on top of every tier ring
+      const treadShape = createOctagonShape(t.outer.rx, t.outer.ry, t.outer.chamfer);
+      const treadHole = createOctagonShape(t.inner.rx, t.inner.ry, t.inner.chamfer);
+      treadShape.holes.push(treadHole);
+      const treadGeo = new THREE.ShapeGeometry(treadShape);
+      treadGeo.rotateX(-Math.PI / 2);
+      batcher.addGeometry('parquet', treadGeo, [0, t.top + 0.002, 0]);
+      treadGeo.dispose();
     }
+
+    // Solid acoustic wood backing along the perimeter of Tier 3 so seats are never open to exterior voids
+    batcher.addBox('wall', [20.0, 1.35, 0.4], [0, 1.35 / 2, 8.5 - 0.2]);
+    batcher.addBox('darkWood', [20.0, 1.35, 0.06], [0, 1.35 / 2, 8.5 - 0.4]);
+    batcher.addBox('wall', [0.4, 1.35, 17.0], [10.0 - 0.2, 1.35 / 2, 0]);
+    batcher.addBox('darkWood', [0.06, 1.35, 17.0], [10.0 - 0.4, 1.35 / 2, 0]);
 
     // 3. Cushions on Tiers 1 & 2
     const rCush = spec.cushions.radius;
@@ -372,8 +395,8 @@ export function AmphitheaterHall({
 
     // 6. East Wall (Open Colonnade connected seamlessly to Corridor B-C Open Study Place at Y = 3.6m floor level)
     for (const y of spec.east.columns.at) {
-      // Lower column: from tier base (1.35m) flush up to 2F floor level (3.6m)
-      batcher.addBox('whiteCol', [0.6, 2.25, 0.6], [9.7, (1.35 + 3.6) / 2, -y]);
+      // Lower column: from tier base (1.35m) up to bottom of 2F beam (3.32m) to prevent Z-fighting with beam fascia
+      batcher.addBox('whiteCol', [0.58, 1.97, 0.58], [9.7, (1.35 + 3.32) / 2, -y]);
       // Upper pillar: starts flush from 2F floor level (3.6m) up to ceiling (7.2m)
       batcher.addBox('darkWood', [0.5, 3.6, 0.5], [9.7, (3.6 + 7.2) / 2, -y]);
     }
@@ -497,8 +520,9 @@ export function AmphitheaterHall({
     const soffitY = 6.55;
     const grilyatoY = 6.85;
 
-    batcher.addBox('darkWood', [20.0, 0.15, 2.07], [0, soffitY, -7.5], [soffitAngle, 0, 0]);
-    batcher.addBox('darkWood', [20.0, 0.15, 2.07], [0, soffitY, 7.5], [-soffitAngle, 0, 0]);
+    // Perimeter timber soffits: North & South span 16.0m between West & East soffits to prevent corner penetration
+    batcher.addBox('darkWood', [16.0, 0.15, 2.07], [0, soffitY, -7.5], [soffitAngle, 0, 0]);
+    batcher.addBox('darkWood', [16.0, 0.15, 2.07], [0, soffitY, 7.5], [-soffitAngle, 0, 0]);
     batcher.addBox('darkWood', [2.07, 0.15, 17.0], [-9.0, soffitY, 0], [0, 0, -soffitAngle]);
     batcher.addBox('darkWood', [2.07, 0.15, 17.0], [9.0, soffitY, 0], [0, 0, soffitAngle]);
 
@@ -513,8 +537,8 @@ export function AmphitheaterHall({
 
     for (const lx of spec.ceiling.ledCoordsX) {
       for (const ly of spec.ceiling.ledCoordsY) {
-        batcher.addBox('cyanFrame', [0.7, 0.02, 0.7], [lx, grilyatoY + 0.01, -ly]);
-        batcher.addBox('whiteLed', [0.6, 0.02, 0.6], [lx, grilyatoY, -ly]);
+        batcher.addBox('cyanFrame', [0.7, 0.02, 0.7], [lx, grilyatoY - 0.01, -ly]);
+        batcher.addBox('whiteLed', [0.58, 0.012, 0.58], [lx, grilyatoY - 0.016, -ly]);
       }
     }
 
@@ -574,9 +598,9 @@ export function AmphitheaterHall({
       {merged.parquet && (
         <mesh geometry={merged.parquet} material={materials.parquet} receiveShadow raycast={NO_RAYCAST} />
       )}
-      {/* Floor Medallion: Official Ajou University Medallion (matching Block C & Block F facades) */}
+      {/* Floor Medallion: Official Ajou University Medallion (raised cleanly to eliminate Z-fighting with parquet floor) */}
       <AjouLogoMedallion
-        position={[0, 0.038, 0]}
+        position={[0, 0.046, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         radius={spec.floor.logoDiameter / 2}
         showText={false}

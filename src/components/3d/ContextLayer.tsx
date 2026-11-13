@@ -41,27 +41,30 @@ const contextColors: Record<ContextFeatureKind, string> = {
   structure: '#94a3b8',
 };
 
+function computeGateZ(geometry: CampusGeometry): number {
+  const { min, max } = geometry.bounds;
+  const kppFeature = geometry.context.find((f) => f.id === 'kpp-e');
+  if (kppFeature) {
+    if (kppFeature.footprint.type === 'rect') {
+      return kppFeature.footprint.center[1];
+    }
+    if (kppFeature.footprint.type === 'polygon' && kppFeature.footprint.points.length > 0) {
+      const sumZ = kppFeature.footprint.points.reduce((acc, p) => acc + p[1], 0);
+      return sumZ / kppFeature.footprint.points.length;
+    }
+  }
+  const bldB = geometry.buildings['bld-g'];
+  const bldF = geometry.buildings['bld-d'];
+  if (bldB && bldF) {
+    return (bldB.center[2] + bldF.center[2]) / 2;
+  }
+  return (min[1] + max[1]) / 2;
+}
+
 function PerimeterFenceAndGate({ geometry }: { geometry: CampusGeometry }) {
   const { min, max } = geometry.bounds;
 
-  const gateZ = useMemo(() => {
-    const kppFeature = geometry.context.find((f) => f.id === 'kpp-e');
-    if (kppFeature) {
-      if (kppFeature.footprint.type === 'rect') {
-        return kppFeature.footprint.center[1];
-      }
-      if (kppFeature.footprint.type === 'polygon' && kppFeature.footprint.points.length > 0) {
-        const sumZ = kppFeature.footprint.points.reduce((acc, p) => acc + p[1], 0);
-        return sumZ / kppFeature.footprint.points.length;
-      }
-    }
-    const bldB = geometry.buildings['bld-g'];
-    const bldF = geometry.buildings['bld-d'];
-    if (bldB && bldF) {
-      return (bldB.center[2] + bldF.center[2]) / 2;
-    }
-    return (min[1] + max[1]) / 2;
-  }, [geometry, min, max]);
+  const gateZ = useMemo(() => computeGateZ(geometry), [geometry]);
 
   const gateWidth = MAIN_ENTRANCE_WIDTH;
   const plinthHeight = 0.2;
@@ -393,6 +396,8 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
     return { groundMat, lawnMat, roadMat, plazaMat, structureMat };
   }, [tuning?.groundColor, lawnColor, roadColor, pavingPbr, grassPbr, asphaltPbr]);
 
+  const gateZ = useMemo(() => computeGateZ(geometry), [geometry]);
+
   const mergedContext = useMemo(() => {
     const b = new StaticGeometryBatcher();
 
@@ -436,6 +441,28 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
       0.016,
     );
 
+    // Entrance Landmark "I ♥ AJOU" Landscaped Lawn Bed (matches CAD Sheet 3 blueprint with green grass bed)
+    addFootprint(
+      'lawn',
+      {
+        type: 'polygon',
+        points: [
+          [76.8, gateZ - 4.8],
+          [80.2, gateZ - 4.8],
+          [80.2, gateZ + 4.8],
+          [76.8, gateZ + 4.8],
+        ],
+      },
+      0.025,
+      0.02,
+    );
+
+    // Stone curb enclosure around "I ♥ AJOU" lawn bed
+    addFootprint('structure', { type: 'rect', center: [76.72, gateZ], size: [0.16, 9.76] }, 0.02, 0.035);
+    addFootprint('structure', { type: 'rect', center: [80.28, gateZ], size: [0.16, 9.76] }, 0.02, 0.035);
+    addFootprint('structure', { type: 'rect', center: [78.5, gateZ - 4.88], size: [3.4, 0.16] }, 0.02, 0.035);
+    addFootprint('structure', { type: 'rect', center: [78.5, gateZ + 4.88], size: [3.4, 0.16] }, 0.02, 0.035);
+
     for (const f of geometry.context) {
       if (f.id === 'kpp-e' || f.id === 'kpp-sw') continue;
       if (f.id === 'court' || f.id === 'court-tennis' || f.id === 'pitch' || f.id === 'track' || f.id === 'lawn-n') continue;
@@ -452,9 +479,9 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
         const [lcx, lcz] = f.footprint.center;
         const lawnMinX = lcx - lw / 2;
         const lawnMaxX = lcx + lw / 2;
-        // Fountain plaza bounds in world coords: center [5.5, -23.1], outerLength + 6.0 = 63.0m (X: [-26.0, 37.0])
-        const fountainWestX = -26.0;
-        const fountainEastX = 37.0;
+        // Fountain plaza bounds in world coords: center [0.0, -23.1], outerLength + 6.0 = 63.0m (X: [-31.5, 31.5])
+        const fountainWestX = -31.5;
+        const fountainEastX = 31.5;
 
         if (lawnMinX < fountainWestX) {
           const westW = fountainWestX - lawnMinX;
@@ -486,7 +513,7 @@ export function ContextLayer({ geometry, tuning }: { geometry: CampusGeometry; t
     }
 
     return b.buildAll();
-  }, [geometry.context]);
+  }, [geometry.context, gateZ]);
 
   useEffect(() => () => disposeMergedMap(mergedContext), [mergedContext]);
   useEffect(() => () => Object.values(contextMaterials).forEach((m) => m.dispose()), [contextMaterials]);

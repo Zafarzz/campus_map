@@ -846,11 +846,10 @@ function GlazedConnectorMesh({
       // Slatted wood ceiling overhead
       addSlattedCeiling(batcher, -w / 2 + 0.2, w / 2 - 0.2, -d / 2 + 0.3, d / 2 - 0.3, height - 0.15);
 
-      // Continuous suspended linear LED luminaires along the corridor
-      addLinearLed(batcher, -0.2, -d / 2 + 1.2, -0.2, d / 2 - 1.2, height - 0.45);
+      // Continuous surface-mounted linear LED luminaires along the corridor
+      addLinearLed(batcher, -0.2, -d / 2 + 1.2, -0.2, d / 2 - 1.2, height - 0.22);
 
-      // Glass and stainless steel balustrade on west edge overlooking amphitheater
-      addGlassStainlessBalustrade(batcher, -w / 2 + 0.2, -d / 2 + 0.5, -w / 2 + 0.2, d / 2 - 0.5, ly);
+      // (Balustrade on west edge overlooking amphitheater is provided by AmphitheaterHall to prevent duplicate glass sorting)
 
       // Cluster 1 (North): Reference Rectangular Marble Table (1400x800)
       addReferenceMarbleTable(batcher, -0.2, ly, -5.2);

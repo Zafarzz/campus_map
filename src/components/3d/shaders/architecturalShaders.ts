@@ -181,11 +181,11 @@ export function applyArchitecturalGlassShader(
           float skyGrad = clamp(reflDir.y * 0.5 + 0.5, 0.0, 1.0);
           vec3 skyRefl = mix(vec3(0.82, 0.80, 0.75), vec3(${fresnelCol.r.toFixed(3)}, ${fresnelCol.g.toFixed(3)}, ${fresnelCol.b.toFixed(3)}), smoothstep(0.35, 0.85, skyGrad));
 
-          // Subtle interior ceiling slab & warm room depth every 3.6m vertically
+          // Subtle interior ceiling slab & warm room depth every 3.6m vertically (clean gradient without high-frequency aliasing)
           float floorPhase = fract(vArchWorldPos.y / 3.6);
           float ceilingBand = smoothstep(0.78, 0.95, floorPhase);
-          float blindStripe = 0.5 + 0.5 * sin(vArchWorldPos.y * 28.0);
-          vec3 interiorDepth = mix(diffuseColor.rgb * 0.75, vec3(0.18, 0.24, 0.32), ceilingBand * (0.4 + 0.3 * blindStripe));
+          float blindStripe = 0.5;
+          vec3 interiorDepth = mix(diffuseColor.rgb * 0.75, vec3(0.18, 0.24, 0.32), ceilingBand * (0.4 + 0.1 * blindStripe));
 
           diffuseColor.rgb = mix(interiorDepth, skyRefl, clamp(fresnel * ${strength.toFixed(3)}, 0.0, 0.88));
         }

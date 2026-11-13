@@ -339,10 +339,10 @@ export function SuwonHallFacade({
     }
     b.addBox('rustication', [14.0 * scaleX + 0.66, 0.04, 0.48], [0, fy + 0.62, fz + 0.01]);
 
-    // 6. Rooftop metal support frame & 3D letters «SUWON HALL»
+    // 6. Rooftop metal support frame & 3D letters «SUWON HALL» (elevated and brought forward to clear parapet line-of-sight)
     const rx = 0.2;
-    const ry = 4.95;
-    const rz = 0.12;
+    const ry = 5.38;
+    const rz = 0.28;
     b.addBox('darkFrame', [6.2, 0.04, 0.04], [rx, ry + 0.16, rz]);
     b.addBox('darkFrame', [6.2, 0.04, 0.04], [rx, ry + 0.62, rz]);
     for (const sx of [-2.7, -1.35, 0, 1.35, 2.7]) {

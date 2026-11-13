@@ -94,7 +94,9 @@ export function AjouLogoMedallion({
       roughness: 0.2,
       metalness: 0.08,
       transparent: true,
+      alphaTest: 0.05,
       side: THREE.DoubleSide,
+      depthWrite: true,
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
@@ -135,34 +137,29 @@ export function AjouLogoMedallion({
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
-      {/* 1. Outer Metallic Bevel Rim */}
-      <mesh position={[0, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]} material={materials.rimMat} raycast={NO_RAYCAST}>
-        <cylinderGeometry args={[radius + 0.06, radius + 0.06, 0.03, 32]} />
+      {/* 1. Outer Metallic Bevel Rim (lowered so its top face never intersects concentric graphic rings) */}
+      <mesh position={[0, 0, 0.005]} rotation={[Math.PI / 2, 0, 0]} material={materials.rimMat} raycast={NO_RAYCAST}>
+        <cylinderGeometry args={[radius + 0.06, radius + 0.06, 0.01, 48]} />
       </mesh>
 
       {/* 2. Deep Navy Outer Ring */}
-      <mesh position={[0, 0, 0.02]} material={materials.navyMat} raycast={NO_RAYCAST}>
-        <ringGeometry args={[radius * 0.82, radius, 32]} />
+      <mesh position={[0, 0, 0.014]} material={materials.navyMat} raycast={NO_RAYCAST}>
+        <ringGeometry args={[radius * 0.76, radius, 48]} />
       </mesh>
 
-      {/* 3. Concentric White Separation Ring */}
-      <mesh position={[0, 0, 0.025]} material={materials.whiteMat} raycast={NO_RAYCAST}>
-        <ringGeometry args={[radius * 0.76, radius * 0.82, 32]} />
+      {/* 3. Central White Background Disc (non-overlapping, exactly meets navy ring at radius * 0.76) */}
+      <mesh position={[0, 0, 0.014]} material={materials.whiteMat} raycast={NO_RAYCAST}>
+        <circleGeometry args={[radius * 0.76, 48]} />
       </mesh>
 
-      {/* 3b. Central White Background Disc */}
-      <mesh position={[0, 0, 0.028]} material={materials.whiteMat} raycast={NO_RAYCAST}>
-        <circleGeometry args={[radius * 0.76, 32]} />
-      </mesh>
-
-      {/* 4. Central Circular Logo Face */}
-      <mesh position={[0, 0, 0.03]} material={materials.logoMat} raycast={NO_RAYCAST}>
-        <circleGeometry args={[radius * 0.76, 32]} />
+      {/* 4. Central Circular Logo Face (elevated cleanly above white disc with alphaTest to eliminate Z-fighting) */}
+      <mesh position={[0, 0, 0.018]} material={materials.logoMat} raycast={NO_RAYCAST}>
+        <circleGeometry args={[radius * 0.76, 48]} />
       </mesh>
 
       {/* 5. "AJOU UNIVERSITY" Typography Plaque Underneath */}
       {showText && textTexture && (
-        <mesh position={[0, -radius * 1.35, 0.02]} material={materials.textMat} raycast={NO_RAYCAST}>
+        <mesh position={[0, -radius * 1.35, 0.014]} material={materials.textMat} raycast={NO_RAYCAST}>
           <planeGeometry args={[radius * 2.2, radius * 0.82]} />
         </mesh>
       )}

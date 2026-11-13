@@ -124,9 +124,6 @@ export function BlockAFacade({
         transparent: true,
         opacity: transparent ? opacity * 0.45 : 0.92,
         depthWrite: !transparent,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
       }),
     );
 
@@ -165,6 +162,10 @@ export function BlockAFacade({
       depthWrite: !transparent,
     });
 
+    const cavityMat = new THREE.MeshBasicMaterial({
+      color: '#090d16',
+    });
+
     return {
       wallMat,
       plinthMat,
@@ -175,6 +176,7 @@ export function BlockAFacade({
       steelMat,
       downpipeMat,
       grooveMat,
+      cavityMat,
     };
   }, [wallColor, trimColor, plinthColor, frameColor, wallTextures, plinthTextures, glassTexture]);
 
@@ -277,6 +279,7 @@ export function BlockAFacade({
       const winY = 6.65;
       const paneW = (winW - 0.08) / 3;
 
+      batcher.addBox('cavity', [winW, winH, 0.05], [cx, winY, 0.02]);
       batcher.addBox('wall', [bay1W - 0.5, 2.8, 0.08], [cx, plinthH + 1.4, 0.02]);
       batcher.addBox('trim', [winW + 0.14, 0.07, 0.16], [cx, winY - winH / 2 - 0.04, 0.06]);
       // Outer window frame border (top, bottom, left, right rails/stiles)
@@ -316,6 +319,7 @@ export function BlockAFacade({
         const bottomCenterY = baseSillY + bottomH / 2;
         const transomCenterY = baseSillY + bottomH + transomH / 2;
 
+        batcher.addBox('cavity', [winW, winH, 0.05], [cx, winCenterY, 0.02]);
         batcher.addBox('trim', [winW + 0.16, 0.08, 0.16], [cx, baseSillY - 0.04, 0.06]);
         // Outer window frame border (top, bottom, left, right rails/stiles)
         batcher.addBox('frame', [winW, 0.06, 0.06], [cx, winCenterY + winH / 2 - 0.03, 0.04]);
@@ -330,24 +334,32 @@ export function BlockAFacade({
         }
 
         secCenters.forEach((scx, sIdx) => {
-          batcher.addBox('glass', [secWidths[sIdx] - 0.06, transomH - 0.08, 0.02], [cx + scx, transomCenterY, 0.04]);
+          batcher.addBox('glass', [secWidths[sIdx] - 0.06, transomH - 0.08, 0.015], [cx + scx, transomCenterY, 0.04]);
 
           const isSash = sIdx === 0 || sIdx === 3;
           const sw = secWidths[sIdx] - 0.08;
 
           if (isSash) {
-            batcher.addBox('frame', [sw - 0.04, bottomH * 0.65, 0.03], [cx + scx, bottomCenterY - 0.25, 0.055]);
-            batcher.addBox('glass', [sw - 0.12, bottomH * 0.65 - 0.08, 0.02], [cx + scx, bottomCenterY - 0.25, 0.06]);
+            const sashH = bottomH * 0.65;
+            const sashY = bottomCenterY - 0.25;
+            const railW = 0.04;
+            // Hollow sash frame (top & bottom rails, left & right stiles)
+            batcher.addBox('frame', [sw - 0.04, railW, 0.025], [cx + scx, sashY + sashH / 2 - railW / 2, 0.055]);
+            batcher.addBox('frame', [sw - 0.04, railW, 0.025], [cx + scx, sashY - sashH / 2 + railW / 2, 0.055]);
+            batcher.addBox('frame', [railW, sashH - railW * 2, 0.025], [cx + scx - (sw - 0.04) / 2 + railW / 2, sashY, 0.055]);
+            batcher.addBox('frame', [railW, sashH - railW * 2, 0.025], [cx + scx + (sw - 0.04) / 2 - railW / 2, sashY, 0.055]);
+            // Glass pane fitted cleanly inside sash frame opening
+            batcher.addBox('glass', [sw - 0.04 - railW * 2, sashH - railW * 2, 0.015], [cx + scx, sashY, 0.045]);
             // Upper stationary pane above sash
-            const upperSashH = bottomH - bottomH * 0.65;
-            batcher.addBox('glass', [sw, upperSashH - 0.04, 0.02], [cx + scx, bottomCenterY + bottomH * 0.325, 0.04]);
+            const upperSashH = bottomH - sashH;
+            batcher.addBox('glass', [sw, upperSashH - 0.04, 0.015], [cx + scx, bottomCenterY + bottomH * 0.325, 0.04]);
             batcher.addBox(
               'steel',
               [0.02, 0.08, 0.03],
-              [cx + scx + (sIdx === 0 ? sw * 0.35 : -sw * 0.35), bottomCenterY - 0.25, 0.085],
+              [cx + scx + (sIdx === 0 ? sw * 0.35 : -sw * 0.35), sashY, 0.08],
             );
           } else {
-            batcher.addBox('glass', [sw, bottomH - 0.08, 0.02], [cx + scx, bottomCenterY, 0.04]);
+            batcher.addBox('glass', [sw, bottomH - 0.08, 0.015], [cx + scx, bottomCenterY, 0.04]);
           }
         });
       }
@@ -401,6 +413,7 @@ export function BlockAFacade({
       }
 
       // Right wall & 2F window
+      batcher.addBox('cavity', [f2WinW, f2WinH, 0.05], [dx, f2WinY, 0.02]);
       batcher.addBox('wall', [bay6W * 0.38, 2.8, 0.08], [cx + porchW * 0.38, plinthH + 1.4, 0.02]);
       batcher.addBox('trim', [f2WinW + 0.14, 0.08, 0.14], [dx, f2WinY - f2WinH / 2 - 0.04, 0.08]);
       // Outer window frame border (top, bottom, left, right rails/stiles)
@@ -430,6 +443,9 @@ export function BlockAFacade({
       )}
       {merged.groove && (
         <mesh geometry={merged.groove} material={materials.grooveMat} raycast={NO_RAYCAST} />
+      )}
+      {merged.cavity && (
+        <mesh geometry={merged.cavity} material={materials.cavityMat} raycast={NO_RAYCAST} />
       )}
       {merged.wall && (
         <mesh geometry={merged.wall} material={materials.wallMat} raycast={NO_RAYCAST} castShadow receiveShadow />

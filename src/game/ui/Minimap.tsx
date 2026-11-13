@@ -65,7 +65,7 @@ export function Minimap({
 
     const kppFeature = geometry.context.find((f) => f.id === 'kpp-e');
     const gateZ = kppFeature && kppFeature.footprint.type === 'rect' ? kppFeature.footprint.center[1] : -23.1;
-    const fountainX = 5.5;
+    const fountainX = 0.0;
     const fountainZ = -23.1;
     const fScale = 0.45;
     const fLen = FOUNTAIN_DIMENSIONS.outerLength * fScale * scale;
